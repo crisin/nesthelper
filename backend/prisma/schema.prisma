@@ -1,0 +1,59 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String
+  name          String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  spotifyTokens SpotifyToken[]
+  savedLyrics   SavedLyric[]
+  searchHistory SearchHistory[]
+}
+
+model SpotifyToken {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  spotifyId    String
+  accessToken  String
+  refreshToken String
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model SavedLyric {
+  id              String   @id @default(cuid())
+  userId          String
+  searchHistoryId String?
+  lyrics          String
+  track           String
+  artist          String
+  createdAt       DateTime @default(now())
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  searchHistory SearchHistory? @relation(fields: [searchHistoryId], references: [id])
+}
+
+model SearchHistory {
+  id        String   @id @default(cuid())
+  userId    String
+  spotifyId String
+  track     String
+  artist    String
+  url       String
+  imgUrl    String?
+  createdAt DateTime @default(now())
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  savedLyrics SavedLyric[]
+}

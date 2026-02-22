@@ -1,0 +1,63 @@
+/* ── Design tokens ─────────────────────────────────────────────── */
+
+:root {
+  /* Light */
+  --app-bg:    249 249 247;
+  --app-card:  255 255 255;
+  --app-input: 242 242 240;
+  --app-edge:  222 222 218;
+  --app-ink:   14  14  14;
+  --app-muted: 102 102 102;
+  --app-faint: 168 168 168;
+}
+
+.dark {
+  /* Dark */
+  --app-bg:    8   8   8;
+  --app-card:  18  18  18;
+  --app-input: 28  28  28;
+  --app-edge:  42  42  42;
+  --app-ink:   242 242 242;
+  --app-muted: 142 142 142;
+  --app-faint: 62  62  62;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Base ──────────────────────────────────────────────────────── */
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background-color: rgb(var(--app-bg));
+    color: rgb(var(--app-ink));
+    font-family: Inter, system-ui, sans-serif;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  /* Thin, subtle scrollbar */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--app-edge)) transparent;
+  }
+  ::-webkit-scrollbar        { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track  { background: transparent; }
+  ::-webkit-scrollbar-thumb  { background: rgb(var(--app-edge)); border-radius: 99px; }
+
+  /* Green selection */
+  ::selection { background: rgb(29 185 84 / 0.2); color: inherit; }
+
+  /* Accessible focus ring */
+  :focus-visible {
+    outline: 2px solid #1DB954;
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}

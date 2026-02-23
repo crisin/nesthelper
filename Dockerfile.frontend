@@ -1,0 +1,37 @@
+# ─── Build stage ──────────────────────────────────────────────────────────────
+# Build context: repo root (Railway default for monorepos without Root Directory set)
+FROM node:24-alpine AS builder
+
+WORKDIR /app
+
+COPY frontend/package*.json ./
+RUN npm ci
+
+COPY frontend/src ./src
+COPY frontend/public ./public
+COPY frontend/index.html ./
+COPY frontend/vite.config.ts ./
+COPY frontend/tailwind.config.js ./
+COPY frontend/postcss.config.cjs ./
+COPY frontend/tsconfig.json ./
+COPY frontend/tsconfig.app.json ./
+COPY frontend/tsconfig.node.json ./
+
+# VITE_API_URL is baked into the JS bundle at build time.
+# Set VITE_API_URL as an environment variable on this Railway service
+# so it gets passed as a build arg automatically.
+ARG VITE_API_URL=http://localhost:3001
+ENV VITE_API_URL=$VITE_API_URL
+
+RUN npm run build
+
+# ─── Production stage ─────────────────────────────────────────────────────────
+FROM nginx:alpine
+
+COPY --from=builder /app/dist /usr/share/nginx/html
+COPY frontend/nginx.conf /etc/nginx/nginx.conf
+
+EXPOSE 80
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost/health || exit 1

@@ -1,0 +1,40 @@
+# ─── Build stage ──────────────────────────────────────────────────────────────
+# Build context: repo root (Railway default for monorepos without Root Directory set)
+FROM node:24-alpine AS builder
+
+WORKDIR /app
+
+COPY backend/package*.json ./
+RUN npm ci
+
+COPY backend/src ./src
+COPY backend/prisma ./prisma
+COPY backend/prisma.config.ts ./
+COPY backend/tsconfig.json ./
+COPY backend/tsconfig.build.json ./
+COPY backend/nest-cli.json ./
+
+# Runs: npx prisma generate && nest build
+RUN npm run build
+
+# ─── Production stage ─────────────────────────────────────────────────────────
+FROM node:24-alpine AS production
+
+WORKDIR /app
+
+COPY backend/package*.json ./
+
+# Production deps + Prisma CLI (needed for migrate deploy at startup)
+RUN npm ci --only=production && npm install prisma
+
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/prisma ./prisma
+
+RUN addgroup -g 1001 -S nodejs && adduser -S nestjs -u 1001
+USER nestjs
+
+EXPOSE 3001
+
+# Run pending migrations, then start
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main.js"]

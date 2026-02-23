@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Home, Compass, Library, Sun, Moon, LogOut, Music } from 'lucide-react'
+import { Home, Compass, Library, Settings, Sun, Moon, LogOut, Music } from 'lucide-react'
 import { useAuthStore } from '../stores/authStore'
 import { useTheme } from '../hooks/useTheme'
 import SpotifyConnect from './SpotifyConnect'
@@ -10,6 +10,7 @@ const NAV = [
   { path: '/dashboard', label: 'Home',     Icon: Home },
   { path: '/discover',  label: 'Discover', Icon: Compass },
   { path: '/songs',     label: 'Songs',    Icon: Library },
+  { path: '/settings',  label: 'Settings', Icon: Settings },
 ]
 
 export default function AppLayout({ children }: { children: ReactNode }) {

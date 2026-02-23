@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard'
 import Discover from './pages/Discover'
 import Songs from './pages/Songs'
 import SongDetail from './pages/SongDetail'
+import Settings from './pages/Settings'
 import PrivateRoute from './components/PrivateRoute'
 import AppLayout from './components/AppLayout'
 
@@ -35,6 +36,10 @@ const router = createBrowserRouter([
   {
     path: '/songs/:id',
     element: <AppPage><SongDetail /></AppPage>,
+  },
+  {
+    path: '/settings',
+    element: <AppPage><Settings /></AppPage>,
   },
   { path: '*', element: <Navigate to="/dashboard" replace /> },
 ])

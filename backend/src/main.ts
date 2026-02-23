@@ -19,12 +19,17 @@ async function bootstrap() {
       // allow requests with no origin (e.g. curl, mobile apps)
       if (!origin) return callback(null, true);
       if (isProd) {
+        // FRONTEND_URL must be set on the backend Railway service, e.g.:
+        // https://frontend-production-xxxx.up.railway.app
         const allowed = process.env.FRONTEND_URL;
-        if (origin === allowed) return callback(null, true);
-        return callback(new Error('Not allowed by CORS'));
+        if (allowed && origin === allowed) return callback(null, true);
+        // Use callback(null, false) — never throw; throwing causes Express to
+        // return 500 with no CORS headers, which the browser reports as a
+        // missing Access-Control-Allow-Origin header.
+        return callback(null, false);
       }
       if (devOrigins.includes(origin)) return callback(null, true);
-      return callback(new Error('Not allowed by CORS'));
+      return callback(null, false);
     },
     credentials: true,
   });

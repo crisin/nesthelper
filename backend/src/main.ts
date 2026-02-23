@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
@@ -26,8 +29,11 @@ async function bootstrap() {
     credentials: true,
   });
 
-  const port = process.env.PORT ?? 3333;
+  const port = process.env.PORT ?? 3001;
   await app.listen(port);
   console.log(`Backend running on http://localhost:${port}`);
 }
-bootstrap();
+bootstrap().catch(() => {
+  console.log('Backend error during startup');
+  process.exit(1);
+});

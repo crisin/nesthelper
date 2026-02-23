@@ -1,0 +1,89 @@
+services:
+  # PostgreSQL Database
+  database:
+    image: postgres:15-alpine
+    container_name: spotify-helper-db
+    restart: unless-stopped
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-spotify_helper}
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-spotify_helper}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+ # Migration service with proper tools
+  db-migrate:
+    image: node:24-alpine
+    depends_on:
+      - database
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@database:5432/${DB_NAME:-spotify_helper}?schema=public
+    volumes:
+      - ./backend:/app
+    working_dir: /app
+    command: |
+      sh -c "
+        apk add --no-cache postgresql-client &&
+        until pg_isready -h database -p 5432 -U postgres; do
+          echo 'Waiting for database...'
+          sleep 2
+        done &&
+        npm install prisma -g &&
+        npx prisma migrate dev --name init &&
+        echo 'Migration completed!'
+      "
+    restart: "no"
+
+  # Backend API Service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: spotify-helper-backend
+    restart: unless-stopped
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@database:5432/${DB_NAME:-spotify_helper}?schema=public
+      SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID}
+      SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET}
+      SPOTIFY_REDIRECT_URI: ${SPOTIFY_REDIRECT_URI}
+      JWT_SECRET: ${JWT_SECRET}
+      PORT: 3001
+      NODE_ENV: ${NODE_ENV:-production}
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./backend:/app
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend Service
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: spotify-helper-frontend
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:3001}
+      VITE_SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID}
+    ports:
+      - "8080:80"
+    # Remove the volume mount for frontend to avoid conflicts with built files
+    # volumes:
+    #   - ./frontend:/app/frontend
+
+volumes:
+  postgres_data:

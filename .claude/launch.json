@@ -11,7 +11,7 @@
       "name": "backend",
       "runtimeExecutable": "cmd.exe",
       "runtimeArgs": ["/c", "cd backend && npx nest start --watch"],
-      "port": 3333
+      "port": 3001
     }
   ]
 }

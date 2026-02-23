@@ -37,20 +37,20 @@ export default function SpotifyConnect() {
   }
 
   if (isLoading) {
-    return <div className="h-6 w-28 rounded bg-app-input animate-pulse" />
+    return <div className="h-5 w-28 rounded bg-surface-overlay animate-pulse" />
   }
 
   if (status?.connected) {
     return (
       <div className="flex items-center gap-2">
-        <span className="flex items-center gap-1 text-xs font-medium text-spotify-green">
-          <span className="w-2 h-2 rounded-full bg-spotify-green" />
+        <span className="flex items-center gap-1.5 text-xs font-medium text-accent">
+          <span className="w-1.5 h-1.5 rounded-full bg-accent" />
           Spotify
         </span>
         <button
           onClick={() => disconnect.mutate()}
           disabled={disconnect.isPending}
-          className="text-xs text-app-muted hover:text-app-ink disabled:opacity-40 transition-colors"
+          className="text-xs text-foreground-subtle hover:text-foreground-muted disabled:opacity-40 transition-colors"
         >
           Disconnect
         </button>
@@ -61,7 +61,8 @@ export default function SpotifyConnect() {
   return (
     <button
       onClick={handleConnect}
-      className="px-3 py-1.5 rounded-lg bg-spotify-green text-black text-xs font-semibold hover:bg-spotify-green/90 transition-colors w-full"
+      className="px-3 py-1.5 rounded-lg bg-accent text-black text-xs font-semibold
+                 hover:opacity-90 transition-opacity w-full"
     >
       Connect Spotify
     </button>

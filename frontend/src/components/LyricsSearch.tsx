@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Search, X } from 'lucide-react'
 import api from '../services/api'
 import type { SavedLyric, SearchHistoryItem } from '../types'
 
@@ -90,59 +91,68 @@ export default function LyricsSearch() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Search button + error */}
-      <div className="flex items-center gap-4">
+      <div className="space-y-2.5">
         <button
           onClick={handleSearch}
-          className="px-4 py-2 rounded-lg bg-spotify-green text-black font-semibold text-sm hover:bg-spotify-green/90 transition-colors active:scale-[0.98]"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-accent text-black font-semibold text-sm
+                     hover:opacity-90 transition-opacity active:scale-[0.98]"
         >
+          <Search size={14} strokeWidth={2.25} />
           Search Lyrics
         </button>
+
         {error && (
-          <button
-            onClick={() => setError(null)}
-            className="text-sm text-red-500 text-left"
-          >
-            {error} ✕
-          </button>
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/8 border border-red-500/20
+                          text-sm text-red-600 dark:text-red-400 animate-fade-in">
+            <span className="flex-1">{error}</span>
+            <button
+              onClick={() => setError(null)}
+              className="flex-shrink-0 text-red-400 hover:text-red-600 transition-colors"
+              aria-label="Dismiss error"
+            >
+              <X size={14} />
+            </button>
+          </div>
         )}
       </div>
 
       {/* History list */}
       {history.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs font-semibold text-app-faint uppercase tracking-widest">
+          <p className="text-[11px] font-semibold text-foreground-subtle uppercase tracking-widest">
             Search History
           </p>
-          <ul className="space-y-1">
+          <ul className="space-y-1.5">
             {history.map((item) => {
               const isSaved = savedByHistoryId.has(item.id)
               return (
                 <li
                   key={item.id}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-app-card border border-app-edge hover:border-app-muted/40 transition-colors group"
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-surface-raised border border-edge
+                             hover:border-foreground-muted/40 transition-colors group shadow-card"
                 >
                   {item.imgUrl ? (
                     <img
                       src={item.imgUrl}
                       alt={item.track}
-                      className="w-10 h-10 rounded-lg object-cover flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                      className="w-9 h-9 rounded-lg object-cover flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
                       onClick={() => window.open(item.url, '_blank', 'noopener,noreferrer')}
                     />
                   ) : (
-                    <div className="w-10 h-10 rounded-lg bg-app-input flex-shrink-0" />
+                    <div className="w-9 h-9 rounded-lg bg-surface-overlay flex-shrink-0" />
                   )}
 
                   <button
                     className="flex-1 text-left min-w-0"
                     onClick={() => window.open(item.url, '_blank', 'noopener,noreferrer')}
                   >
-                    <p className="font-medium text-app-ink text-sm truncate">{item.track}</p>
-                    <p className="text-xs text-app-muted truncate">{item.artist}</p>
+                    <p className="font-medium text-foreground text-sm truncate">{item.track}</p>
+                    <p className="text-xs text-foreground-muted truncate">{item.artist}</p>
                   </button>
 
-                  <span className="text-xs text-app-faint flex-shrink-0 tabular-nums">
+                  <span className="text-[11px] text-foreground-subtle flex-shrink-0 tabular-nums">
                     {timeAgo(item.createdAt)}
                   </span>
 
@@ -154,8 +164,8 @@ export default function LyricsSearch() {
                     className={[
                       'flex-shrink-0 text-lg leading-none disabled:opacity-30 transition-all',
                       isSaved
-                        ? 'text-spotify-green'
-                        : 'text-app-faint hover:text-spotify-green opacity-0 group-hover:opacity-100'
+                        ? 'text-accent'
+                        : 'text-foreground-subtle hover:text-accent opacity-0 group-hover:opacity-100'
                     ].join(' ')}
                   >
                     {isSaved ? '♥' : '♡'}
@@ -166,9 +176,10 @@ export default function LyricsSearch() {
                     onClick={() => removeHistory.mutate(item.id)}
                     disabled={removeHistory.isPending}
                     aria-label="Remove from history"
-                    className="flex-shrink-0 text-lg leading-none text-app-faint disabled:opacity-30"
+                    className="flex-shrink-0 text-foreground-subtle disabled:opacity-30 hover:text-foreground
+                               transition-colors opacity-0 group-hover:opacity-100"
                   >
-                    ×
+                    <X size={14} />
                   </button>
                 </li>
               )

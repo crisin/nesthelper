@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { ChevronDown, Music, X } from 'lucide-react'
 import api from '../services/api'
 import type { SavedLyric } from '../types'
 
@@ -25,38 +26,38 @@ function LyricsCard({ item, onRemove, isRemoving }: LyricsCardProps) {
     },
   })
 
-  const isDirty  = draft !== item.lyrics
-  const imgUrl   = item.searchHistory?.imgUrl
+  const isDirty   = draft !== item.lyrics
+  const imgUrl    = item.searchHistory?.imgUrl
   const searchUrl = item.searchHistory?.url
 
   return (
-    <li className="rounded-xl bg-app-card border p-2 overflow-hidden">
+    <li className="rounded-xl bg-surface-raised border border-edge overflow-hidden shadow-card">
       {/* Header */}
-      <div className="flex items-center gap-3 px-3 py-2">
+      <div className="flex items-center gap-3 px-3 py-2.5">
         {imgUrl ? (
           <img
             src={imgUrl}
             alt={item.track}
-            className="w-10 h-10 rounded-lg object-cover flex-shrink-0 cursor-pointer"
+            className="w-9 h-9 rounded-lg object-cover flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
             onClick={() => searchUrl && window.open(searchUrl, '_blank', 'noopener,noreferrer')}
           />
         ) : (
-          <div className="w-10 h-10 rounded-lg bg-app-input flex-shrink-0 flex items-center justify-center text-app-faint text-base">
-            ♪
+          <div className="w-9 h-9 rounded-lg bg-surface-overlay flex-shrink-0 flex items-center justify-center">
+            <Music size={14} className="text-foreground-subtle" strokeWidth={1.75} />
           </div>
         )}
 
         <button className="flex-1 text-left min-w-0" onClick={() => setExpanded((v) => !v)}>
-          <p className="font-medium text-app-ink text-sm truncate">{item.track}</p>
-          <p className="text-xs text-app-muted truncate">{item.artist}</p>
+          <p className="font-medium text-foreground text-sm truncate">{item.track}</p>
+          <p className="text-xs text-foreground-muted truncate">{item.artist}</p>
         </button>
 
         <div className="flex items-center gap-2 flex-shrink-0">
           {/* Lyrics badge */}
-          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+          <span className={`text-[11px] font-medium px-1.5 py-0.5 rounded-md ${
             item.lyrics
-              ? 'bg-spotify-green/15 text-spotify-green'
-              : 'bg-app-input text-app-faint'
+              ? 'bg-accent/10 text-accent'
+              : 'bg-surface-overlay text-foreground-subtle'
           }`}>
             {item.lyrics ? 'lyrics' : 'empty'}
           </span>
@@ -64,14 +65,14 @@ function LyricsCard({ item, onRemove, isRemoving }: LyricsCardProps) {
           {/* Expand */}
           <button
             onClick={() => setExpanded((v) => !v)}
-            className="text-app-faint hover:text-app-ink transition-colors"
+            className="text-foreground-subtle hover:text-foreground transition-colors p-0.5"
             aria-label={expanded ? 'Collapse' : 'Expand'}
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"
-              strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"
-              style={{ transform: expanded ? 'rotate(180deg)' : undefined, transition: 'transform 0.15s' }}>
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
+            <ChevronDown
+              size={15}
+              strokeWidth={1.75}
+              style={{ transform: expanded ? 'rotate(180deg)' : undefined, transition: 'transform 0.15s' }}
+            />
           </button>
 
           {/* Remove */}
@@ -79,18 +80,19 @@ function LyricsCard({ item, onRemove, isRemoving }: LyricsCardProps) {
             onClick={() => onRemove(item.id)}
             disabled={isRemoving}
             aria-label="Remove from favorites"
-            className="text-app-faint text-lg leading-none disabled:opacity-30 hover:text-app-ink transition-colors"
+            className="text-foreground-subtle disabled:opacity-30 hover:text-foreground transition-colors p-0.5"
           >
-            ×
+            <X size={14} strokeWidth={1.75} />
           </button>
         </div>
       </div>
 
       {/* Lyrics editor */}
       {expanded && (
-        <div className="px-3 pb-3 space-y-2.5 border-t">
+        <div className="px-3 pb-3 space-y-2.5 border-t border-edge animate-slide-down">
           <textarea
-            className="w-full min-h-48 mt-2.5 bg-app-input border border-app-edge rounded-lg p-3 resize-y focus:outline-none focus:border-app-muted/60 transition-colors text-sm"
+            className="w-full min-h-48 mt-2.5 bg-surface-overlay border border-edge rounded-lg p-3 resize-y
+                       focus:outline-none focus:border-foreground-muted/60 transition-colors text-sm"
             placeholder="Paste or write lyrics here…"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
@@ -99,15 +101,16 @@ function LyricsCard({ item, onRemove, isRemoving }: LyricsCardProps) {
             <button
               onClick={() => updateLyrics.mutate(draft)}
               disabled={!isDirty || updateLyrics.isPending}
-              className="px-4 py-2 rounded-lg bg-spotify-green text-black text-xs font-semibold disabled:opacity-40 hover:bg-spotify-green/90 transition-colors"
+              className="px-3.5 py-1.5 rounded-lg bg-accent text-black text-xs font-semibold
+                         disabled:opacity-40 hover:opacity-90 transition-opacity"
             >
               {updateLyrics.isPending ? 'Saving…' : 'Save lyrics'}
             </button>
-            {confirmed && <span className="text-xs text-spotify-green">Saved!</span>}
+            {confirmed && <span className="text-xs text-accent">Saved!</span>}
             {isDirty && !updateLyrics.isPending && (
               <button
                 onClick={() => setDraft(item.lyrics)}
-                className="text-xs text-app-muted hover:text-app-ink transition-colors"
+                className="text-xs text-foreground-muted hover:text-foreground transition-colors"
               >
                 Discard
               </button>
@@ -135,9 +138,9 @@ export default function SavedLyrics() {
   if (isLoading) {
     return (
       <div className="space-y-2">
-        <div className="h-3 w-28 rounded-full bg-app-input animate-pulse" />
+        <div className="h-3 w-28 rounded-full bg-surface-overlay animate-pulse" />
         {[1, 2].map((i) => (
-          <div key={i} className="h-16 rounded-xl bg-app-card border border-app-edge animate-pulse" />
+          <div key={i} className="h-14 rounded-xl bg-surface-raised border border-edge animate-pulse" />
         ))}
       </div>
     )
@@ -145,15 +148,15 @@ export default function SavedLyrics() {
 
   return (
     <div className="space-y-2">
-      <p className="text-xs font-semibold text-app-faint uppercase tracking-widest">
+      <p className="text-[11px] font-semibold text-foreground-subtle uppercase tracking-widest">
         Saved Songs
       </p>
       {savedLyrics.length === 0 ? (
-        <p className="text-sm text-app-faint py-2">
+        <p className="text-sm text-foreground-subtle py-2">
           No saved songs yet — hit ♡ on a history item.
         </p>
       ) : (
-        <ul className="space-y-1">
+        <ul className="space-y-1.5">
           {savedLyrics.map((item) => (
             <LyricsCard
               key={item.id}

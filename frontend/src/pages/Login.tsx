@@ -36,20 +36,25 @@ export default function Login() {
     }
   }
 
+  const inputClass = `w-full px-3.5 py-2.5 rounded-lg bg-surface-overlay border border-edge text-foreground text-sm
+    placeholder:text-foreground-subtle
+    focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent
+    transition-colors`
+
   return (
-    <div className="min-h-screen bg-app-bg flex items-center justify-center px-4">
-      <div className="max-w-md">
+    <div className="min-h-screen bg-surface flex items-center justify-center px-4">
+      <div className="w-full max-w-sm">
 
         {/* Logo */}
         <div className="text-center mb-8">
-          <span className="text-spotify-green font-bold text-xl tracking-tight">Lyrics Helper</span>
-          <p className="text-app-muted text-sm mt-1">Sign in to your account</p>
+          <span className="text-accent font-bold text-xl tracking-tight">Lyrics Helper</span>
+          <p className="text-foreground-muted text-sm mt-1.5">Sign in to your account</p>
         </div>
 
-        <div className="bg-app-card border border-app-edge rounded-2xl p-8 shadow-sm">
+        <div className="bg-surface-raised border border-edge rounded-2xl p-8 shadow-card">
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="email" className="text-sm font-medium text-app-ink">
+              <label htmlFor="email" className="text-sm font-medium text-foreground">
                 Email
               </label>
               <input
@@ -59,16 +64,13 @@ export default function Login() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 autoComplete="email"
-                className="px-3.5 py-2.5 rounded-lg bg-app-input border border-app-edge text-app-ink text-sm
-                           placeholder:text-app-faint
-                           focus:outline-none focus:ring-2 focus:ring-spotify-green/40 focus:border-spotify-green
-                           transition-colors"
+                className={inputClass}
                 placeholder="you@example.com"
               />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="password" className="text-sm font-medium text-app-ink">
+              <label htmlFor="password" className="text-sm font-medium text-foreground">
                 Password
               </label>
               <input
@@ -78,32 +80,31 @@ export default function Login() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 autoComplete="current-password"
-                className="px-3.5 py-2.5 rounded-lg bg-app-input border border-app-edge text-app-ink text-sm
-                           placeholder:text-app-faint
-                           focus:outline-none focus:ring-2 focus:ring-spotify-green/40 focus:border-spotify-green
-                           transition-colors"
+                className={inputClass}
                 placeholder="••••••••"
               />
             </div>
 
             {error && (
-              <p className="text-sm text-red-500 dark:text-red-400 text-center">{error}</p>
+              <p className="text-sm text-red-500 dark:text-red-400 bg-red-500/8 rounded-lg px-3 py-2 text-center">
+                {error}
+              </p>
             )}
 
             <button
               type="submit"
               disabled={loading}
-              className="mt-1 py-2.5 rounded-lg bg-spotify-green text-black font-semibold text-sm
-                         hover:opacity-90 active:scale-95 disabled:opacity-50 transition-all"
+              className="mt-1 py-2.5 rounded-lg bg-accent text-black font-semibold text-sm
+                         hover:opacity-90 active:scale-[0.98] disabled:opacity-50 transition-all"
             >
               {loading ? 'Signing in…' : 'Sign in'}
             </button>
           </form>
         </div>
 
-        <p className="mt-5 text-center text-sm text-app-muted">
+        <p className="mt-5 text-center text-sm text-foreground-muted">
           No account?{' '}
-          <Link to="/register" className="text-app-ink font-medium hover:text-spotify-green transition-colors">
+          <Link to="/register" className="text-foreground font-medium hover:text-accent transition-colors">
             Create one
           </Link>
         </p>

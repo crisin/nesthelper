@@ -1,47 +1,14 @@
 import type { ReactNode } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Home, Compass, Sun, Moon, LogOut, Music } from 'lucide-react'
 import { useAuthStore } from '../stores/authStore'
 import { useTheme } from '../hooks/useTheme'
 import SpotifyConnect from './SpotifyConnect'
 import UsernameEdit from './UsernameEdit'
 
-function HomeIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5" aria-hidden>
-      <path d="M3 12L12 3l9 9v9H15v-6H9v6H3z" />
-    </svg>
-  )
-}
-
-function DiscoverIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5" aria-hidden>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M16.24 7.76l-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12z" />
-    </svg>
-  )
-}
-
-function SunIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4" aria-hidden>
-      <circle cx="12" cy="12" r="4" />
-      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
-    </svg>
-  )
-}
-
-function MoonIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4" aria-hidden>
-      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-    </svg>
-  )
-}
-
 const NAV = [
-  { path: '/dashboard', label: 'Home',     Icon: HomeIcon },
-  { path: '/discover',  label: 'Discover', Icon: DiscoverIcon },
+  { path: '/dashboard', label: 'Home',     Icon: Home },
+  { path: '/discover',  label: 'Discover', Icon: Compass },
 ]
 
 export default function AppLayout({ children }: { children: ReactNode }) {
@@ -56,20 +23,23 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-app-bg text-app-ink flex">
+    <div className="min-h-screen bg-surface text-foreground flex">
 
       {/* ── Sidebar (desktop only) ──────────────────────────────── */}
-      <aside className="hidden sm:flex fixed inset-y-0 left-0 z-40 w-52 flex-col bg-app-card border-r border-app-edge">
+      <aside className="hidden sm:flex fixed inset-y-0 left-0 z-40 w-56 flex-col bg-surface-raised border-r border-edge">
 
         {/* Logo */}
-        <div className="px-5 h-14 flex items-center flex-shrink-0">
-          <Link to="/dashboard" className="text-spotify-green font-semibold text-sm tracking-tight select-none">
-            Lyrics Helper
+        <div className="px-4 h-14 flex items-center flex-shrink-0 border-b border-edge">
+          <Link to="/dashboard" className="flex items-center gap-2.5 select-none">
+            <span className="w-7 h-7 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
+              <Music size={14} className="text-accent" strokeWidth={2} />
+            </span>
+            <span className="text-foreground font-semibold text-sm tracking-tight">Lyrics Helper</span>
           </Link>
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-2 py-2 space-y-0.5 overflow-y-auto">
+        <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
           {NAV.map(({ path, label, Icon }) => {
             const active = location.pathname === path
             return (
@@ -78,56 +48,60 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 to={path}
                 className={[
                   'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                  'border-l-2 pl-[10px]',
                   active
-                    ? 'bg-app-input text-app-ink border-spotify-green'
-                    : 'text-app-muted hover:bg-app-input hover:text-app-ink border-transparent',
+                    ? 'bg-surface-overlay text-foreground'
+                    : 'text-foreground-muted hover:bg-surface-overlay/70 hover:text-foreground',
                 ].join(' ')}
               >
-                <Icon />{label}
+                <Icon size={15} strokeWidth={active ? 2.25 : 1.75} />
+                {label}
               </Link>
             )
           })}
         </nav>
 
         {/* User controls */}
-        <div className="px-4 py-4 border-t border-app-edge flex-shrink-0 space-y-3">
+        <div className="px-4 py-4 border-t border-edge flex-shrink-0 space-y-3">
           <SpotifyConnect />
           <UsernameEdit />
-          <div className="flex items-center justify-between pt-1">
+          <div className="flex items-center justify-between pt-0.5">
             <button
               onClick={handleLogout}
-              className="text-xs text-app-muted hover:text-app-ink transition-colors"
+              className="flex items-center gap-1.5 text-xs text-foreground-muted hover:text-foreground transition-colors"
             >
+              <LogOut size={12} strokeWidth={1.75} />
               Sign out
             </button>
             <button
               onClick={toggle}
               aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-              className="w-7 h-7 flex items-center justify-center rounded-lg text-app-muted hover:bg-app-input hover:text-app-ink transition-colors"
+              className="w-7 h-7 flex items-center justify-center rounded-lg text-foreground-muted hover:bg-surface-overlay hover:text-foreground transition-colors"
             >
-              {isDark ? <SunIcon /> : <MoonIcon />}
+              {isDark ? <Sun size={14} strokeWidth={1.75} /> : <Moon size={14} strokeWidth={1.75} />}
             </button>
           </div>
         </div>
       </aside>
 
       {/* ── Content ──────────────────────────────────────────────── */}
-      <main className="flex-1 sm:ml-52 pb-20 sm:pb-0 min-h-screen">
+      <main className="flex-1 sm:ml-56 pb-20 sm:pb-0 min-h-screen">
         {children}
       </main>
 
       {/* ── Bottom nav (mobile only) ──────────────────────────────── */}
-      <nav className="sm:hidden fixed bottom-0 inset-x-0 z-40 h-16 flex bg-app-bg border-t">
+      <nav className="sm:hidden fixed bottom-0 inset-x-0 z-40 h-16 flex bg-surface-raised border-t border-edge">
         {NAV.map(({ path, label, Icon }) => {
           const active = location.pathname === path
           return (
             <Link
               key={path}
               to={path}
-              className={`flex-1 flex flex-col items-center justify-center gap-1`}
+              className={[
+                'flex-1 flex flex-col items-center justify-center gap-1 transition-colors',
+                active ? 'text-accent' : 'text-foreground-muted hover:text-foreground',
+              ].join(' ')}
             >
-              <Icon />
+              <Icon size={20} strokeWidth={active ? 2.25 : 1.75} />
               <span className="text-[10px] font-medium">{label}</span>
             </Link>
           )

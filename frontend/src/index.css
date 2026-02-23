@@ -1,30 +1,89 @@
+/* ── Tailwind v4 entry point ────────────────────────────────────── */
+/* Must come first — loads the default theme scale (@spacing, @text-*, etc.) */
+@import "tailwindcss";
+
+/* ── Class-based dark mode variant ─────────────────────────────── */
+@variant dark (&:where(.dark, .dark *));
+
 /* ── Design tokens ─────────────────────────────────────────────── */
+/*
+ * Architecture: primitive → semantic
+ *
+ * Primitives hold raw RGB channel values. Semantic tokens reference primitives.
+ * Dark mode only overrides primitives — all semantic tokens update automatically.
+ * Brand swaps only require changing --primitive-brand.
+ */
 
 :root {
-  /* Light */
-  --app-bg:    249 249 247;
-  --app-card:  255 255 255;
-  --app-input: 242 242 240;
-  --app-edge:  222 222 218;
-  --app-ink:   14  14  14;
-  --app-muted: 102 102 102;
-  --app-faint: 168 168 168;
+  /* Primitive scale — light */
+  --primitive-neutral-50:  249 249 247;   /* page background  */
+  --primitive-neutral-100: 255 255 255;   /* card surface     */
+  --primitive-neutral-150: 242 242 240;   /* overlay / input  */
+  --primitive-neutral-200: 222 222 218;   /* border           */
+  --primitive-neutral-900: 14  14  14;    /* text primary     */
+  --primitive-neutral-600: 102 102 102;   /* text secondary   */
+  --primitive-neutral-400: 168 168 168;   /* text tertiary    */
+  --primitive-brand:       29  185 84;    /* #1DB954          */
+
+  /* Elevation */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 1px 3px 0 rgb(0 0 0 / 0.07), 0 1px 2px -1px rgb(0 0 0 / 0.04);
 }
 
 .dark {
-  /* Dark */
-  --app-bg:    8   8   8;
-  --app-card:  18  18  18;
-  --app-input: 28  28  28;
-  --app-edge:  42  42  42;
-  --app-ink:   242 242 242;
-  --app-muted: 142 142 142;
-  --app-faint: 62  62  62;
+  /* Override primitives only — semantic tokens update automatically */
+  --primitive-neutral-50:  8   8   8;
+  --primitive-neutral-100: 18  18  18;
+  --primitive-neutral-150: 28  28  28;
+  --primitive-neutral-200: 42  42  42;
+  --primitive-neutral-900: 242 242 242;
+  --primitive-neutral-600: 142 142 142;
+  --primitive-neutral-400: 62  62  62;
+
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+  --shadow-md: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.3);
 }
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* ── Semantic tokens → Tailwind utilities (v4 @theme inline) ───── */
+/*
+ * @theme inline: keeps var() references intact at runtime so generated
+ * utilities (bg-surface, text-foreground, etc.) are dynamic.
+ * Opacity modifiers (bg-accent/10) work via color-mix() in the browser.
+ */
+@theme inline {
+  /* Surfaces */
+  --color-surface:         rgb(var(--primitive-neutral-50));
+  --color-surface-raised:  rgb(var(--primitive-neutral-100));
+  --color-surface-overlay: rgb(var(--primitive-neutral-150));
+
+  /* Border */
+  --color-edge: rgb(var(--primitive-neutral-200));
+
+  /* Foreground */
+  --color-foreground:        rgb(var(--primitive-neutral-900));
+  --color-foreground-muted:  rgb(var(--primitive-neutral-600));
+  --color-foreground-subtle: rgb(var(--primitive-neutral-400));
+
+  /* Accent / brand */
+  --color-accent: rgb(var(--primitive-brand));
+
+  /* Typography */
+  --font-sans: "Inter", system-ui, sans-serif;
+
+  /* Animations */
+  --animate-fade-in:    fade-in 0.15s ease-out;
+  --animate-slide-down: slide-down 0.15s ease-out;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
 /* ── Base ──────────────────────────────────────────────────────── */
 
@@ -36,8 +95,9 @@
   }
 
   body {
-    background-color: rgb(var(--app-bg));
-    color: rgb(var(--app-ink));
+    /* @theme inline makes --color-* full color values, not channel values */
+    background-color: var(--color-surface);
+    color: var(--color-foreground);
     font-family: Inter, system-ui, sans-serif;
     transition: background-color 0.2s ease, color 0.2s ease;
   }
@@ -45,19 +105,26 @@
   /* Thin, subtle scrollbar */
   * {
     scrollbar-width: thin;
-    scrollbar-color: rgb(var(--app-edge)) transparent;
+    scrollbar-color: var(--color-edge) transparent;
   }
   ::-webkit-scrollbar        { width: 4px; height: 4px; }
   ::-webkit-scrollbar-track  { background: transparent; }
-  ::-webkit-scrollbar-thumb  { background: rgb(var(--app-edge)); border-radius: 99px; }
+  ::-webkit-scrollbar-thumb  { background: var(--color-edge); border-radius: 99px; }
 
-  /* Green selection */
-  ::selection { background: rgb(29 185 84 / 0.2); color: inherit; }
+  /* Accent selection */
+  ::selection { background: color-mix(in srgb, var(--color-accent) 20%, transparent); color: inherit; }
 
   /* Accessible focus ring */
   :focus-visible {
-    outline: 2px solid #1DB954;
+    outline: 2px solid var(--color-accent);
     outline-offset: 2px;
     border-radius: 4px;
   }
+}
+
+/* ── Utilities ──────────────────────────────────────────────────── */
+
+@layer utilities {
+  .shadow-card { box-shadow: var(--shadow-md); }
+  .shadow-sm   { box-shadow: var(--shadow-sm); }
 }

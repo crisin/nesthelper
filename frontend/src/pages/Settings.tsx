@@ -1,10 +1,11 @@
 import { useEffect } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ExternalLink } from 'lucide-react'
+import { ExternalLink, LogOut, Moon, Sun } from 'lucide-react'
 import api from '../services/api'
 import { useAuthStore } from '../stores/authStore'
 import UsernameEdit from '../components/UsernameEdit'
+import { useTheme } from '../hooks/useTheme'
 
 interface SpotifyStatus {
   connected: boolean
@@ -15,6 +16,14 @@ export default function Settings() {
   const user = useAuthStore((s) => s.user)
   const queryClient = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
+    const navigate  = useNavigate()
+  const clearAuth = useAuthStore((s) => s.clearAuth)
+  const { isDark, toggle } = useTheme()
+
+  function handleLogout() {
+    clearAuth()
+    navigate('/login')
+  }
 
   const { data: status, isLoading } = useQuery<SpotifyStatus>({
     queryKey: ['spotify-status'],
@@ -132,6 +141,24 @@ export default function Settings() {
           )}
         </div>
       </section>
+      <section className="pt-6 border-t border-edge">
+        <div className="flex items-center justify-between pt-0.5">
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 text-xs text-foreground-muted hover:text-foreground transition-colors"
+            >
+              <LogOut size={12} strokeWidth={1.75} />
+              Sign out
+            </button>
+            <button
+              onClick={toggle}
+              aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+              className="w-7 h-7 flex items-center justify-center rounded-lg text-foreground-muted hover:bg-surface-overlay hover:text-foreground transition-colors"
+            >
+              {isDark ? <Sun size={14} strokeWidth={1.75} /> : <Moon size={14} strokeWidth={1.75} />}
+            </button>
+          </div>
+        </section>
     </div>
   )
 }

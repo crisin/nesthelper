@@ -1,11 +1,18 @@
 import { defineConfig } from 'prisma/config';
 
-// datasource URL is defined in prisma/schema.prisma via env("DATABASE_URL").
-// Do not reference DATABASE_URL here — this file is loaded at build time
-// (prisma generate) when no database is available.
+// process.env.DATABASE_URL is used instead of env() from 'prisma/config':
+// - env() throws at build time when DATABASE_URL is not set (prisma generate)
+// - process.env.DATABASE_URL returns undefined and falls back to the placeholder,
+//   which is enough for prisma generate (no DB connection needed)
+// - At runtime DATABASE_URL is set, so migrate deploy gets the real URL
 export default defineConfig({
   schema: 'prisma/schema.prisma',
   migrations: {
     path: 'prisma/migrations',
+  },
+  datasource: {
+    url:
+      process.env.DATABASE_URL ??
+      'postgresql://placeholder:placeholder@localhost:5432/placeholder',
   },
 });

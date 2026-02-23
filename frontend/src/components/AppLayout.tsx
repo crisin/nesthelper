@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Home, Compass, Sun, Moon, LogOut, Music } from 'lucide-react'
+import { Home, Compass, Library, Sun, Moon, LogOut, Music } from 'lucide-react'
 import { useAuthStore } from '../stores/authStore'
 import { useTheme } from '../hooks/useTheme'
 import SpotifyConnect from './SpotifyConnect'
@@ -9,6 +9,7 @@ import UsernameEdit from './UsernameEdit'
 const NAV = [
   { path: '/dashboard', label: 'Home',     Icon: Home },
   { path: '/discover',  label: 'Discover', Icon: Compass },
+  { path: '/songs',     label: 'Songs',    Icon: Library },
 ]
 
 export default function AppLayout({ children }: { children: ReactNode }) {
@@ -41,7 +42,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         {/* Nav */}
         <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
           {NAV.map(({ path, label, Icon }) => {
-            const active = location.pathname === path
+            const active =
+              path === '/songs'
+                ? location.pathname.startsWith('/songs')
+                : location.pathname === path
             return (
               <Link
                 key={path}
@@ -91,7 +95,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       {/* ── Bottom nav (mobile only) ──────────────────────────────── */}
       <nav className="sm:hidden fixed bottom-0 inset-x-0 z-40 h-16 flex bg-surface-raised border-t border-edge">
         {NAV.map(({ path, label, Icon }) => {
-          const active = location.pathname === path
+          const active =
+            path === '/songs'
+              ? location.pathname.startsWith('/songs')
+              : location.pathname === path
           return (
             <Link
               key={path}

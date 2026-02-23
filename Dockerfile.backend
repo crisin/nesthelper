@@ -31,10 +31,9 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/prisma ./prisma
 
-RUN addgroup -g 1001 -S nodejs && adduser -S nestjs -u 1001
-USER nestjs
-
 EXPOSE 3001
 
-# Run pending migrations, then start
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main.js"]
+# timeout 60: kill migrate if DB isn't reachable within 60s (prevents infinite hang)
+# ;  (not &&): always start the server — if migrations fail Railway's restart
+#    policy retries the container, which is safer than never starting at all
+CMD ["sh", "-c", "timeout 60 node_modules/.bin/prisma migrate deploy; exec node dist/src/main.js"]

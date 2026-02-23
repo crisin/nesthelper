@@ -105,7 +105,7 @@ export default function Login() {
         <p className="mt-5 text-center text-sm text-foreground-muted">
           No account?{' '}
           <Link to="/register" className="text-foreground font-medium hover:text-accent transition-colors">
-            Create one
+            Create one?
           </Link>
         </p>
       </div>

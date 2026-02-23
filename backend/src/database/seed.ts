@@ -18,6 +18,16 @@ const SEED_USERS = [
     email: 'jacqueline_13@hotmail.de',
     password: 'Haifi1105#',
   },
+  {
+    name: 'reh',
+    email: 'dasreh22@gmail.com',
+    password: 'Pipipo42#',
+  },
+  {
+    name: 'deckel',
+    email: 'van@deckel.bra',
+    password: 'Luemmel123#',
+  },
 ];
 
 async function main() {

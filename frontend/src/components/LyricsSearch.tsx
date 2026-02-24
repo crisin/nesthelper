@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Search, X } from 'lucide-react'
+import { Search, X, ExternalLink, BookmarkPlus } from 'lucide-react'
 import api from '../services/api'
 import type { SavedLyric, SearchHistoryItem } from '../types'
 import SwipeToDelete from './SwipeToDelete'
@@ -26,9 +26,19 @@ function timeAgo(dateStr: string) {
   return `${Math.floor(hrs / 24)}d ago`
 }
 
+type SearchMode = 'open' | 'save'
+
 export default function LyricsSearch() {
   const [error, setError] = useState<string | null>(null)
+  const [mode, setMode] = useState<SearchMode>(
+    () => (localStorage.getItem('searchMode') as SearchMode) ?? 'open',
+  )
   const queryClient = useQueryClient()
+
+  function toggleMode(next: SearchMode) {
+    setMode(next)
+    localStorage.setItem('searchMode', next)
+  }
 
   const { data: history = [] } = useQuery<SearchHistoryItem[]>({
     queryKey: ['search-history'],
@@ -78,7 +88,7 @@ export default function LyricsSearch() {
       const artist = track.artists.map((a) => a.name).join(', ')
       const url = `https://www.google.com/search?q=${encodeURIComponent(`${artist} ${track.name} lyrics`)}`
 
-      window.open(url, '_blank', 'noopener,noreferrer')
+      if (mode === 'open') window.open(url, '_blank', 'noopener,noreferrer')
       saveEntry.mutate({ spotifyId: track.id, track: track.name, artist, url, imgUrl: track.album.images[0]?.url })
     } catch {
       setError('Could not fetch current track. Is Spotify connected?')
@@ -93,16 +103,48 @@ export default function LyricsSearch() {
 
   return (
     <div className="space-y-5">
-      {/* Search button + error */}
+      {/* Search button + mode toggle + error */}
       <div className="space-y-2.5">
-        <button
-          onClick={handleSearch}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-accent text-black font-semibold text-sm
-                     hover:opacity-90 transition-opacity active:scale-[0.98]"
-        >
-          <Search size={14} strokeWidth={2.25} />
-          Search Lyrics
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleSearch}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-accent text-black font-semibold text-sm
+                       hover:opacity-90 transition-opacity active:scale-[0.98]"
+          >
+            <Search size={14} strokeWidth={2.25} />
+            Search Lyrics
+          </button>
+
+          {/* Mode toggle */}
+          <div className="flex items-center rounded-lg border border-edge bg-surface-raised p-0.5 gap-0.5">
+            <button
+              onClick={() => toggleMode('open')}
+              title="Open Google search"
+              className={[
+                'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors',
+                mode === 'open'
+                  ? 'bg-surface-overlay text-foreground'
+                  : 'text-foreground-subtle hover:text-foreground-muted',
+              ].join(' ')}
+            >
+              <ExternalLink size={11} strokeWidth={2} />
+              Open
+            </button>
+            <button
+              onClick={() => toggleMode('save')}
+              title="Save to app only"
+              className={[
+                'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors',
+                mode === 'save'
+                  ? 'bg-surface-overlay text-foreground'
+                  : 'text-foreground-subtle hover:text-foreground-muted',
+              ].join(' ')}
+            >
+              <BookmarkPlus size={11} strokeWidth={2} />
+              Save
+            </button>
+          </div>
+        </div>
 
         {error && (
           <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/8 border border-red-500/20

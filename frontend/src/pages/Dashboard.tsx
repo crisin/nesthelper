@@ -63,10 +63,8 @@ export default function Dashboard() {
       )}
 
       <div>
-        <p className="text-[11px] font-semibold text-foreground-subtle uppercase tracking-widest mb-1">
-          Now Playing
-        </p>
-        <h2 className="text-base font-semibold text-foreground">Search Lyrics</h2>
+     
+        {/* <h2 className="text-base font-semibold text-foreground">Search Lyrics</h2> */}
       </div>
       <LyricsSearch />
     </div>

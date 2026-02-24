@@ -78,7 +78,7 @@ export default function SongDetail() {
   const isDirty = draft !== null && draft !== song.lyrics
 
   return (
-    <div className="px-4 sm:px-8 py-8 max-w-2xl mx-auto space-y-6">
+    <div className="px-4 sm:px-8 py-8 max-w-2xl mx-auto space-y-6 overflow-hidden">
       {/* Back */}
       <button
         onClick={() => navigate('/songs')}

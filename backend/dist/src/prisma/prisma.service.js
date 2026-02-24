@@ -17,6 +17,11 @@ let PrismaService = class PrismaService extends client_1.PrismaClient {
     constructor() {
         const adapter = new adapter_pg_1.PrismaPg({
             connectionString: process.env.DATABASE_URL,
+            database: process.env.DATABASE_NAME,
+            port: parseInt(process.env.DATABASE_PORT ?? '5432', 10),
+            host: process.env.DATABASE_HOST,
+            user: process.env.DATABASE_USER,
+            password: process.env.DATABASE_PASSWORD,
         });
         super({ adapter });
     }

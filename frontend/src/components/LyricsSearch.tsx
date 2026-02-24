@@ -129,7 +129,7 @@ export default function LyricsSearch() {
             {history.map((item) => {
               const isSaved = savedByHistoryId.has(item.id)
               return (
-                <li key={item.id}>
+                <li key={item.id} className="min-w-0">
                   <SwipeToDelete
                     onDelete={() => removeHistory.mutate(item.id)}
                     disabled={removeHistory.isPending}

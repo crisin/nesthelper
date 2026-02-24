@@ -54,7 +54,7 @@ export default function Songs() {
 
   return (
     <PullToRefresh onRefresh={handleRefresh}>
-    <div className="px-4 sm:px-8 py-8 max-w-2xl mx-auto space-y-5">
+    <div className="px-4 sm:px-8 py-8 max-w-2xl mx-auto space-y-5 overflow-hidden">
       {/* Header */}
       <div>
         <p className="text-[11px] font-semibold text-foreground-subtle uppercase tracking-widest mb-1">
@@ -108,7 +108,7 @@ export default function Songs() {
       ) : (
         <ul className="space-y-1.5">
           {filtered.map((song) => (
-            <li key={song.id}>
+            <li key={song.id} className="min-w-0">
               <SwipeToDelete
                 onDelete={() => removeSong.mutate(song.id)}
                 disabled={removeSong.isPending}

@@ -65,7 +65,7 @@ export default function Discover() {
 
   return (
     <PullToRefresh onRefresh={handleRefresh}>
-    <div className="px-4 sm:px-8 py-8 max-w-2xl mx-auto">
+    <div className="px-4 sm:px-8 py-8 max-w-2xl mx-auto overflow-hidden">
 
       {/* Page header */}
       <div className="mb-6">

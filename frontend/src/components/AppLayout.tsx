@@ -90,7 +90,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       </aside>
 
       {/* ── Content ──────────────────────────────────────────────── */}
-      <main className="flex-1 sm:ml-56 pb-24 sm:pb-0 mb-safe sm:mb-0 min-h-screen">
+      <main className="flex-1 sm:ml-56 pb-24 sm:pb-0 mb-safe sm:mb-0 min-h-screen overflow-x-hidden">
         {children}
       </main>
 

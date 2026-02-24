@@ -1,5 +1,4 @@
 import { AuthService } from './auth.service';
-import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 type AuthedRequest = {
@@ -12,14 +11,7 @@ type AuthedRequest = {
 export declare class AuthController {
     private readonly authService;
     constructor(authService: AuthService);
-    register(dto: RegisterDto): Promise<{
-        user: {
-            email: string;
-            name: string | null;
-            id: string;
-        };
-        access_token: string;
-    }>;
+    register(): void;
     login(dto: LoginDto): Promise<{
         user: {
             id: string;

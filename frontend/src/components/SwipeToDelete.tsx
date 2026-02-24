@@ -14,7 +14,7 @@ export default function SwipeToDelete({ onDelete, children, disabled }: SwipeToD
   if (disabled) return <>{children}</>
 
   return (
-    <div className="relative overflow-hidden rounded-xl">
+    <div className="relative overflow-hidden rounded-xl max-w-full">
       {/* Delete action zone — revealed behind the item on swipe */}
       <div className="absolute inset-y-0 right-0 w-20 flex items-center justify-center bg-red-500 sm:hidden">
         <button

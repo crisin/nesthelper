@@ -4,8 +4,8 @@
     {
       "name": "frontend",
       "runtimeExecutable": "cmd.exe",
-      "runtimeArgs": ["/c", "cd frontend && npx vite"],
-      "port": 5173
+      "runtimeArgs": ["/c", "cd frontend && npx vite --port 5174 --host"],
+      "port": 5174
     },
     {
       "name": "backend",

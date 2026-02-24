@@ -1,6 +1,8 @@
-import { useQuery } from '@tanstack/react-query'
+import { useCallback } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import LyricsSearch from '../components/LyricsSearch'
+import PullToRefresh from '../components/PullToRefresh'
 import api from '../services/api'
 
 interface SpotifyStatus {
@@ -15,6 +17,7 @@ async function connectSpotify() {
 
 export default function Dashboard() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
   const { data: status, isLoading: statusLoading } = useQuery<SpotifyStatus>({
     queryKey: ['spotify-status'],
@@ -23,7 +26,13 @@ export default function Dashboard() {
 
   const notConnected = !statusLoading && !status?.connected
 
+  const handleRefresh = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: ['search-history'] }),
+    [queryClient],
+  )
+
   return (
+    <PullToRefresh onRefresh={handleRefresh}>
     <div className="px-4 sm:px-8 py-8 max-w-2xl mx-auto space-y-5">
       {/* Spotify connect prompt */}
       {notConnected && (
@@ -61,5 +70,6 @@ export default function Dashboard() {
       </div>
       <LyricsSearch />
     </div>
+    </PullToRefresh>
   )
 }

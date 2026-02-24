@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Music, Trash2, ExternalLink } from 'lucide-react'
 import api from '../services/api'
 import type { SavedLyric } from '../types'
+import BottomSheet from '../components/BottomSheet'
 
 export default function SongDetail() {
   const { id } = useParams<{ id: string }>()
@@ -81,7 +82,7 @@ export default function SongDetail() {
       {/* Back */}
       <button
         onClick={() => navigate('/songs')}
-        className="flex items-center gap-1.5 text-sm text-foreground-muted hover:text-foreground transition-colors"
+        className="flex items-center gap-1.5 py-1.5 -ml-1 px-1 text-sm text-foreground-muted hover:text-foreground transition-colors"
       >
         <ArrowLeft size={15} strokeWidth={1.75} />
         Saved Songs
@@ -125,36 +126,45 @@ export default function SongDetail() {
             Lyrics
           </p>
 
-          {!confirmDelete ? (
-            <button
-              onClick={() => setConfirmDelete(true)}
-              className="flex items-center gap-1 text-xs text-foreground-subtle hover:text-red-400 transition-colors"
-            >
-              <Trash2 size={12} strokeWidth={1.75} />
-              Remove song
-            </button>
-          ) : (
-            <div className="flex items-center gap-2 text-xs">
-              <span className="text-foreground-muted">Remove this song?</span>
-              <button
-                onClick={() => remove.mutate()}
-                disabled={remove.isPending}
-                className="text-red-400 hover:text-red-300 font-medium transition-colors disabled:opacity-50"
-              >
-                {remove.isPending ? 'Removing…' : 'Yes, remove'}
-              </button>
-              <button
-                onClick={() => setConfirmDelete(false)}
-                className="text-foreground-subtle hover:text-foreground transition-colors"
-              >
-                Cancel
-              </button>
+          <button
+            onClick={() => setConfirmDelete(true)}
+            className="flex items-center gap-1 text-xs text-foreground-subtle hover:text-red-400 transition-colors"
+          >
+            <Trash2 size={12} strokeWidth={1.75} />
+            Remove song
+          </button>
+
+          <BottomSheet open={confirmDelete} onClose={() => setConfirmDelete(false)}>
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-base font-semibold text-foreground">Remove song</h3>
+                <p className="text-sm text-foreground-muted mt-1">
+                  Are you sure you want to remove <strong>{song.track}</strong>? This can't be undone.
+                </p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  onClick={() => remove.mutate()}
+                  disabled={remove.isPending}
+                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-red-500 text-white text-sm font-semibold
+                             disabled:opacity-50 hover:bg-red-600 transition-colors"
+                >
+                  {remove.isPending ? 'Removing…' : 'Yes, remove'}
+                </button>
+                <button
+                  onClick={() => setConfirmDelete(false)}
+                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-surface-overlay text-foreground text-sm font-medium
+                             hover:bg-surface-overlay/80 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
-          )}
+          </BottomSheet>
         </div>
 
         <textarea
-          className="w-full min-h-96 bg-surface-raised border border-edge rounded-xl p-4 resize-y
+          className="w-full min-h-48 sm:min-h-96 bg-surface-raised border border-edge rounded-xl p-4 resize-y
                      focus:outline-none focus:border-foreground-muted/60 transition-colors text-sm leading-relaxed"
           placeholder="Paste or write lyrics here…"
           value={currentLyrics}
@@ -165,7 +175,7 @@ export default function SongDetail() {
           <button
             onClick={() => updateLyrics.mutate(currentLyrics)}
             disabled={!isDirty || updateLyrics.isPending}
-            className="px-4 py-1.5 rounded-lg bg-accent text-black text-xs font-semibold
+            className="px-4 py-2 sm:py-1.5 rounded-lg bg-accent text-black text-xs font-semibold
                        disabled:opacity-40 hover:opacity-90 transition-opacity"
           >
             {updateLyrics.isPending ? 'Saving…' : 'Save lyrics'}

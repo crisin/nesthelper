@@ -1,6 +1,8 @@
+import { useCallback } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
 import type { SavedLyric } from '../types'
+import PullToRefresh from '../components/PullToRefresh'
 
 interface GlobalFeedItem {
   id: string
@@ -56,7 +58,13 @@ export default function Discover() {
     else saveFavorite.mutate(item)
   }
 
+  const handleRefresh = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: ['global-feed'] }),
+    [queryClient],
+  )
+
   return (
+    <PullToRefresh onRefresh={handleRefresh}>
     <div className="px-4 sm:px-8 py-8 max-w-2xl mx-auto">
 
       {/* Page header */}
@@ -123,10 +131,10 @@ export default function Discover() {
                     onClick={() => toggleFavorite(item)}
                     disabled={saveFavorite.isPending || unsaveFavorite.isPending}
                     aria-label={isSaved ? 'Remove from favorites' : 'Save to favorites'}
-                    className={`text-lg leading-none transition-all disabled:opacity-30
+                    className={`w-9 h-9 sm:w-auto sm:h-auto flex items-center justify-center text-lg leading-none transition-all disabled:opacity-30
                       ${isSaved
                         ? 'text-accent'
-                        : 'text-foreground-subtle hover:text-accent opacity-0 group-hover:opacity-100'}`}
+                        : 'text-foreground-subtle hover:text-accent sm:opacity-0 sm:group-hover:opacity-100'}`}
                   >
                     {isSaved ? '♥' : '♡'}
                   </button>
@@ -137,5 +145,6 @@ export default function Discover() {
         </ul>
       )}
     </div>
+    </PullToRefresh>
   )
 }

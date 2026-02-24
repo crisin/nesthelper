@@ -92,6 +92,12 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    overscroll-behavior-y: contain;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  @supports (height: 100dvh) {
+    html { min-height: 100dvh; }
   }
 
   body {
@@ -100,6 +106,11 @@
     color: var(--color-foreground);
     font-family: Inter, system-ui, sans-serif;
     transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  /* Eliminate 300ms tap delay and double-tap-to-zoom on interactive elements */
+  a, button, input, select, textarea, [role="button"] {
+    touch-action: manipulation;
   }
 
   /* Thin, subtle scrollbar */
@@ -127,4 +138,8 @@
 @layer utilities {
   .shadow-card { box-shadow: var(--shadow-md); }
   .shadow-sm   { box-shadow: var(--shadow-sm); }
+
+  /* Safe area padding for notched devices */
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .mb-safe { margin-bottom:  env(safe-area-inset-bottom, 0px); }
 }

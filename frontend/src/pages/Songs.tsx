@@ -1,17 +1,25 @@
-import { useState, useMemo } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useState, useMemo, useCallback } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { Music, Search, X, ChevronRight } from 'lucide-react'
 import api from '../services/api'
 import type { SavedLyric } from '../types'
+import SwipeToDelete from '../components/SwipeToDelete'
+import PullToRefresh from '../components/PullToRefresh'
 
 export default function Songs() {
   const [query, setQuery] = useState('')
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
   const { data: songs = [], isLoading } = useQuery<SavedLyric[]>({
     queryKey: ['saved-lyrics'],
     queryFn: () => api.get<SavedLyric[]>('/saved-lyrics').then((r) => r.data),
+  })
+
+  const removeSong = useMutation({
+    mutationFn: (id: string) => api.delete(`/saved-lyrics/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['saved-lyrics'] }),
   })
 
   const filtered = useMemo(() => {
@@ -23,6 +31,11 @@ export default function Songs() {
         s.artist.toLowerCase().includes(q),
     )
   }, [songs, query])
+
+  const handleRefresh = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: ['saved-lyrics'] }),
+    [queryClient],
+  )
 
   if (isLoading) {
     return (
@@ -40,6 +53,7 @@ export default function Songs() {
   }
 
   return (
+    <PullToRefresh onRefresh={handleRefresh}>
     <div className="px-4 sm:px-8 py-8 max-w-2xl mx-auto space-y-5">
       {/* Header */}
       <div>
@@ -95,49 +109,55 @@ export default function Songs() {
         <ul className="space-y-1.5">
           {filtered.map((song) => (
             <li key={song.id}>
-              <button
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-surface-raised border border-edge
-                           hover:bg-surface-overlay transition-colors text-left group"
-                onClick={() => navigate(`/songs/${song.id}`)}
+              <SwipeToDelete
+                onDelete={() => removeSong.mutate(song.id)}
+                disabled={removeSong.isPending}
               >
-                {song.searchHistory?.imgUrl ? (
-                  <img
-                    src={song.searchHistory.imgUrl}
-                    alt={song.track}
-                    className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
-                  />
-                ) : (
-                  <div className="w-10 h-10 rounded-lg bg-surface-overlay flex-shrink-0 flex items-center justify-center">
-                    <Music size={15} className="text-foreground-subtle" strokeWidth={1.75} />
+                <button
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-surface-raised border border-edge
+                             hover:bg-surface-overlay transition-colors text-left group"
+                  onClick={() => navigate(`/songs/${song.id}`)}
+                >
+                  {song.searchHistory?.imgUrl ? (
+                    <img
+                      src={song.searchHistory.imgUrl}
+                      alt={song.track}
+                      className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg bg-surface-overlay flex-shrink-0 flex items-center justify-center">
+                      <Music size={15} className="text-foreground-subtle" strokeWidth={1.75} />
+                    </div>
+                  )}
+
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-foreground text-sm truncate">{song.track}</p>
+                    <p className="text-xs text-foreground-muted truncate">{song.artist}</p>
                   </div>
-                )}
 
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-foreground text-sm truncate">{song.track}</p>
-                  <p className="text-xs text-foreground-muted truncate">{song.artist}</p>
-                </div>
-
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <span
-                    className={`text-[11px] font-medium px-1.5 py-0.5 rounded-md ${
-                      song.lyrics
-                        ? 'bg-accent/10 text-accent'
-                        : 'bg-surface-overlay text-foreground-subtle'
-                    }`}
-                  >
-                    {song.lyrics ? 'lyrics' : 'empty'}
-                  </span>
-                  <ChevronRight
-                    size={14}
-                    className="text-foreground-subtle group-hover:text-foreground-muted transition-colors"
-                    strokeWidth={1.75}
-                  />
-                </div>
-              </button>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span
+                      className={`text-[11px] font-medium px-1.5 py-0.5 rounded-md ${
+                        song.lyrics
+                          ? 'bg-accent/10 text-accent'
+                          : 'bg-surface-overlay text-foreground-subtle'
+                      }`}
+                    >
+                      {song.lyrics ? 'lyrics' : 'empty'}
+                    </span>
+                    <ChevronRight
+                      size={14}
+                      className="text-foreground-subtle group-hover:text-foreground-muted transition-colors"
+                      strokeWidth={1.75}
+                    />
+                  </div>
+                </button>
+              </SwipeToDelete>
             </li>
           ))}
         </ul>
       )}
     </div>
+    </PullToRefresh>
   )
 }

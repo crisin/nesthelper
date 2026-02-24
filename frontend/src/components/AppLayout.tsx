@@ -90,33 +90,37 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       </aside>
 
       {/* ── Content ──────────────────────────────────────────────── */}
-      <main className="flex-1 sm:ml-56 pb-20 sm:pb-0 min-h-screen">
+      <main className="flex-1 sm:ml-56 pb-24 sm:pb-0 mb-safe sm:mb-0 min-h-screen">
         {children}
       </main>
 
       {/* ── Bottom nav (mobile only) ──────────────────────────────── */}
-      <nav className="sm:hidden fixed bottom-0 inset-x-0 z-40 h-16 flex bg-surface-raised border-t border-edge">
-        {NAV.map(({ path, label, Icon }) => {
-          const active =
-            path === "/songs"
-              ? location.pathname.startsWith("/songs")
-              : location.pathname === path;
-          return (
-            <Link
-              key={path}
-              to={path}
-              className={[
-                "flex-1 flex flex-col items-center justify-center gap-1 transition-colors",
-                active
-                  ? "text-accent"
-                  : "text-foreground-muted hover:text-foreground",
-              ].join(" ")}
-            >
-              <Icon size={20} strokeWidth={active ? 2.25 : 1.75} />
-              <span className="text-[10px] font-medium">{label}</span>
-            </Link>
-          );
-        })}
+      <nav className="sm:hidden fixed bottom-0 inset-x-0 z-40 flex flex-col bg-surface-raised border-t border-edge">
+        <div className="h-16 flex">
+          {NAV.map(({ path, label, Icon }) => {
+            const active =
+              path === "/songs"
+                ? location.pathname.startsWith("/songs")
+                : location.pathname === path;
+            return (
+              <Link
+                key={path}
+                to={path}
+                className={[
+                  "flex-1 flex flex-col items-center justify-center gap-1 min-h-[48px] transition-colors active:scale-95",
+                  active
+                    ? "text-accent"
+                    : "text-foreground-muted",
+                ].join(" ")}
+              >
+                <Icon size={20} strokeWidth={active ? 2.25 : 1.75} />
+                <span className="text-[10px] font-medium">{label}</span>
+              </Link>
+            );
+          })}
+        </div>
+        {/* Safe area spacer for notched devices */}
+        <div className="pb-safe" />
       </nav>
     </div>
   );

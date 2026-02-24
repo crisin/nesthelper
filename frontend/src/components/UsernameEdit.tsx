@@ -86,7 +86,7 @@ export default function UsernameEdit() {
       <Pencil
         size={11}
         strokeWidth={1.75}
-        className="opacity-0 group-hover:opacity-50 transition-opacity flex-shrink-0"
+        className="opacity-50 sm:opacity-0 sm:group-hover:opacity-50 transition-opacity flex-shrink-0"
         aria-hidden
       />
     </button>

@@ -292,6 +292,7 @@ export default function Discover() {
     } else {
       queryClient.invalidateQueries({ queryKey: ['global-feed'] })
     }
+    return Promise.resolve();
   }, [queryClient, tab])
 
   const isLoading = tab === 'library' ? libraryLoading : feedLoading

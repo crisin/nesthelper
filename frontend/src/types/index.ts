@@ -25,7 +25,7 @@ export interface SavedLyric {
   artist: string
   lyrics: string
   searchHistoryId?: string
-  searchHistory?: { imgUrl?: string; url?: string } | null
+  searchHistory?: { imgUrl?: string; url?: string; spotifyId?: string } | null
   createdAt: string
 }
 
@@ -37,6 +37,7 @@ export interface LibraryTrack {
   imgUrl?: string
   url: string
   lyricsCount: number
+  searchCount: number
   firstSeenAt: string
   lastSeenAt: string
 }

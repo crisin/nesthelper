@@ -11,7 +11,7 @@ export class SavedLyricsService {
     return this.prisma.savedLyric.findMany({
       where: { userId },
       include: {
-        searchHistory: { select: { imgUrl: true, url: true } },
+        searchHistory: { select: { imgUrl: true, url: true, spotifyId: true } },
       },
       orderBy: { createdAt: 'desc' },
     });

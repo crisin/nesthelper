@@ -27,7 +27,22 @@ export class LibraryService {
       if (sid) countMap.set(sid, (countMap.get(sid) ?? 0) + 1);
     }
 
-    return tracks.map((t) => ({ ...t, lyricsCount: countMap.get(t.spotifyId) ?? 0 }));
+    // Count total searches per spotifyId
+    const searchRows = await this.prisma.searchHistory.groupBy({
+      by: ['spotifyId'],
+      where: { spotifyId: { in: tracks.map((t) => t.spotifyId) } },
+      _count: { id: true },
+    });
+    const searchMap = new Map<string, number>();
+    for (const r of searchRows) {
+      searchMap.set(r.spotifyId, r._count.id);
+    }
+
+    return tracks.map((t) => ({
+      ...t,
+      lyricsCount: countMap.get(t.spotifyId) ?? 0,
+      searchCount: searchMap.get(t.spotifyId) ?? 0,
+    }));
   }
 
   async getLyrics(id: string) {

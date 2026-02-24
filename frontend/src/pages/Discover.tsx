@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, Music, ExternalLink } from 'lucide-react'
 import api from '../services/api'
@@ -22,6 +22,15 @@ interface LibraryLyricsResponse {
   lyrics: CommunityLyric[]
 }
 
+type LibrarySortKey = 'recent' | 'artist' | 'title' | 'lyrics'
+
+const LIBRARY_SORTS: { key: LibrarySortKey; label: string }[] = [
+  { key: 'recent', label: 'Recent' },
+  { key: 'artist', label: 'Artist' },
+  { key: 'title',  label: 'Title' },
+  { key: 'lyrics', label: 'Lyrics' },
+]
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function timeAgo(dateStr: string) {
@@ -38,8 +47,7 @@ function timeAgo(dateStr: string) {
 
 function LyricEntry({ lyric }: { lyric: CommunityLyric }) {
   const [expanded, setExpanded] = useState(false)
-  const lines = lyric.lyrics.split('\n')
-  const isLong = lines.length > 6 || lyric.lyrics.length > 300
+  const isLong = lyric.lyrics.split('\n').length > 6 || lyric.lyrics.length > 300
 
   return (
     <li className="px-4 py-3 space-y-2">
@@ -51,7 +59,7 @@ function LyricEntry({ lyric }: { lyric: CommunityLyric }) {
           {timeAgo(lyric.createdAt)}
         </span>
       </div>
-      <div className="relative">
+      <div>
         <p
           className={[
             'text-xs text-foreground-muted whitespace-pre-line leading-relaxed',
@@ -73,7 +81,7 @@ function LyricEntry({ lyric }: { lyric: CommunityLyric }) {
   )
 }
 
-// ── Library track card with expandable community lyrics ────────────────────
+// ── Library track card ─────────────────────────────────────────────────────
 
 function LibraryCard({
   track,
@@ -100,34 +108,59 @@ function LibraryCard({
   return (
     <li className="rounded-xl bg-surface-raised border border-edge overflow-hidden shadow-card">
       {/* Track row */}
-      <div className="flex items-center gap-3 px-3 py-2.5">
+      <div className="flex items-center gap-3.5 px-3 py-3">
+        {/* Cover — larger */}
         {track.imgUrl ? (
           <img
             src={track.imgUrl}
             alt={track.name}
-            className="w-10 h-10 rounded-lg object-cover flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => window.open(track.url, '_blank', 'noopener,noreferrer')}
+            className="w-14 h-14 rounded-xl object-cover flex-shrink-0 shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={() => window.open(`https://open.spotify.com/track/${track.spotifyId}`, '_blank', 'noopener,noreferrer')}
           />
         ) : (
-          <div className="w-10 h-10 rounded-lg bg-surface-overlay flex-shrink-0 flex items-center justify-center">
-            <Music size={15} className="text-foreground-subtle" strokeWidth={1.75} />
+          <div className="w-14 h-14 rounded-xl bg-surface-overlay flex-shrink-0 flex items-center justify-center">
+            <Music size={20} className="text-foreground-subtle" strokeWidth={1.5} />
           </div>
         )}
 
+        {/* Info */}
         <button
           className="flex-1 text-left min-w-0"
           onClick={() => setExpanded((v) => !v)}
         >
-          <p className="font-medium text-foreground text-sm truncate">{track.name}</p>
-          <p className="text-xs text-foreground-muted truncate">{track.artist}</p>
+          <p className="font-semibold text-foreground text-sm leading-tight truncate">{track.name}</p>
+          <p className="text-xs text-foreground-muted truncate mt-0.5">{track.artist}</p>
+
+          {/* Stats row */}
+          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+            {track.lyricsCount > 0 && (
+              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-accent/10 text-accent tabular-nums">
+                {track.lyricsCount} {track.lyricsCount === 1 ? 'lyric' : 'lyrics'}
+              </span>
+            )}
+            {track.searchCount > 0 && (
+              <span className="text-[11px] text-foreground-subtle tabular-nums">
+                {track.searchCount}× searched
+              </span>
+            )}
+            <span className="text-[11px] text-foreground-subtle">
+              {timeAgo(track.lastSeenAt)}
+            </span>
+          </div>
         </button>
 
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          {track.lyricsCount > 0 && (
-            <span className="text-[11px] font-medium px-1.5 py-0.5 rounded-md bg-accent/10 text-accent tabular-nums">
-              {track.lyricsCount} {track.lyricsCount === 1 ? 'lyric' : 'lyrics'}
-            </span>
-          )}
+        {/* Actions */}
+        <div className="flex items-center gap-0.5 flex-shrink-0">
+          <a
+            href={`https://open.spotify.com/track/${track.spotifyId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="w-8 h-8 flex items-center justify-center text-foreground-subtle hover:text-accent transition-colors"
+            aria-label="Open on Spotify"
+          >
+            <ExternalLink size={13} strokeWidth={1.75} />
+          </a>
 
           <button
             onClick={onSave}
@@ -203,8 +236,9 @@ function LibraryCard({
 type Tab = 'library' | 'activity'
 
 export default function Discover() {
-  const [tab, setTab] = useState<Tab>('library')
-  const queryClient = useQueryClient()
+  const [tab, setTab]             = useState<Tab>('library')
+  const [librarySort, setLibrarySort] = useState<LibrarySortKey>('recent')
+  const queryClient               = useQueryClient()
 
   const { data: library = [], isLoading: libraryLoading } = useQuery<LibraryTrack[]>({
     queryKey: ['library'],
@@ -226,6 +260,15 @@ export default function Discover() {
   const savedByHistoryId = new Map(
     savedLyrics.filter((s) => s.searchHistoryId).map((s) => [s.searchHistoryId!, s.id]),
   )
+
+  const sortedLibrary = useMemo(() => {
+    const list = [...library]
+    if (librarySort === 'artist') list.sort((a, b) => a.artist.localeCompare(b.artist))
+    else if (librarySort === 'title') list.sort((a, b) => a.name.localeCompare(b.name))
+    else if (librarySort === 'lyrics') list.sort((a, b) => b.lyricsCount - a.lyricsCount)
+    // 'recent' keeps API order (lastSeenAt desc)
+    return list
+  }, [library, librarySort])
 
   const saveSong = useMutation({
     mutationFn: (track: LibraryTrack) =>
@@ -255,7 +298,7 @@ export default function Discover() {
 
   return (
     <PullToRefresh onRefresh={handleRefresh}>
-      <div className="px-4 sm:px-8 py-8 max-w-2xl mx-auto space-y-5 overflow-hidden">
+      <div className="px-4 sm:px-8 py-8 max-w-2xl mx-auto space-y-4 overflow-hidden">
 
         {/* Header */}
         <div>
@@ -283,11 +326,32 @@ export default function Discover() {
           ))}
         </div>
 
+        {/* Library sort controls */}
+        {tab === 'library' && library.length > 1 && (
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] text-foreground-subtle font-medium mr-0.5">Sort:</span>
+            {LIBRARY_SORTS.map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => setLibrarySort(key)}
+                className={[
+                  'px-2.5 py-1 rounded-md text-xs font-medium transition-colors',
+                  librarySort === key
+                    ? 'bg-surface-overlay text-foreground'
+                    : 'text-foreground-muted hover:text-foreground',
+                ].join(' ')}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Loading skeletons */}
         {isLoading && (
-          <ul className="space-y-1.5">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <li key={i} className="h-[60px] rounded-xl bg-surface-raised border border-edge animate-pulse" />
+          <ul className="space-y-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <li key={i} className="h-20 rounded-xl bg-surface-raised border border-edge animate-pulse" />
             ))}
           </ul>
         )}
@@ -299,8 +363,8 @@ export default function Discover() {
               No songs yet — search lyrics on the Home page to populate the library.
             </p>
           ) : (
-            <ul className="space-y-1.5">
-              {library.map((track) => (
+            <ul className="space-y-2">
+              {sortedLibrary.map((track) => (
                 <LibraryCard
                   key={track.id}
                   track={track}

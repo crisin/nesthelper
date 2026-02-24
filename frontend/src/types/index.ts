@@ -28,3 +28,22 @@ export interface SavedLyric {
   searchHistory?: { imgUrl?: string; url?: string } | null
   createdAt: string
 }
+
+export interface LibraryTrack {
+  id: string
+  spotifyId: string
+  name: string
+  artist: string
+  imgUrl?: string
+  url: string
+  lyricsCount: number
+  firstSeenAt: string
+  lastSeenAt: string
+}
+
+export interface CommunityLyric {
+  id: string
+  lyrics: string
+  createdAt: string
+  user: { name: string | null }
+}

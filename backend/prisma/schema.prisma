@@ -57,3 +57,14 @@ model SearchHistory {
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   savedLyrics SavedLyric[]
 }
+
+model LibraryTrack {
+  id          String   @id @default(cuid())
+  spotifyId   String   @unique
+  name        String
+  artist      String
+  imgUrl      String?
+  url         String
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @updatedAt
+}

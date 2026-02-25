@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Search, X, ExternalLink, BookmarkPlus } from "lucide-react";
 import api from "../services/api";
@@ -31,6 +32,7 @@ function timeAgo(dateStr: string) {
 type SearchMode = "open" | "save";
 
 export default function LyricsSearch() {
+  const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [mode, setMode] = useState<SearchMode>(
@@ -208,7 +210,9 @@ export default function LyricsSearch() {
                       size="md"
                       interactive
                       onContentClick={() =>
-                        window.open(item.url, "_blank", "noopener,noreferrer")
+                        navigate("/discover", {
+                          state: { highlightSpotifyId: item.spotifyId },
+                        })
                       }
                       actions={
                         <>

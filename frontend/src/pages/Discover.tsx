@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, ExternalLink, LayoutGrid, LayoutList } from 'lucide-react'
 import api from '../services/api'
@@ -92,11 +93,15 @@ function LibraryCard({
   isSaved,
   onSave,
   isSaving,
+  id,
+  highlight = false,
 }: {
   track: LibraryTrack
   isSaved: boolean
   onSave: () => void
   isSaving: boolean
+  id?: string
+  highlight?: boolean
 }) {
   const [expanded, setExpanded] = useState(false)
 
@@ -110,12 +115,13 @@ function LibraryCard({
   const lyrics = data?.lyrics ?? []
 
   return (
-    <li>
+    <li id={id}>
       <TrackListItem
         src={track.imgUrl}
         track={track.name}
         artist={track.artist}
         size="md"
+        className={highlight ? 'ring-2 ring-accent/50' : ''}
         onContentClick={() => setExpanded((v) => !v)}
         meta={
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
@@ -390,12 +396,30 @@ function ArtistDivider({ name }: { name: string }) {
 type Tab = 'library' | 'activity'
 
 export default function Discover() {
+  const location = useLocation()
+  const navigate  = useNavigate()
+
   const [tab, setTab]                 = useState<Tab>('library')
   const [librarySort, setLibrarySort] = useState<LibrarySortKey>('recent')
   const [layout, setLayout]           = useState<LibraryLayout>(
     () => (localStorage.getItem('discoverLayout') as LibraryLayout) ?? 'list',
   )
+  const [highlightSpotifyId, setHighlightSpotifyId] = useState<string | null>(
+    () => (location.state as { highlightSpotifyId?: string } | null)?.highlightSpotifyId ?? null,
+  )
   const queryClient = useQueryClient()
+
+  // When arriving with a highlight, scroll to the item then clear
+  useEffect(() => {
+    if (!highlightSpotifyId) return
+    navigate('.', { replace: true, state: null })
+    const scrollTimer = setTimeout(() => {
+      document.getElementById(`track-${highlightSpotifyId}`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 150)
+    const clearTimer = setTimeout(() => setHighlightSpotifyId(null), 2000)
+    return () => { clearTimeout(scrollTimer); clearTimeout(clearTimer) }
+  }, [highlightSpotifyId, navigate])
 
   function toggleLayout(next: LibraryLayout) {
     setLayout(next)
@@ -494,7 +518,14 @@ export default function Discover() {
     }
     return (
       <ul className="space-y-2">
-        {tracks.map((t) => <LibraryCard key={t.id} {...cardProps(t)} />)}
+        {tracks.map((t) => (
+          <LibraryCard
+            key={t.id}
+            id={`track-${t.spotifyId}`}
+            highlight={highlightSpotifyId === t.spotifyId}
+            {...cardProps(t)}
+          />
+        ))}
       </ul>
     )
   }

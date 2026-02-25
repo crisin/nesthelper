@@ -85,8 +85,8 @@ export function CoverViewerProvider({ children }: { children: ReactNode }) {
               alt={cover.track ?? 'Cover'}
               className="rounded-2xl shadow-2xl object-cover"
               style={{
-                width:  'min(80vw, 460px)',
-                height: 'min(80vw, 460px)',
+                width:  'min(85vw, 600px)',
+                height: 'min(85vw, 600px)',
               }}
             />
 

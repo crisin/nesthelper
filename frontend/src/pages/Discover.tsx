@@ -247,8 +247,8 @@ function LibraryGridCard({
           iconSize={28}
         />
 
-        {/* Hover overlay */}
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors duration-150" />
+        {/* Hover overlay — pointer-events-none so clicks reach TrackCover beneath */}
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors duration-150 pointer-events-none" />
 
         {/* Heart — always visible */}
         <button

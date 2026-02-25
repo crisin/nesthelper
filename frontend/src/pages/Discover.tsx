@@ -673,7 +673,13 @@ export default function Discover() {
                       artist={item.artist}
                       size="sm"
                       interactive
-                      onContentClick={() => window.open(item.url, '_blank', 'noopener,noreferrer')}
+                      onContentClick={() => {
+                        const match = library.find(
+                          (t) => t.name === item.track && t.artist === item.artist,
+                        )
+                        setTab('library')
+                        if (match) setHighlightSpotifyId(match.spotifyId)
+                      }}
                       actions={
                         <div className="flex items-center gap-3 flex-shrink-0">
                           <div className="hidden sm:flex flex-col items-end gap-0.5">

@@ -22,7 +22,7 @@ Neu: **Lyrics bearbeiten & strukturieren**
 
 * Lyrics Versioning (Edit History)
 * Line-by-line Struktur statt Plain Text
-* Timestamp pro Line (optional)
+* Timestamp pro Line
 * Markdown Support
 * Highlighting einzelner Zeilen
 

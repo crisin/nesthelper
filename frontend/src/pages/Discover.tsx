@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronDown, Music, ExternalLink } from 'lucide-react'
+import { ChevronDown, Music, ExternalLink, LayoutGrid, LayoutList } from 'lucide-react'
 import api from '../services/api'
 import type { CommunityLyric, LibraryTrack, SavedLyric } from '../types'
 import PullToRefresh from '../components/PullToRefresh'
@@ -23,6 +23,7 @@ interface LibraryLyricsResponse {
 }
 
 type LibrarySortKey = 'recent' | 'artist' | 'title' | 'lyrics'
+type LibraryLayout  = 'list' | 'grid'
 
 const LIBRARY_SORTS: { key: LibrarySortKey; label: string }[] = [
   { key: 'recent', label: 'Recent' },
@@ -81,7 +82,7 @@ function LyricEntry({ lyric }: { lyric: CommunityLyric }) {
   )
 }
 
-// ── Library track card ─────────────────────────────────────────────────────
+// ── Library track card — LIST layout ───────────────────────────────────────
 
 function LibraryCard({
   track,
@@ -109,7 +110,6 @@ function LibraryCard({
     <li className="rounded-xl bg-surface-raised border border-edge overflow-hidden shadow-card">
       {/* Track row */}
       <div className="flex items-center gap-3.5 px-3 py-3">
-        {/* Cover — larger */}
         {track.imgUrl ? (
           <img
             src={track.imgUrl}
@@ -123,7 +123,6 @@ function LibraryCard({
           </div>
         )}
 
-        {/* Info */}
         <button
           className="flex-1 text-left min-w-0"
           onClick={() => setExpanded((v) => !v)}
@@ -131,7 +130,6 @@ function LibraryCard({
           <p className="font-semibold text-foreground text-sm leading-tight truncate">{track.name}</p>
           <p className="text-xs text-foreground-muted truncate mt-0.5">{track.artist}</p>
 
-          {/* Stats row */}
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
             {track.lyricsCount > 0 && (
               <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-accent/10 text-accent tabular-nums">
@@ -149,7 +147,6 @@ function LibraryCard({
           </div>
         </button>
 
-        {/* Actions */}
         <div className="flex items-center gap-0.5 flex-shrink-0">
           <a
             href={`https://open.spotify.com/track/${track.spotifyId}`}
@@ -191,7 +188,6 @@ function LibraryCard({
         </div>
       </div>
 
-      {/* Community lyrics panel */}
       {expanded && (
         <div className="border-t border-edge">
           {lyricsLoading ? (
@@ -231,14 +227,123 @@ function LibraryCard({
   )
 }
 
+// ── Library track card — GRID layout ───────────────────────────────────────
+
+function LibraryGridCard({
+  track,
+  isSaved,
+  onSave,
+  isSaving,
+}: {
+  track: LibraryTrack
+  isSaved: boolean
+  onSave: () => void
+  isSaving: boolean
+}) {
+  return (
+    <li className="rounded-xl bg-surface-raised border border-edge overflow-hidden shadow-card group">
+      {/* Square cover */}
+      <div className="relative aspect-square">
+        {track.imgUrl ? (
+          <img
+            src={track.imgUrl}
+            alt={track.name}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full bg-surface-overlay flex items-center justify-center">
+            <Music size={28} className="text-foreground-subtle" strokeWidth={1.25} />
+          </div>
+        )}
+
+        {/* Hover overlay */}
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors duration-150" />
+
+        {/* Heart — always visible */}
+        <button
+          onClick={onSave}
+          disabled={isSaved || isSaving}
+          aria-label={isSaved ? 'Already saved' : 'Save to my songs'}
+          className={[
+            'absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center text-base leading-none',
+            'bg-black/40 backdrop-blur-sm transition-all disabled:opacity-40',
+            isSaved ? 'text-accent' : 'text-white hover:text-accent',
+          ].join(' ')}
+        >
+          {isSaved ? '♥' : '♡'}
+        </button>
+
+        {/* Spotify link — appears on hover */}
+        <a
+          href={`https://open.spotify.com/track/${track.spotifyId}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Open on Spotify"
+          className="absolute top-2 left-2 w-7 h-7 rounded-full flex items-center justify-center
+                     bg-black/40 backdrop-blur-sm text-white hover:text-accent transition-all
+                     opacity-0 group-hover:opacity-100"
+        >
+          <ExternalLink size={12} strokeWidth={2} />
+        </a>
+
+        {/* Stats pill — bottom of cover */}
+        {(track.lyricsCount > 0 || track.searchCount > 0) && (
+          <div className="absolute bottom-2 left-2 flex items-center gap-1.5
+                          opacity-0 group-hover:opacity-100 transition-opacity">
+            {track.lyricsCount > 0 && (
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md
+                               bg-black/60 backdrop-blur-sm text-white tabular-nums">
+                {track.lyricsCount} {track.lyricsCount === 1 ? 'lyric' : 'lyrics'}
+              </span>
+            )}
+            {track.searchCount > 0 && (
+              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md
+                               bg-black/60 backdrop-blur-sm text-white tabular-nums">
+                {track.searchCount}×
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="px-2.5 py-2.5">
+        <p className="text-xs font-semibold text-foreground truncate leading-tight">{track.name}</p>
+        <p className="text-[11px] text-foreground-muted truncate mt-0.5">{track.artist}</p>
+      </div>
+    </li>
+  )
+}
+
+// ── Artist section divider ─────────────────────────────────────────────────
+
+function ArtistDivider({ name }: { name: string }) {
+  return (
+    <div className="flex items-center gap-3 pt-2 first:pt-0">
+      <span className="text-[11px] font-semibold text-foreground-subtle uppercase tracking-widest flex-shrink-0">
+        {name}
+      </span>
+      <div className="flex-1 h-px bg-edge" />
+    </div>
+  )
+}
+
 // ── Main Discover page ─────────────────────────────────────────────────────
 
 type Tab = 'library' | 'activity'
 
 export default function Discover() {
-  const [tab, setTab]             = useState<Tab>('library')
+  const [tab, setTab]                 = useState<Tab>('library')
   const [librarySort, setLibrarySort] = useState<LibrarySortKey>('recent')
-  const queryClient               = useQueryClient()
+  const [layout, setLayout]           = useState<LibraryLayout>(
+    () => (localStorage.getItem('discoverLayout') as LibraryLayout) ?? 'list',
+  )
+  const queryClient = useQueryClient()
+
+  function toggleLayout(next: LibraryLayout) {
+    setLayout(next)
+    localStorage.setItem('discoverLayout', next)
+  }
 
   const { data: library = [], isLoading: libraryLoading } = useQuery<LibraryTrack[]>({
     queryKey: ['library'],
@@ -266,9 +371,23 @@ export default function Discover() {
     if (librarySort === 'artist') list.sort((a, b) => a.artist.localeCompare(b.artist))
     else if (librarySort === 'title') list.sort((a, b) => a.name.localeCompare(b.name))
     else if (librarySort === 'lyrics') list.sort((a, b) => b.lyricsCount - a.lyricsCount)
-    // 'recent' keeps API order (lastSeenAt desc)
     return list
   }, [library, librarySort])
+
+  // Group by artist when artist sort is active
+  const artistGroups = useMemo(() => {
+    if (librarySort !== 'artist') return null
+    const groups: { artist: string; tracks: LibraryTrack[] }[] = []
+    for (const track of sortedLibrary) {
+      const last = groups[groups.length - 1]
+      if (!last || last.artist !== track.artist) {
+        groups.push({ artist: track.artist, tracks: [track] })
+      } else {
+        last.tracks.push(track)
+      }
+    }
+    return groups
+  }, [sortedLibrary, librarySort])
 
   const saveSong = useMutation({
     mutationFn: (track: LibraryTrack) =>
@@ -292,10 +411,36 @@ export default function Discover() {
     } else {
       queryClient.invalidateQueries({ queryKey: ['global-feed'] })
     }
-    return Promise.resolve();
+    return Promise.resolve()
   }, [queryClient, tab])
 
   const isLoading = tab === 'library' ? libraryLoading : feedLoading
+
+  // Shared card props builder
+  function cardProps(track: LibraryTrack) {
+    return {
+      track,
+      isSaved: savedSet.has(`${track.name}|||${track.artist}`),
+      onSave: () => saveSong.mutate(track),
+      isSaving: saveSong.isPending,
+    }
+  }
+
+  // Render a flat or grouped list for the library tab
+  function renderLibraryTracks(tracks: LibraryTrack[]) {
+    if (layout === 'grid') {
+      return (
+        <ul className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+          {tracks.map((t) => <LibraryGridCard key={t.id} {...cardProps(t)} />)}
+        </ul>
+      )
+    }
+    return (
+      <ul className="space-y-2">
+        {tracks.map((t) => <LibraryCard key={t.id} {...cardProps(t)} />)}
+      </ul>
+    )
+  }
 
   return (
     <PullToRefresh onRefresh={handleRefresh}>
@@ -327,34 +472,78 @@ export default function Discover() {
           ))}
         </div>
 
-        {/* Library sort controls */}
+        {/* Library controls: sort + layout toggle */}
         {tab === 'library' && library.length > 1 && (
-          <div className="flex items-center gap-1.5">
-            <span className="text-[11px] text-foreground-subtle font-medium mr-0.5">Sort:</span>
-            {LIBRARY_SORTS.map(({ key, label }) => (
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 flex-1">
+              <span className="text-[11px] text-foreground-subtle font-medium mr-0.5">Sort:</span>
+              {LIBRARY_SORTS.map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => setLibrarySort(key)}
+                  className={[
+                    'px-2.5 py-1 rounded-md text-xs font-medium transition-colors',
+                    librarySort === key
+                      ? 'bg-surface-overlay text-foreground'
+                      : 'text-foreground-muted hover:text-foreground',
+                  ].join(' ')}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {/* Layout toggle */}
+            <div className="flex items-center rounded-lg border border-edge bg-surface-raised p-0.5 gap-0.5 flex-shrink-0">
               <button
-                key={key}
-                onClick={() => setLibrarySort(key)}
+                onClick={() => toggleLayout('list')}
+                title="List view"
                 className={[
-                  'px-2.5 py-1 rounded-md text-xs font-medium transition-colors',
-                  librarySort === key
+                  'p-1.5 rounded-md transition-colors',
+                  layout === 'list'
                     ? 'bg-surface-overlay text-foreground'
-                    : 'text-foreground-muted hover:text-foreground',
+                    : 'text-foreground-subtle hover:text-foreground-muted',
                 ].join(' ')}
               >
-                {label}
+                <LayoutList size={13} strokeWidth={2} />
               </button>
-            ))}
+              <button
+                onClick={() => toggleLayout('grid')}
+                title="Grid view"
+                className={[
+                  'p-1.5 rounded-md transition-colors',
+                  layout === 'grid'
+                    ? 'bg-surface-overlay text-foreground'
+                    : 'text-foreground-subtle hover:text-foreground-muted',
+                ].join(' ')}
+              >
+                <LayoutGrid size={13} strokeWidth={2} />
+              </button>
+            </div>
           </div>
         )}
 
         {/* Loading skeletons */}
         {isLoading && (
-          <ul className="space-y-2">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <li key={i} className="h-20 rounded-xl bg-surface-raised border border-edge animate-pulse" />
-            ))}
-          </ul>
+          layout === 'grid' && tab === 'library' ? (
+            <ul className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <li key={i} className="rounded-xl bg-surface-raised border border-edge animate-pulse">
+                  <div className="aspect-square" />
+                  <div className="px-2.5 py-2.5 space-y-1.5">
+                    <div className="h-2.5 w-3/4 rounded-full bg-surface-overlay" />
+                    <div className="h-2 w-1/2 rounded-full bg-surface-overlay" />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <ul className="space-y-2">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <li key={i} className="h-20 rounded-xl bg-surface-raised border border-edge animate-pulse" />
+              ))}
+            </ul>
+          )
         )}
 
         {/* ── Song Library tab ──────────────────────────────────── */}
@@ -363,18 +552,18 @@ export default function Discover() {
             <p className="text-sm text-foreground-subtle py-4">
               No songs yet — search lyrics on the Home page to populate the library.
             </p>
-          ) : (
-            <ul className="space-y-2">
-              {sortedLibrary.map((track) => (
-                <LibraryCard
-                  key={track.id}
-                  track={track}
-                  isSaved={savedSet.has(`${track.name}|||${track.artist}`)}
-                  onSave={() => saveSong.mutate(track)}
-                  isSaving={saveSong.isPending}
-                />
+          ) : artistGroups ? (
+            // Grouped by artist
+            <div className="space-y-4">
+              {artistGroups.map(({ artist, tracks }) => (
+                <div key={artist} className="space-y-2">
+                  <ArtistDivider name={artist} />
+                  {renderLibraryTracks(tracks)}
+                </div>
               ))}
-            </ul>
+            </div>
+          ) : (
+            renderLibraryTracks(sortedLibrary)
           )
         )}
 

@@ -8,6 +8,7 @@ import SongDetail from './pages/SongDetail'
 import Settings from './pages/Settings'
 import PrivateRoute from './components/PrivateRoute'
 import AppLayout from './components/AppLayout'
+import { CoverViewerProvider } from './contexts/CoverViewerContext'
 
 function AppPage({ children }: { children: React.ReactNode }) {
   return (
@@ -45,5 +46,9 @@ const router = createBrowserRouter([
 ])
 
 export default function App() {
-  return <RouterProvider router={router} />
+  return (
+    <CoverViewerProvider>
+      <RouterProvider router={router} />
+    </CoverViewerProvider>
+  )
 }

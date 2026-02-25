@@ -5,6 +5,7 @@ import api from '../services/api'
 import type { SavedLyric, SearchHistoryItem } from '../types'
 import SwipeToDelete from './SwipeToDelete'
 import BottomSheet from './BottomSheet'
+import TrackCover from './TrackCover'
 
 interface SpotifyTrack {
   id: string
@@ -182,16 +183,13 @@ export default function LyricsSearch() {
                       className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-surface-raised border border-edge
                                  hover:border-foreground-muted/40 transition-colors group shadow-card"
                     >
-                      {item.imgUrl ? (
-                        <img
-                          src={item.imgUrl}
-                          alt={item.track}
-                          className="w-9 h-9 rounded-lg object-cover flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-                          onClick={() => window.open(item.url, '_blank', 'noopener,noreferrer')}
-                        />
-                      ) : (
-                        <div className="w-9 h-9 rounded-lg bg-surface-overlay flex-shrink-0" />
-                      )}
+                      <TrackCover
+                        src={item.imgUrl}
+                        track={item.track}
+                        artist={item.artist}
+                        className="w-9 h-9 rounded-lg"
+                        iconSize={14}
+                      />
 
                       <button
                         className="flex-1 text-left min-w-0"

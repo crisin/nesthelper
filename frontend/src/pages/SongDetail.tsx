@@ -5,6 +5,7 @@ import { ArrowLeft, Music, Trash2, ExternalLink, Eye, Pencil } from 'lucide-reac
 import api from '../services/api'
 import type { SavedLyric } from '../types'
 import BottomSheet from '../components/BottomSheet'
+import TrackCover from '../components/TrackCover'
 
 type ViewMode = 'view' | 'edit'
 
@@ -141,17 +142,13 @@ export default function SongDetail() {
 
       {/* Song header */}
       <div className="flex items-center gap-4">
-        {imgUrl ? (
-          <img
-            src={imgUrl}
-            alt={song.track}
-            className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover flex-shrink-0"
-          />
-        ) : (
-          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-surface-raised border border-edge flex items-center justify-center flex-shrink-0">
-            <Music size={24} className="text-foreground-subtle" strokeWidth={1.5} />
-          </div>
-        )}
+        <TrackCover
+          src={imgUrl}
+          track={song.track}
+          artist={song.artist}
+          className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl"
+          iconSize={24}
+        />
 
         <div className="min-w-0">
           <h1 className="text-lg font-semibold text-foreground leading-tight">{song.track}</h1>

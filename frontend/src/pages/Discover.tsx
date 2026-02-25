@@ -1,9 +1,10 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronDown, Music, ExternalLink, LayoutGrid, LayoutList } from 'lucide-react'
+import { ChevronDown, ExternalLink, LayoutGrid, LayoutList } from 'lucide-react'
 import api from '../services/api'
 import type { CommunityLyric, LibraryTrack, SavedLyric } from '../types'
 import PullToRefresh from '../components/PullToRefresh'
+import TrackCover from '../components/TrackCover'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -110,18 +111,12 @@ function LibraryCard({
     <li className="rounded-xl bg-surface-raised border border-edge overflow-hidden shadow-card">
       {/* Track row */}
       <div className="flex items-center gap-3.5 px-3 py-3">
-        {track.imgUrl ? (
-          <img
-            src={track.imgUrl}
-            alt={track.name}
-            className="w-14 h-14 rounded-xl object-cover flex-shrink-0 shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => window.open(`https://open.spotify.com/track/${track.spotifyId}`, '_blank', 'noopener,noreferrer')}
-          />
-        ) : (
-          <div className="w-14 h-14 rounded-xl bg-surface-overlay flex-shrink-0 flex items-center justify-center">
-            <Music size={20} className="text-foreground-subtle" strokeWidth={1.5} />
-          </div>
-        )}
+        <TrackCover
+          src={track.imgUrl}
+          track={track.name}
+          artist={track.artist}
+          className="w-14 h-14 rounded-xl shadow-sm"
+        />
 
         <button
           className="flex-1 text-left min-w-0"
@@ -244,17 +239,13 @@ function LibraryGridCard({
     <li className="rounded-xl bg-surface-raised border border-edge overflow-hidden shadow-card group">
       {/* Square cover */}
       <div className="relative aspect-square">
-        {track.imgUrl ? (
-          <img
-            src={track.imgUrl}
-            alt={track.name}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <div className="w-full h-full bg-surface-overlay flex items-center justify-center">
-            <Music size={28} className="text-foreground-subtle" strokeWidth={1.25} />
-          </div>
-        )}
+        <TrackCover
+          src={track.imgUrl}
+          track={track.name}
+          artist={track.artist}
+          className="w-full h-full"
+          iconSize={28}
+        />
 
         {/* Hover overlay */}
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors duration-150" />
@@ -584,16 +575,13 @@ export default function Discover() {
                                bg-surface-raised border border-edge hover:border-foreground-muted/40
                                transition-colors group shadow-card"
                   >
-                    {item.imgUrl ? (
-                      <img
-                        src={item.imgUrl}
-                        alt={item.track}
-                        className="w-9 h-9 rounded-lg object-cover flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-                        onClick={() => window.open(item.url, '_blank', 'noopener,noreferrer')}
-                      />
-                    ) : (
-                      <div className="w-9 h-9 rounded-lg bg-surface-overlay flex-shrink-0" />
-                    )}
+                    <TrackCover
+                      src={item.imgUrl}
+                      track={item.track}
+                      artist={item.artist}
+                      className="w-9 h-9 rounded-lg"
+                      iconSize={14}
+                    />
 
                     <button
                       className="flex-1 text-left min-w-0"

@@ -1,11 +1,12 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Music, Search, X, ChevronRight, ExternalLink } from 'lucide-react'
+import { Search, X, ChevronRight, ExternalLink } from 'lucide-react'
 import api from '../services/api'
 import type { SavedLyric } from '../types'
 import SwipeToDelete from '../components/SwipeToDelete'
 import PullToRefresh from '../components/PullToRefresh'
+import TrackCover from '../components/TrackCover'
 
 type SortKey = 'recent' | 'artist' | 'title'
 
@@ -163,18 +164,12 @@ export default function Songs() {
                                  hover:bg-surface-overlay active:scale-[0.99] transition-all text-left group"
                       onClick={() => navigate(`/songs/${song.id}`)}
                     >
-                      {/* Cover art — larger */}
-                      {imgUrl ? (
-                        <img
-                          src={imgUrl}
-                          alt={song.track}
-                          className="w-14 h-14 rounded-xl object-cover flex-shrink-0 shadow-sm"
-                        />
-                      ) : (
-                        <div className="w-14 h-14 rounded-xl bg-surface-overlay flex-shrink-0 flex items-center justify-center">
-                          <Music size={20} className="text-foreground-subtle" strokeWidth={1.5} />
-                        </div>
-                      )}
+                      <TrackCover
+                        src={imgUrl}
+                        track={song.track}
+                        artist={song.artist}
+                        className="w-14 h-14 rounded-xl shadow-sm"
+                      />
 
                       {/* Info */}
                       <div className="flex-1 min-w-0 space-y-0.5">

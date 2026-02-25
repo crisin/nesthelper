@@ -95,7 +95,7 @@ export default function SongDetail() {
 
   if (isLoading) {
     return (
-      <div className="px-4 sm:px-8 py-8 max-w-2xl mx-auto space-y-6">
+      <div className="px-4 sm:px-8 py-8 max-w-5xl mx-auto space-y-6">
         <div className="h-5 w-24 rounded-full bg-surface-raised animate-pulse" />
         <div className="flex items-center gap-4">
           <div className="w-20 h-20 rounded-xl bg-surface-raised animate-pulse flex-shrink-0" />
@@ -111,7 +111,7 @@ export default function SongDetail() {
 
   if (!song) {
     return (
-      <div className="px-4 sm:px-8 py-8 max-w-2xl mx-auto">
+      <div className="px-4 sm:px-8 py-8 max-w-5xl mx-auto">
         <button
           onClick={() => navigate('/songs')}
           className="flex items-center gap-1.5 text-sm text-foreground-muted hover:text-foreground transition-colors mb-6"
@@ -130,7 +130,7 @@ export default function SongDetail() {
   const isDirty = draft !== null && draft !== song.lyrics
 
   return (
-    <div className="px-4 sm:px-8 py-8 max-w-2xl mx-auto space-y-6 overflow-hidden">
+    <div className="px-4 sm:px-8 py-8 max-w-5xl mx-auto space-y-6 overflow-hidden">
       {/* Back */}
       <button
         onClick={() => navigate('/songs')}

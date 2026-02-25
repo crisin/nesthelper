@@ -64,7 +64,7 @@ export default function Songs() {
 
   if (isLoading) {
     return (
-      <div className="px-4 sm:px-8 py-8 max-w-2xl mx-auto space-y-3">
+      <div className="px-4 sm:px-8 py-8 max-w-5xl mx-auto space-y-3">
         <div className="h-4 w-32 rounded-full bg-surface-raised animate-pulse mb-5" />
         <div className="h-9 w-full rounded-lg bg-surface-raised animate-pulse" />
         {[1, 2, 3].map((i) => (
@@ -76,7 +76,7 @@ export default function Songs() {
 
   return (
     <PullToRefresh onRefresh={handleRefresh}>
-      <div className="px-4 sm:px-8 py-8 max-w-2xl mx-auto space-y-4 overflow-hidden">
+      <div className="px-4 sm:px-8 py-8 max-w-5xl mx-auto space-y-4 overflow-hidden">
 
         {/* Header */}
         <div>

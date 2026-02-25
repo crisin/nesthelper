@@ -33,7 +33,7 @@ export default function Dashboard() {
 
   return (
     <PullToRefresh onRefresh={handleRefresh}>
-    <div className="px-4 sm:px-8 py-8 max-w-2xl mx-auto space-y-5 overflow-hidden">
+    <div className="px-4 sm:px-8 py-8 max-w-5xl mx-auto space-y-5 overflow-hidden">
       {/* Spotify connect prompt */}
       {notConnected && (
         <div className="flex items-center justify-between gap-4 px-4 py-3 rounded-xl

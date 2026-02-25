@@ -55,7 +55,7 @@ export default function Settings() {
   }
 
   return (
-    <div className="px-4 sm:px-8 py-8 max-w-2xl mx-auto space-y-8 overflow-hidden">
+    <div className="px-4 sm:px-8 py-8 max-w-5xl mx-auto space-y-8 overflow-hidden">
       <div>
         <p className="text-[11px] font-semibold text-foreground-subtle uppercase tracking-widest mb-1">
           Account

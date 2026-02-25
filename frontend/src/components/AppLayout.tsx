@@ -25,7 +25,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-surface text-foreground flex">
       {/* ── Sidebar (desktop only) ──────────────────────────────── */}
-      <aside className="hidden sm:flex fixed inset-y-0 left-0 z-40 w-56 flex-col bg-surface-raised border-r border-edge">
+      <div className="hidden sm:flex fixed inset-y-0 left-0 z-40 w-56 flex-col bg-surface-raised border-r border-edge">
         {/* Logo */}
         <div className="px-4 h-14 flex items-center flex-shrink-0 border-b border-edge">
           <Link
@@ -88,7 +88,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             </button>
           </div> */}
         </div>
-      </aside>
+      </div>
 
       {/* ── Content ──────────────────────────────────────────────── */}
       <main className="flex-1 sm:ml-56 pb-24 sm:pb-0 mb-safe sm:mb-0 min-h-screen overflow-x-hidden">

@@ -1,4 +1,4 @@
-import { Compass, Home, Library, Music, Settings } from "lucide-react";
+import { Compass, Home, Library, Settings } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import SpotifyConnect from "./SpotifyConnect";
@@ -33,7 +33,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             className="flex items-center gap-2.5 select-none"
           >
             <span className="w-7 h-7 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
-              <Music size={14} className="text-accent" strokeWidth={2} />
+              {/* <Music size={14} className="text-accent" strokeWidth={2} /> */}
+              <img src="/glorp-1x.webp" />
             </span>
             <span className="text-foreground font-semibold text-sm tracking-tight">
               Lyrics Helper
@@ -108,9 +109,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 to={path}
                 className={[
                   "flex-1 flex flex-col items-center justify-center gap-1 min-h-[48px] transition-colors active:scale-95",
-                  active
-                    ? "text-accent"
-                    : "text-foreground-muted",
+                  active ? "text-accent" : "text-foreground-muted",
                 ].join(" ")}
               >
                 <Icon size={20} strokeWidth={active ? 2.25 : 1.75} />

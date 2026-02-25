@@ -6,6 +6,7 @@ import type { CommunityLyric, LibraryTrack, SavedLyric } from '../types'
 import PullToRefresh from '../components/PullToRefresh'
 import TrackCover from '../components/TrackCover'
 import BottomSheet from '../components/BottomSheet'
+import TrackListItem from '../components/TrackListItem'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -109,23 +110,14 @@ function LibraryCard({
   const lyrics = data?.lyrics ?? []
 
   return (
-    <li className="rounded-xl bg-surface-raised border border-edge overflow-hidden shadow-card">
-      {/* Track row */}
-      <div className="flex items-center gap-3.5 px-3 py-3">
-        <TrackCover
-          src={track.imgUrl}
-          track={track.name}
-          artist={track.artist}
-          className="w-14 h-14 rounded-xl shadow-sm"
-        />
-
-        <button
-          className="flex-1 text-left min-w-0"
-          onClick={() => setExpanded((v) => !v)}
-        >
-          <p className="font-semibold text-foreground text-sm leading-tight truncate">{track.name}</p>
-          <p className="text-xs text-foreground-muted truncate mt-0.5">{track.artist}</p>
-
+    <li>
+      <TrackListItem
+        src={track.imgUrl}
+        track={track.name}
+        artist={track.artist}
+        size="md"
+        onContentClick={() => setExpanded((v) => !v)}
+        meta={
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
             {track.lyricsCount > 0 && (
               <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-accent/10 text-accent tabular-nums">
@@ -141,84 +133,82 @@ function LibraryCard({
               {timeAgo(track.lastSeenAt)}
             </span>
           </div>
-        </button>
-
-        <div className="flex items-center gap-0.5 flex-shrink-0">
-          <a
-            href={`https://open.spotify.com/track/${track.spotifyId}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="w-8 h-8 flex items-center justify-center text-foreground-subtle hover:text-accent transition-colors"
-            aria-label="Open on Spotify"
-          >
-            <ExternalLink size={13} strokeWidth={1.75} />
-          </a>
-
-          <button
-            onClick={onSave}
-            disabled={isSaved || isSaving}
-            aria-label={isSaved ? 'Already saved' : 'Save to my songs'}
-            className={[
-              'w-9 h-9 flex items-center justify-center text-lg leading-none transition-all disabled:opacity-30',
-              isSaved ? 'text-accent' : 'text-foreground-subtle hover:text-accent',
-            ].join(' ')}
-          >
-            {isSaved ? '♥' : '♡'}
-          </button>
-
-          <button
-            onClick={() => setExpanded((v) => !v)}
-            className="text-foreground-subtle hover:text-foreground transition-colors p-1"
-            aria-label={expanded ? 'Collapse' : 'Show community lyrics'}
-          >
-            <ChevronDown
-              size={15}
-              strokeWidth={1.75}
-              style={{
-                transform: expanded ? 'rotate(180deg)' : undefined,
-                transition: 'transform 0.15s',
-              }}
-            />
-          </button>
-        </div>
-      </div>
-
-      {expanded && (
-        <div className="border-t border-edge">
-          {lyricsLoading ? (
-            <div className="px-4 py-4 space-y-2">
-              {[1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  className={`h-3 rounded-full bg-surface-overlay animate-pulse ${i === 3 ? 'w-1/2' : 'w-3/4'}`}
-                />
-              ))}
-            </div>
-          ) : lyrics.length === 0 ? (
-            <div className="px-4 py-4 flex items-center justify-between gap-4">
-              <p className="text-xs text-foreground-subtle">
-                Noch keine Lyrics — speichere diesen Song, um Lyrics hinzuzufügen.
-              </p>
-              <a
-                href={track.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 text-xs text-foreground-subtle hover:text-accent transition-colors flex-shrink-0"
-              >
-                Search online
-                <ExternalLink size={11} strokeWidth={1.75} />
-              </a>
-            </div>
-          ) : (
-            <ul className="divide-y divide-edge">
-              {lyrics.map((l) => (
-                <LyricEntry key={l.id} lyric={l} />
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
+        }
+        actions={
+          <div className="flex items-center gap-0.5 flex-shrink-0">
+            <a
+              href={`https://open.spotify.com/track/${track.spotifyId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="w-8 h-8 flex items-center justify-center text-foreground-subtle hover:text-accent transition-colors"
+              aria-label="Open on Spotify"
+            >
+              <ExternalLink size={13} strokeWidth={1.75} />
+            </a>
+            <button
+              onClick={onSave}
+              disabled={isSaved || isSaving}
+              aria-label={isSaved ? 'Already saved' : 'Save to my songs'}
+              className={[
+                'w-9 h-9 flex items-center justify-center text-lg leading-none transition-all disabled:opacity-30',
+                isSaved ? 'text-accent' : 'text-foreground-subtle hover:text-accent',
+              ].join(' ')}
+            >
+              {isSaved ? '♥' : '♡'}
+            </button>
+            <button
+              onClick={() => setExpanded((v) => !v)}
+              className="text-foreground-subtle hover:text-foreground transition-colors p-1"
+              aria-label={expanded ? 'Collapse' : 'Show community lyrics'}
+            >
+              <ChevronDown
+                size={15}
+                strokeWidth={1.75}
+                style={{
+                  transform: expanded ? 'rotate(180deg)' : undefined,
+                  transition: 'transform 0.15s',
+                }}
+              />
+            </button>
+          </div>
+        }
+        append={expanded && (
+          <div className="border-t border-edge">
+            {lyricsLoading ? (
+              <div className="px-4 py-4 space-y-2">
+                {[1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className={`h-3 rounded-full bg-surface-overlay animate-pulse ${i === 3 ? 'w-1/2' : 'w-3/4'}`}
+                  />
+                ))}
+              </div>
+            ) : lyrics.length === 0 ? (
+              <div className="px-4 py-4 flex items-center justify-between gap-4">
+                <p className="text-xs text-foreground-subtle">
+                  Noch keine Lyrics — speichere diesen Song, um Lyrics hinzuzufügen.
+                </p>
+                <a
+                  href={track.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-xs text-foreground-subtle hover:text-accent transition-colors flex-shrink-0"
+                >
+                  Search online
+                  <ExternalLink size={11} strokeWidth={1.75} />
+                </a>
+              </div>
+            ) : (
+              <ul className="divide-y divide-edge">
+                {lyrics.map((l) => (
+                  <LyricEntry key={l.id} lyric={l} />
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+      />
     </li>
   )
 }
@@ -645,54 +635,43 @@ export default function Discover() {
               {feed.map((item) => {
                 const isSaved = savedByHistoryId.has(item.id)
                 return (
-                  <li
-                    key={item.id}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl
-                               bg-surface-raised border border-edge hover:border-foreground-muted/40
-                               transition-colors group shadow-card"
-                  >
-                    <TrackCover
+                  <li key={item.id}>
+                    <TrackListItem
                       src={item.imgUrl}
                       track={item.track}
                       artist={item.artist}
-                      className="w-9 h-9 rounded-lg"
-                      iconSize={14}
+                      size="sm"
+                      interactive
+                      onContentClick={() => window.open(item.url, '_blank', 'noopener,noreferrer')}
+                      actions={
+                        <div className="flex items-center gap-3 flex-shrink-0">
+                          <div className="hidden sm:flex flex-col items-end gap-0.5">
+                            <span className="text-xs text-foreground-muted">{item.user.name ?? 'Anonymous'}</span>
+                            <span className="text-[11px] text-foreground-subtle tabular-nums">{timeAgo(item.createdAt)}</span>
+                          </div>
+                          <span className="sm:hidden text-[11px] text-foreground-subtle tabular-nums">
+                            {timeAgo(item.createdAt)}
+                          </span>
+                          <button
+                            onClick={() => {
+                              const savedId = savedByHistoryId.get(item.id)
+                              if (savedId) unsaveFeedItem.mutate(savedId)
+                              else saveFeedItem.mutate(item)
+                            }}
+                            disabled={saveFeedItem.isPending || unsaveFeedItem.isPending}
+                            aria-label={isSaved ? 'Remove from favorites' : 'Save to favorites'}
+                            className={[
+                              'w-9 h-9 sm:w-auto sm:h-auto flex items-center justify-center text-lg leading-none transition-all disabled:opacity-30',
+                              isSaved
+                                ? 'text-accent'
+                                : 'text-foreground-subtle hover:text-accent sm:opacity-0 sm:group-hover:opacity-100',
+                            ].join(' ')}
+                          >
+                            {isSaved ? '♥' : '♡'}
+                          </button>
+                        </div>
+                      }
                     />
-
-                    <button
-                      className="flex-1 text-left min-w-0"
-                      onClick={() => window.open(item.url, '_blank', 'noopener,noreferrer')}
-                    >
-                      <p className="font-medium text-foreground text-sm truncate">{item.track}</p>
-                      <p className="text-xs text-foreground-muted truncate">{item.artist}</p>
-                    </button>
-
-                    <div className="flex items-center gap-3 flex-shrink-0">
-                      <div className="hidden sm:flex flex-col items-end gap-0.5">
-                        <span className="text-xs text-foreground-muted">{item.user.name ?? 'Anonymous'}</span>
-                        <span className="text-[11px] text-foreground-subtle tabular-nums">{timeAgo(item.createdAt)}</span>
-                      </div>
-                      <span className="sm:hidden text-[11px] text-foreground-subtle tabular-nums">
-                        {timeAgo(item.createdAt)}
-                      </span>
-                      <button
-                        onClick={() => {
-                          const savedId = savedByHistoryId.get(item.id)
-                          if (savedId) unsaveFeedItem.mutate(savedId)
-                          else saveFeedItem.mutate(item)
-                        }}
-                        disabled={saveFeedItem.isPending || unsaveFeedItem.isPending}
-                        aria-label={isSaved ? 'Remove from favorites' : 'Save to favorites'}
-                        className={[
-                          'w-9 h-9 sm:w-auto sm:h-auto flex items-center justify-center text-lg leading-none transition-all disabled:opacity-30',
-                          isSaved
-                            ? 'text-accent'
-                            : 'text-foreground-subtle hover:text-accent sm:opacity-0 sm:group-hover:opacity-100',
-                        ].join(' ')}
-                      >
-                        {isSaved ? '♥' : '♡'}
-                      </button>
-                    </div>
                   </li>
                 )
               })}

@@ -5,7 +5,7 @@ import api from '../services/api'
 import type { SavedLyric, SearchHistoryItem } from '../types'
 import SwipeToDelete from './SwipeToDelete'
 import BottomSheet from './BottomSheet'
-import TrackCover from './TrackCover'
+import TrackListItem from './TrackListItem'
 
 interface SpotifyTrack {
   id: string
@@ -179,56 +179,42 @@ export default function LyricsSearch() {
                     onDelete={() => setPendingDeleteId(item.id)}
                     disabled={removeHistory.isPending}
                   >
-                    <div
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-surface-raised border border-edge
-                                 hover:border-foreground-muted/40 transition-colors group shadow-card"
-                    >
-                      <TrackCover
-                        src={item.imgUrl}
-                        track={item.track}
-                        artist={item.artist}
-                        className="w-9 h-9 rounded-lg"
-                        iconSize={14}
-                      />
-
-                      <button
-                        className="flex-1 text-left min-w-0"
-                        onClick={() => window.open(item.url, '_blank', 'noopener,noreferrer')}
-                      >
-                        <p className="font-medium text-foreground text-sm truncate">{item.track}</p>
-                        <p className="text-xs text-foreground-muted truncate">{item.artist}</p>
-                      </button>
-
-                      <span className="text-[11px] text-foreground-subtle flex-shrink-0 tabular-nums">
-                        {timeAgo(item.createdAt)}
-                      </span>
-
-                      {/* Heart */}
-                      <button
-                        onClick={() => toggleFavorite(item)}
-                        disabled={saveFavorite.isPending || unsaveFavorite.isPending}
-                        aria-label={isSaved ? 'Remove from favorites' : 'Save to favorites'}
-                        className={[
-                          'flex-shrink-0 w-9 h-9 sm:w-auto sm:h-auto flex items-center justify-center text-lg leading-none disabled:opacity-30 transition-all',
-                          isSaved
-                            ? 'text-accent'
-                            : 'text-foreground-subtle hover:text-accent sm:opacity-0 sm:group-hover:opacity-100'
-                        ].join(' ')}
-                      >
-                        {isSaved ? '♥' : '♡'}
-                      </button>
-
-                      {/* Remove (desktop only — mobile uses swipe) */}
-                      <button
-                        onClick={() => setPendingDeleteId(item.id)}
-                        disabled={removeHistory.isPending}
-                        aria-label="Remove from history"
-                        className="hidden sm:flex flex-shrink-0 items-center justify-center text-foreground-subtle disabled:opacity-30 hover:text-foreground
-                                   transition-colors opacity-0 group-hover:opacity-100"
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
+                    <TrackListItem
+                      src={item.imgUrl}
+                      track={item.track}
+                      artist={item.artist}
+                      size="sm"
+                      interactive
+                      onContentClick={() => window.open(item.url, '_blank', 'noopener,noreferrer')}
+                      actions={
+                        <>
+                          <span className="text-[11px] text-foreground-subtle flex-shrink-0 tabular-nums">
+                            {timeAgo(item.createdAt)}
+                          </span>
+                          <button
+                            onClick={() => toggleFavorite(item)}
+                            disabled={saveFavorite.isPending || unsaveFavorite.isPending}
+                            aria-label={isSaved ? 'Remove from favorites' : 'Save to favorites'}
+                            className={[
+                              'flex-shrink-0 w-9 h-9 sm:w-auto sm:h-auto flex items-center justify-center text-lg leading-none disabled:opacity-30 transition-all',
+                              isSaved
+                                ? 'text-accent'
+                                : 'text-foreground-subtle hover:text-accent sm:opacity-0 sm:group-hover:opacity-100',
+                            ].join(' ')}
+                          >
+                            {isSaved ? '♥' : '♡'}
+                          </button>
+                          <button
+                            onClick={() => setPendingDeleteId(item.id)}
+                            disabled={removeHistory.isPending}
+                            aria-label="Remove from history"
+                            className="hidden sm:flex flex-shrink-0 items-center justify-center text-foreground-subtle disabled:opacity-30 hover:text-foreground transition-colors opacity-0 group-hover:opacity-100"
+                          >
+                            <X size={14} />
+                          </button>
+                        </>
+                      }
+                    />
                   </SwipeToDelete>
                 </li>
               )

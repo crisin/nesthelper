@@ -6,7 +6,7 @@ import api from '../services/api'
 import type { SavedLyric } from '../types'
 import SwipeToDelete from '../components/SwipeToDelete'
 import PullToRefresh from '../components/PullToRefresh'
-import TrackCover from '../components/TrackCover'
+import TrackListItem from '../components/TrackListItem'
 
 type SortKey = 'recent' | 'artist' | 'title'
 
@@ -159,24 +159,13 @@ export default function Songs() {
                     onDelete={() => removeSong.mutate(song.id)}
                     disabled={removeSong.isPending}
                   >
-                    <button
-                      className="w-full flex items-center gap-3.5 px-3 py-3 rounded-xl bg-surface-raised border border-edge
-                                 hover:bg-surface-overlay active:scale-[0.99] transition-all text-left group"
-                      onClick={() => navigate(`/songs/${song.id}`)}
-                    >
-                      <TrackCover
-                        src={imgUrl}
-                        track={song.track}
-                        artist={song.artist}
-                        className="w-14 h-14 rounded-xl shadow-sm"
-                      />
-
-                      {/* Info */}
-                      <div className="flex-1 min-w-0 space-y-0.5">
-                        <p className="font-semibold text-foreground text-sm leading-tight truncate">
-                          {song.track}
-                        </p>
-                        <p className="text-xs text-foreground-muted truncate">{song.artist}</p>
+                    <TrackListItem
+                      src={imgUrl}
+                      track={song.track}
+                      artist={song.artist}
+                      size="md"
+                      onCardClick={() => navigate(`/songs/${song.id}`)}
+                      meta={
                         <div className="flex items-center gap-2 pt-0.5">
                           <span
                             className={`text-[10px] font-medium px-1.5 py-0.5 rounded-md ${
@@ -191,35 +180,34 @@ export default function Songs() {
                             {formatAdded(song.createdAt)}
                           </span>
                         </div>
-                      </div>
-
-                      {/* Right side */}
-                      <div className="flex items-center gap-1 flex-shrink-0">
-                        {spotifyId && (
-                          <span
-                            role="img"
-                            aria-label="Open on Spotify"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              window.open(
-                                `https://open.spotify.com/track/${spotifyId}`,
-                                '_blank',
-                                'noopener,noreferrer',
-                              )
-                            }}
-                            className="w-8 h-8 flex items-center justify-center text-foreground-subtle
-                                       hover:text-accent transition-colors cursor-pointer"
-                          >
-                            <ExternalLink size={13} strokeWidth={1.75} />
-                          </span>
-                        )}
-                        <ChevronRight
-                          size={15}
-                          className="text-foreground-subtle group-hover:text-foreground-muted transition-colors"
-                          strokeWidth={1.75}
-                        />
-                      </div>
-                    </button>
+                      }
+                      actions={
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          {spotifyId && (
+                            <span
+                              role="img"
+                              aria-label="Open on Spotify"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                window.open(
+                                  `https://open.spotify.com/track/${spotifyId}`,
+                                  '_blank',
+                                  'noopener,noreferrer',
+                                )
+                              }}
+                              className="w-8 h-8 flex items-center justify-center text-foreground-subtle hover:text-accent transition-colors cursor-pointer"
+                            >
+                              <ExternalLink size={13} strokeWidth={1.75} />
+                            </span>
+                          )}
+                          <ChevronRight
+                            size={15}
+                            className="text-foreground-subtle group-hover:text-foreground-muted transition-colors"
+                            strokeWidth={1.75}
+                          />
+                        </div>
+                      }
+                    />
                   </SwipeToDelete>
                 </li>
               )

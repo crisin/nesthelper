@@ -5,6 +5,7 @@ import api from '../services/api'
 import type { CommunityLyric, LibraryTrack, SavedLyric } from '../types'
 import PullToRefresh from '../components/PullToRefresh'
 import TrackCover from '../components/TrackCover'
+import BottomSheet from '../components/BottomSheet'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -235,6 +236,17 @@ function LibraryGridCard({
   onSave: () => void
   isSaving: boolean
 }) {
+  const [lyricsOpen, setLyricsOpen] = useState(false)
+
+  const { data, isLoading: lyricsLoading } = useQuery<LibraryLyricsResponse>({
+    queryKey: ['library-lyrics', track.id],
+    queryFn: () =>
+      api.get<LibraryLyricsResponse>(`/library/${track.id}/lyrics`).then((r) => r.data),
+    enabled: lyricsOpen,
+  })
+
+  const lyrics = data?.lyrics ?? []
+
   return (
     <li className="rounded-xl bg-surface-raised border border-edge overflow-hidden shadow-card group">
       {/* Square cover */}
@@ -297,11 +309,75 @@ function LibraryGridCard({
         )}
       </div>
 
-      {/* Footer */}
-      <div className="px-2.5 py-2.5">
+      {/* Footer — click to open lyrics sheet */}
+      <button
+        className="w-full px-2.5 py-2.5 text-left hover:bg-surface-overlay active:bg-surface-overlay transition-colors"
+        onClick={() => setLyricsOpen(true)}
+      >
         <p className="text-xs font-semibold text-foreground truncate leading-tight">{track.name}</p>
         <p className="text-[11px] text-foreground-muted truncate mt-0.5">{track.artist}</p>
-      </div>
+      </button>
+
+      {/* Lyrics sheet */}
+      <BottomSheet open={lyricsOpen} onClose={() => setLyricsOpen(false)}>
+        {/* Sheet header */}
+        <div className="flex items-center gap-3 mb-4">
+          {track.imgUrl && (
+            <img
+              src={track.imgUrl}
+              alt={track.name}
+              className="w-12 h-12 rounded-xl object-cover flex-shrink-0"
+            />
+          )}
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-foreground text-sm leading-tight truncate">{track.name}</p>
+            <p className="text-xs text-foreground-muted truncate mt-0.5">{track.artist}</p>
+          </div>
+          <button
+            onClick={onSave}
+            disabled={isSaved || isSaving}
+            aria-label={isSaved ? 'Already saved' : 'Save to my songs'}
+            className={[
+              'flex-shrink-0 w-9 h-9 flex items-center justify-center text-lg leading-none transition-all disabled:opacity-30',
+              isSaved ? 'text-accent' : 'text-foreground-subtle hover:text-accent',
+            ].join(' ')}
+          >
+            {isSaved ? '♥' : '♡'}
+          </button>
+        </div>
+
+        {/* Community lyrics */}
+        <div className="-mx-5 border-t border-edge">
+          {lyricsLoading ? (
+            <div className="px-5 py-4 space-y-2">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className={`h-3 rounded-full bg-surface-overlay animate-pulse ${i === 3 ? 'w-1/2' : 'w-3/4'}`} />
+              ))}
+            </div>
+          ) : lyrics.length === 0 ? (
+            <div className="px-5 py-4 flex items-center justify-between gap-4">
+              <p className="text-xs text-foreground-subtle">
+                No community lyrics yet.
+              </p>
+              <a
+                href={track.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-xs text-foreground-subtle hover:text-accent transition-colors flex-shrink-0"
+              >
+                Search online
+                <ExternalLink size={11} strokeWidth={1.75} />
+              </a>
+            </div>
+          ) : (
+            <ul className="divide-y divide-edge max-h-[45vh] overflow-y-auto">
+              {lyrics.map((l) => (
+                <LyricEntry key={l.id} lyric={l} />
+              ))}
+            </ul>
+          )}
+        </div>
+      </BottomSheet>
     </li>
   )
 }

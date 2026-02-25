@@ -5,10 +5,10 @@ import SpotifyConnect from "./SpotifyConnect";
 import UsernameEdit from "./UsernameEdit";
 
 const NAV = [
-  { path: "/dashboard", label: "Home", Icon: Home },
-  { path: "/discover", label: "Discover", Icon: Compass },
+  { path: "/dashboard", label: "Dashboard", Icon: Home },
+  { path: "/discover", label: "Entdecken", Icon: Compass },
   { path: "/songs", label: "Songs", Icon: Library },
-  { path: "/settings", label: "Settings", Icon: Settings },
+  { path: "/settings", label: "Einstellungen", Icon: Settings },
 ];
 
 export default function AppLayout({ children }: { children: ReactNode }) {

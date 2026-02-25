@@ -103,9 +103,9 @@ export default function Login() {
         </div>
 
         <p className="mt-5 text-center text-sm text-foreground-muted">
-          No account?{' '}
-          <Link to="/register" className="text-foreground font-medium hover:text-accent transition-colors">
-            Create one?
+          kein account?{' '}
+          <Link to="/login" className="text-foreground font-medium hover:text-accent transition-colors">
+            nur für coole kids, sorry
           </Link>
         </p>
       </div>

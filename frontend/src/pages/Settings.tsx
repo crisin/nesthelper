@@ -1,52 +1,57 @@
-import { useEffect } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ExternalLink, LogOut, Moon, Sun } from 'lucide-react'
-import api from '../services/api'
-import { useAuthStore } from '../stores/authStore'
-import UsernameEdit from '../components/UsernameEdit'
-import { useTheme } from '../hooks/useTheme'
+import { useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ExternalLink, LogOut, Moon, Sun } from "lucide-react";
+import api from "../services/api";
+import { useAuthStore } from "../stores/authStore";
+import UsernameEdit from "../components/UsernameEdit";
+import { useTheme } from "../hooks/useTheme";
 
 interface SpotifyStatus {
-  connected: boolean
-  spotifyId: string | null
+  connected: boolean;
+  spotifyId: string | null;
 }
 
 export default function Settings() {
-  const user = useAuthStore((s) => s.user)
-  const queryClient = useQueryClient()
-  const [searchParams, setSearchParams] = useSearchParams()
-    const navigate  = useNavigate()
-  const clearAuth = useAuthStore((s) => s.clearAuth)
-  const { isDark, toggle } = useTheme()
+  const user = useAuthStore((s) => s.user);
+  const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const clearAuth = useAuthStore((s) => s.clearAuth);
+  const { isDark, toggle } = useTheme();
 
   function handleLogout() {
-    clearAuth()
-    navigate('/login')
+    clearAuth();
+    navigate("/login");
   }
 
   const { data: status, isLoading } = useQuery<SpotifyStatus>({
-    queryKey: ['spotify-status'],
-    queryFn: () => api.get<SpotifyStatus>('/spotify/status').then((r) => r.data),
-  })
+    queryKey: ["spotify-status"],
+    queryFn: () =>
+      api.get<SpotifyStatus>("/spotify/status").then((r) => r.data),
+  });
 
   const disconnect = useMutation({
-    mutationFn: () => api.delete('/spotify/disconnect'),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['spotify-status'] }),
-  })
+    mutationFn: () => api.delete("/spotify/disconnect"),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["spotify-status"] }),
+  });
 
   useEffect(() => {
-    const result = searchParams.get('spotify')
-    if (!result) return
-    if (result === 'connected') {
-      queryClient.invalidateQueries({ queryKey: ['spotify-status'] })
+    const result = searchParams.get("spotify");
+    if (!result) return;
+    if (result === "connected") {
+      queryClient.invalidateQueries({ queryKey: ["spotify-status"] });
     }
-    setSearchParams((prev) => { prev.delete('spotify'); return prev })
-  }, [searchParams, queryClient, setSearchParams])
+    setSearchParams((prev) => {
+      prev.delete("spotify");
+      return prev;
+    });
+  }, [searchParams, queryClient, setSearchParams]);
 
   async function handleConnect() {
-    const { data } = await api.get<{ url: string }>('/spotify/connect')
-    window.location.href = data.url
+    const { data } = await api.get<{ url: string }>("/spotify/connect");
+    window.location.href = data.url;
   }
 
   return (
@@ -71,7 +76,9 @@ export default function Settings() {
             </div>
           </div>
           <div className="px-4 py-3">
-            <p className="text-xs text-foreground-subtle mb-1.5">Display name</p>
+            <p className="text-xs text-foreground-subtle mb-1.5">
+              Display name
+            </p>
             <UsernameEdit />
           </div>
         </div>
@@ -94,7 +101,9 @@ export default function Settings() {
               <div className="space-y-1 min-w-0">
                 <div className="flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-accent flex-shrink-0" />
-                  <p className="text-sm font-medium text-foreground">Connected</p>
+                  <p className="text-sm font-medium text-foreground">
+                    Connected
+                  </p>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <p className="text-xs text-foreground-muted truncate">
@@ -119,7 +128,7 @@ export default function Settings() {
                 className="text-xs text-foreground-subtle hover:text-foreground-muted disabled:opacity-40
                            transition-colors flex-shrink-0 pt-0.5"
               >
-                {disconnect.isPending ? 'Disconnecting…' : 'Disconnect'}
+                {disconnect.isPending ? "Disconnecting…" : "Disconnect"}
               </button>
             </div>
           ) : (
@@ -127,7 +136,7 @@ export default function Settings() {
               <div>
                 <p className="text-sm text-foreground mb-0.5">Not connected</p>
                 <p className="text-xs text-foreground-subtle">
-                  Connect to search lyrics from your currently playing track.
+                  Verbinde dich um deine aktive Wiedergabe zu suchen.
                 </p>
               </div>
               <button
@@ -135,7 +144,7 @@ export default function Settings() {
                 className="flex-shrink-0 px-3.5 py-1.5 rounded-lg bg-accent text-black text-xs font-semibold
                            hover:opacity-90 transition-opacity"
               >
-                Connect
+                Verbinden
               </button>
             </div>
           )}
@@ -143,22 +152,26 @@ export default function Settings() {
       </section>
       <section className="pt-6 border-t border-edge">
         <div className="flex items-center justify-between pt-0.5">
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-1.5 text-xs text-foreground-muted hover:text-foreground transition-colors"
-            >
-              <LogOut size={12} strokeWidth={1.75} />
-              Sign out
-            </button>
-            <button
-              onClick={toggle}
-              aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-              className="w-7 h-7 flex items-center justify-center rounded-lg text-foreground-muted hover:bg-surface-overlay hover:text-foreground transition-colors"
-            >
-              {isDark ? <Sun size={14} strokeWidth={1.75} /> : <Moon size={14} strokeWidth={1.75} />}
-            </button>
-          </div>
-        </section>
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-1.5 text-xs text-foreground-muted hover:text-foreground transition-colors"
+          >
+            <LogOut size={12} strokeWidth={1.75} />
+            Sign out
+          </button>
+          <button
+            onClick={toggle}
+            aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-foreground-muted hover:bg-surface-overlay hover:text-foreground transition-colors"
+          >
+            {isDark ? (
+              <Sun size={14} strokeWidth={1.75} />
+            ) : (
+              <Moon size={14} strokeWidth={1.75} />
+            )}
+          </button>
+        </div>
+      </section>
     </div>
-  )
+  );
 }

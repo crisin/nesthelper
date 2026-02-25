@@ -202,7 +202,7 @@ function LibraryCard({
           ) : lyrics.length === 0 ? (
             <div className="px-4 py-4 flex items-center justify-between gap-4">
               <p className="text-xs text-foreground-subtle">
-                No lyrics yet — save this song and add some.
+                Noch keine Lyrics — speichere diesen Song, um Lyrics hinzuzufügen.
               </p>
               <a
                 href={track.url}

@@ -31,7 +31,7 @@ export default function SwipeToDelete({
           aria-label="Delete"
         >
           <Trash2 size={18} strokeWidth={2} />
-          <span className="text-[10px] font-medium">Delete</span>
+          <span className="text-[10px] font-medium">Löschen</span>
         </button>
       </div>
 

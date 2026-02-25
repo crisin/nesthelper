@@ -43,7 +43,7 @@ export default function Songs() {
 
   const displayed = useMemo(() => {
     const q = query.trim().toLowerCase()
-    let list = q
+    const list = q
       ? songs.filter(
           (s) => s.track.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q),
         )

@@ -14,9 +14,9 @@ function LyricsView({ lyrics, onEdit }: { lyrics: string; onEdit: () => void }) 
       <div className="flex flex-col items-center justify-center py-16 rounded-xl border border-dashed border-edge gap-3 text-center">
         <Music size={26} className="text-foreground-subtle" strokeWidth={1.25} />
         <div className="space-y-1">
-          <p className="text-sm text-foreground-muted font-medium">No lyrics yet</p>
+          <p className="text-sm text-foreground-muted font-medium">Noch keine Lyrics</p>
           <p className="text-xs text-foreground-subtle">
-            Switch to edit mode to add lyrics
+            Wechsel in den Editiermodus, um Lyrics hinzuzufügen.
           </p>
         </div>
         <button
@@ -24,7 +24,7 @@ function LyricsView({ lyrics, onEdit }: { lyrics: string; onEdit: () => void }) 
           className="mt-1 px-3 py-1.5 rounded-lg bg-surface-raised border border-edge text-xs font-medium
                      text-foreground-muted hover:text-foreground hover:border-foreground-muted/50 transition-colors"
         >
-          Add lyrics
+          Lyrics hinzufügen
         </button>
       </div>
     )
@@ -116,9 +116,9 @@ export default function SongDetail() {
           className="flex items-center gap-1.5 text-sm text-foreground-muted hover:text-foreground transition-colors mb-6"
         >
           <ArrowLeft size={15} strokeWidth={1.75} />
-          Saved Songs
+          Gespeicherte Songs
         </button>
-        <p className="text-sm text-foreground-subtle">Song not found.</p>
+        <p className="text-sm text-foreground-subtle">Song nicht gefunden.</p>
       </div>
     )
   }
@@ -136,7 +136,7 @@ export default function SongDetail() {
         className="flex items-center gap-1.5 py-1.5 -ml-1 px-1 text-sm text-foreground-muted hover:text-foreground transition-colors"
       >
         <ArrowLeft size={15} strokeWidth={1.75} />
-        Saved Songs
+        Gespeicherte Songs
       </button>
 
       {/* Song header */}
@@ -163,7 +163,7 @@ export default function SongDetail() {
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 text-xs text-foreground-subtle hover:text-accent transition-colors mt-1.5"
             >
-              Search lyrics online
+              Lyrics online suchen
               <ExternalLink size={11} strokeWidth={1.75} />
             </a>
           )}
@@ -192,7 +192,7 @@ export default function SongDetail() {
                 ].join(' ')}
               >
                 <Eye size={11} strokeWidth={2} />
-                View
+                Ansicht
               </button>
               <button
                 onClick={() => setViewMode('edit')}
@@ -205,7 +205,7 @@ export default function SongDetail() {
                 ].join(' ')}
               >
                 <Pencil size={11} strokeWidth={2} />
-                Edit
+                Bearbeiten
               </button>
             </div>
 
@@ -214,16 +214,16 @@ export default function SongDetail() {
               className="flex items-center gap-1 text-xs text-foreground-subtle hover:text-red-400 transition-colors"
             >
               <Trash2 size={12} strokeWidth={1.75} />
-              Remove
+              Löschen
             </button>
           </div>
 
           <BottomSheet open={confirmDelete} onClose={() => setConfirmDelete(false)}>
             <div className="space-y-4">
               <div>
-                <h3 className="text-base font-semibold text-foreground">Remove song</h3>
+                <h3 className="text-base font-semibold text-foreground">Song löschen</h3>
                 <p className="text-sm text-foreground-muted mt-1">
-                  Are you sure you want to remove <strong>{song.track}</strong>? This can't be undone.
+                  Bist du sicher, dass du <strong>{song.track}</strong> löschen willst? Dies kann nicht rückgängig gemacht werden.
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row gap-2">
@@ -240,7 +240,7 @@ export default function SongDetail() {
                   className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-surface-overlay text-foreground text-sm font-medium
                              hover:bg-surface-overlay/80 transition-colors"
                 >
-                  Cancel
+                  Abbrechen
                 </button>
               </div>
             </div>
@@ -255,7 +255,7 @@ export default function SongDetail() {
             <textarea
               className="w-full min-h-48 sm:min-h-96 bg-surface-raised border border-edge rounded-xl p-4 resize-y
                          focus:outline-none focus:border-foreground-muted/60 transition-colors text-sm leading-relaxed"
-              placeholder="Paste or write lyrics here…"
+              placeholder="Lyrics hier einfügen…"
               value={currentLyrics}
               onChange={(e) => setDraft(e.target.value)}
             />
@@ -267,15 +267,15 @@ export default function SongDetail() {
                 className="px-4 py-2 sm:py-1.5 rounded-lg bg-accent text-black text-xs font-semibold
                            disabled:opacity-40 hover:opacity-90 transition-opacity"
               >
-                {updateLyrics.isPending ? 'Saving…' : 'Save lyrics'}
+                {updateLyrics.isPending ? 'Speichern…' : 'Lyrics speichern'}
               </button>
-              {confirmed && <span className="text-xs text-accent">Saved!</span>}
+              {confirmed && <span className="text-xs text-accent">Gespeichert!</span>}
               {isDirty && !updateLyrics.isPending && (
                 <button
                   onClick={() => setDraft(null)}
                   className="text-xs text-foreground-muted hover:text-foreground transition-colors"
                 >
-                  Discard
+                  Verwerfen
                 </button>
               )}
             </div>

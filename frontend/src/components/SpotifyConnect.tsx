@@ -52,7 +52,7 @@ export default function SpotifyConnect() {
           disabled={disconnect.isPending}
           className="text-xs text-foreground-subtle hover:text-foreground-muted disabled:opacity-40 transition-colors"
         >
-          Disconnect
+          Trennen
         </button>
       </div>
     )
@@ -64,7 +64,7 @@ export default function SpotifyConnect() {
       className="px-3 py-1.5 rounded-lg bg-accent text-black text-xs font-semibold
                  hover:opacity-90 transition-opacity w-full"
     >
-      Connect Spotify
+      Spotify verbinden
     </button>
   )
 }

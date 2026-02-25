@@ -39,9 +39,9 @@ export default function Dashboard() {
         <div className="flex items-center justify-between gap-4 px-4 py-3 rounded-xl
                         bg-surface-raised border border-edge">
           <div>
-            <p className="text-sm font-medium text-foreground">Spotify not connected</p>
+            <p className="text-sm font-medium text-foreground">Spotify ist nicht verbunden</p>
             <p className="text-xs text-foreground-muted mt-0.5">
-              Connect to search lyrics from your currently playing track.
+              Verbinde dich um deine aktive Wiedergabe zu suchen.
             </p>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -50,13 +50,13 @@ export default function Dashboard() {
               className="px-3.5 py-1.5 rounded-lg bg-accent text-black text-xs font-semibold
                          hover:opacity-90 transition-opacity"
             >
-              Connect
+              Verbinden
             </button>
             <button
               onClick={() => navigate('/settings')}
               className="text-xs text-foreground-subtle hover:text-foreground-muted transition-colors"
             >
-              Settings
+              Einstellungen
             </button>
           </div>
         </div>

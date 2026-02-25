@@ -149,11 +149,11 @@ export default function SavedLyrics() {
   return (
     <div className="space-y-2">
       <p className="text-[11px] font-semibold text-foreground-subtle uppercase tracking-widest">
-        Saved Songs
+        Gespeicherte Songs
       </p>
       {savedLyrics.length === 0 ? (
         <p className="text-sm text-foreground-subtle py-2">
-          No saved songs yet — hit ♡ on a history item.
+          Noch keine gespeicherten Songs — klicke auf ♡ bei einem Song im Verlauf.
         </p>
       ) : (
         <ul className="space-y-1.5">

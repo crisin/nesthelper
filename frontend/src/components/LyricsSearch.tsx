@@ -85,7 +85,7 @@ export default function LyricsSearch() {
     try {
       const res = await api.get<CurrentTrackResponse>('/spotify/current-track')
       const track = res.data?.item
-      if (!track) { setError('Nothing is playing right now.'); return }
+      if (!track) { setError('Derzeit wird nichts abgespielt'); return }
 
       const artist = track.artists.map((a) => a.name).join(', ')
       const url = `https://www.google.com/search?q=${encodeURIComponent(`${artist} ${track.name} lyrics`)}`
@@ -93,7 +93,7 @@ export default function LyricsSearch() {
       if (mode === 'open') window.open(url, '_blank', 'noopener,noreferrer')
       saveEntry.mutate({ spotifyId: track.id, track: track.name, artist, url, imgUrl: track.album.images[0]?.url })
     } catch {
-      setError('Could not fetch current track. Is Spotify connected?')
+      setError('Aktueller Track kann nicht abgerufen werden. Ist Spotify verbunden?')
     }
   }
 
@@ -114,14 +114,14 @@ export default function LyricsSearch() {
                        hover:opacity-90 transition-opacity active:scale-[0.98]"
           >
             <Search size={14} strokeWidth={2.25} />
-            Search Lyrics
+            Lyrics suchen
           </button>
 
           {/* Mode toggle */}
           <div className="flex items-center rounded-lg border border-edge bg-surface-raised p-0.5 gap-0.5">
             <button
               onClick={() => toggleMode('open')}
-              title="Open Google search"
+              title="Direkt mit Google suchen"
               className={[
                 'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors',
                 mode === 'open'
@@ -130,11 +130,11 @@ export default function LyricsSearch() {
               ].join(' ')}
             >
               <ExternalLink size={11} strokeWidth={2} />
-              Open
+              Google Suche
             </button>
             <button
               onClick={() => toggleMode('save')}
-              title="Save to app only"
+              title="Nur speichern"
               className={[
                 'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors',
                 mode === 'save'
@@ -143,7 +143,7 @@ export default function LyricsSearch() {
               ].join(' ')}
             >
               <BookmarkPlus size={11} strokeWidth={2} />
-              Save
+              Speichern
             </button>
           </div>
         </div>
@@ -167,7 +167,7 @@ export default function LyricsSearch() {
       {history.length > 0 && (
         <div className="space-y-2">
           <p className="text-[11px] font-semibold text-foreground-subtle uppercase tracking-widest">
-            Search History
+            Suchverlauf
           </p>
           <ul className="space-y-1.5">
             {history.map((item) => {
@@ -246,9 +246,9 @@ export default function LyricsSearch() {
           return (
             <div className="space-y-4">
               <div>
-                <h3 className="text-base font-semibold text-foreground">Remove from history</h3>
+                <h3 className="text-base font-semibold text-foreground">Aus dem Verlauf löschen</h3>
                 <p className="text-sm text-foreground-muted mt-1">
-                  Remove <strong>{item?.track}</strong> from your search history?
+                  Möchtest du <strong>{item?.track}</strong> aus deinem Suchverlauf entfernen?
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row gap-2">
@@ -261,14 +261,14 @@ export default function LyricsSearch() {
                   className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-red-500 text-white text-sm font-semibold
                              disabled:opacity-50 hover:bg-red-600 transition-colors"
                 >
-                  Remove
+                  Löschen
                 </button>
                 <button
                   onClick={() => setPendingDeleteId(null)}
                   className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-surface-overlay text-foreground text-sm font-medium
                              hover:bg-surface-overlay/80 transition-colors"
                 >
-                  Cancel
+                  Abbrechen
                 </button>
               </div>
             </div>

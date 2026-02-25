@@ -25,8 +25,8 @@ export default function UsernameEdit() {
 
   async function save() {
     const trimmed = draft.trim()
-    if (!trimmed) { setError('Cannot be empty.'); return }
-    if (trimmed.length > 30) { setError('Max 30 chars.'); return }
+    if (!trimmed) { setError('Darf nicht leer sein.'); return }
+    if (trimmed.length > 30) { setError('Max 30 Zeichen.'); return }
     setSaving(true)
     setError(null)
     try {
@@ -34,7 +34,7 @@ export default function UsernameEdit() {
       updateUser({ name: data.name })
       setEditing(false)
     } catch {
-      setError('Failed to save.')
+      setError('Fehler beim Speichern.')
     } finally {
       setSaving(false)
     }
@@ -65,10 +65,10 @@ export default function UsernameEdit() {
             disabled={saving}
             className="text-xs font-medium text-accent disabled:opacity-40 flex-shrink-0"
           >
-            {saving ? '…' : 'Save'}
+            {saving ? '…' : 'Speichern'}
           </button>
           <button onClick={cancel} className="text-xs text-foreground-subtle hover:text-foreground transition-colors flex-shrink-0">
-            Cancel
+            Abbrechen
           </button>
         </div>
         {error && <span className="text-[11px] text-red-500 dark:text-red-400">{error}</span>}
@@ -79,7 +79,7 @@ export default function UsernameEdit() {
   return (
     <button
       onClick={startEditing}
-      title="Edit username"
+      title="Username bearbeiten"
       className="group flex items-center gap-1.5 text-sm text-foreground-muted hover:text-foreground transition-colors w-full"
     >
       <span className="max-w-[140px] truncate text-left">{user?.name ?? user?.email}</span>

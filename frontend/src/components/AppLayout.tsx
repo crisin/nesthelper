@@ -32,7 +32,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             to="/dashboard"
             className="flex items-center gap-2.5 select-none"
           >
-            <span className="w-7 h-7 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
+            <span className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0">
               {/* <Music size={14} className="text-accent" strokeWidth={2} /> */}
               <img src="/glorp-1x.webp" />
             </span>

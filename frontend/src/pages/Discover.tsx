@@ -671,7 +671,7 @@ export default function Discover() {
                       src={item.imgUrl}
                       track={item.track}
                       artist={item.artist}
-                      size="sm"
+                      size="md"
                       interactive
                       onContentClick={() => {
                         const match = library.find(

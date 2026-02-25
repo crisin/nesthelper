@@ -55,8 +55,8 @@ export default function TrackListItem({
         src={src}
         track={track}
         artist={artist}
-        className={sm ? 'w-9 h-9 rounded-lg' : 'w-14 h-14 rounded-xl shadow-sm'}
-        iconSize={sm ? 14 : 20}
+        className={sm ? 'w-9 h-9 rounded-lg' : 'w-24 h-24 rounded-xl shadow-sm'}
+        iconSize={sm ? 14 : 48}
       />
 
       {onContentClick ? (

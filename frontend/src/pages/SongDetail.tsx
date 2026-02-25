@@ -1,10 +1,60 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Music, Trash2, ExternalLink } from 'lucide-react'
+import { ArrowLeft, Music, Trash2, ExternalLink, Eye, Pencil } from 'lucide-react'
 import api from '../services/api'
 import type { SavedLyric } from '../types'
 import BottomSheet from '../components/BottomSheet'
+
+type ViewMode = 'view' | 'edit'
+
+function LyricsView({ lyrics, onEdit }: { lyrics: string; onEdit: () => void }) {
+  if (!lyrics.trim()) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 rounded-xl border border-dashed border-edge gap-3 text-center">
+        <Music size={26} className="text-foreground-subtle" strokeWidth={1.25} />
+        <div className="space-y-1">
+          <p className="text-sm text-foreground-muted font-medium">No lyrics yet</p>
+          <p className="text-xs text-foreground-subtle">
+            Switch to edit mode to add lyrics
+          </p>
+        </div>
+        <button
+          onClick={onEdit}
+          className="mt-1 px-3 py-1.5 rounded-lg bg-surface-raised border border-edge text-xs font-medium
+                     text-foreground-muted hover:text-foreground hover:border-foreground-muted/50 transition-colors"
+        >
+          Add lyrics
+        </button>
+      </div>
+    )
+  }
+
+  const stanzas = lyrics.split(/\n{2,}/)
+
+  return (
+    <div className="rounded-xl bg-surface-raised border border-edge px-5 sm:px-7 py-6">
+      <div className="space-y-6">
+        {stanzas.map((stanza, i) => {
+          const lines = stanza.split('\n')
+          return (
+            <p
+              key={i}
+              className="text-[15px] leading-[1.85] text-foreground font-normal tracking-[0.008em]"
+            >
+              {lines.map((line, j) => (
+                <span key={j}>
+                  {line || <span>&thinsp;</span>}
+                  {j < lines.length - 1 && <br />}
+                </span>
+              ))}
+            </p>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
 
 export default function SongDetail() {
   const { id } = useParams<{ id: string }>()
@@ -14,6 +64,7 @@ export default function SongDetail() {
   const [draft, setDraft] = useState<string | null>(null)
   const [confirmed, setConfirmed] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [viewMode, setViewMode] = useState<ViewMode>('view')
 
   const { data: songs = [], isLoading } = useQuery<SavedLyric[]>({
     queryKey: ['saved-lyrics'],
@@ -74,7 +125,7 @@ export default function SongDetail() {
 
   const imgUrl = song.searchHistory?.imgUrl
   const searchUrl = song.searchHistory?.url
-  const currentLyrics = draft !== null ? draft : song.lyrics
+  const currentLyrics = draft !== null ? draft : (song.lyrics ?? '')
   const isDirty = draft !== null && draft !== song.lyrics
 
   return (
@@ -119,20 +170,53 @@ export default function SongDetail() {
         </div>
       </div>
 
-      {/* Lyrics editor */}
+      {/* Lyrics section */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
+        {/* Section header */}
+        <div className="flex items-center justify-between gap-3">
           <p className="text-[11px] font-semibold text-foreground-subtle uppercase tracking-widest">
             Lyrics
           </p>
 
-          <button
-            onClick={() => setConfirmDelete(true)}
-            className="flex items-center gap-1 text-xs text-foreground-subtle hover:text-red-400 transition-colors"
-          >
-            <Trash2 size={12} strokeWidth={1.75} />
-            Remove song
-          </button>
+          <div className="flex items-center gap-2 ml-auto">
+            {/* View / Edit toggle */}
+            <div className="flex items-center rounded-lg border border-edge bg-surface-raised p-0.5 gap-0.5">
+              <button
+                onClick={() => setViewMode('view')}
+                title="View lyrics"
+                className={[
+                  'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors',
+                  viewMode === 'view'
+                    ? 'bg-surface-overlay text-foreground'
+                    : 'text-foreground-subtle hover:text-foreground-muted',
+                ].join(' ')}
+              >
+                <Eye size={11} strokeWidth={2} />
+                View
+              </button>
+              <button
+                onClick={() => setViewMode('edit')}
+                title="Edit lyrics"
+                className={[
+                  'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors',
+                  viewMode === 'edit'
+                    ? 'bg-surface-overlay text-foreground'
+                    : 'text-foreground-subtle hover:text-foreground-muted',
+                ].join(' ')}
+              >
+                <Pencil size={11} strokeWidth={2} />
+                Edit
+              </button>
+            </div>
+
+            <button
+              onClick={() => setConfirmDelete(true)}
+              className="flex items-center gap-1 text-xs text-foreground-subtle hover:text-red-400 transition-colors"
+            >
+              <Trash2 size={12} strokeWidth={1.75} />
+              Remove
+            </button>
+          </div>
 
           <BottomSheet open={confirmDelete} onClose={() => setConfirmDelete(false)}>
             <div className="space-y-4">
@@ -163,33 +247,40 @@ export default function SongDetail() {
           </BottomSheet>
         </div>
 
-        <textarea
-          className="w-full min-h-48 sm:min-h-96 bg-surface-raised border border-edge rounded-xl p-4 resize-y
-                     focus:outline-none focus:border-foreground-muted/60 transition-colors text-sm leading-relaxed"
-          placeholder="Paste or write lyrics here…"
-          value={currentLyrics}
-          onChange={(e) => setDraft(e.target.value)}
-        />
+        {/* Content */}
+        {viewMode === 'view' ? (
+          <LyricsView lyrics={currentLyrics} onEdit={() => setViewMode('edit')} />
+        ) : (
+          <>
+            <textarea
+              className="w-full min-h-48 sm:min-h-96 bg-surface-raised border border-edge rounded-xl p-4 resize-y
+                         focus:outline-none focus:border-foreground-muted/60 transition-colors text-sm leading-relaxed"
+              placeholder="Paste or write lyrics here…"
+              value={currentLyrics}
+              onChange={(e) => setDraft(e.target.value)}
+            />
 
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => updateLyrics.mutate(currentLyrics)}
-            disabled={!isDirty || updateLyrics.isPending}
-            className="px-4 py-2 sm:py-1.5 rounded-lg bg-accent text-black text-xs font-semibold
-                       disabled:opacity-40 hover:opacity-90 transition-opacity"
-          >
-            {updateLyrics.isPending ? 'Saving…' : 'Save lyrics'}
-          </button>
-          {confirmed && <span className="text-xs text-accent">Saved!</span>}
-          {isDirty && !updateLyrics.isPending && (
-            <button
-              onClick={() => setDraft(null)}
-              className="text-xs text-foreground-muted hover:text-foreground transition-colors"
-            >
-              Discard
-            </button>
-          )}
-        </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => updateLyrics.mutate(currentLyrics)}
+                disabled={!isDirty || updateLyrics.isPending}
+                className="px-4 py-2 sm:py-1.5 rounded-lg bg-accent text-black text-xs font-semibold
+                           disabled:opacity-40 hover:opacity-90 transition-opacity"
+              >
+                {updateLyrics.isPending ? 'Saving…' : 'Save lyrics'}
+              </button>
+              {confirmed && <span className="text-xs text-accent">Saved!</span>}
+              {isDirty && !updateLyrics.isPending && (
+                <button
+                  onClick={() => setDraft(null)}
+                  className="text-xs text-foreground-muted hover:text-foreground transition-colors"
+                >
+                  Discard
+                </button>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   )

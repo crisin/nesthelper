@@ -14,6 +14,12 @@ export default function BottomSheet({ open, onClose, children }: BottomSheetProp
   const [dragOffset, setDragOffset] = useState(0)
   const [dragging, setDragging] = useState(false)
 
+  const handleClose = useCallback(() => {
+    setDragOffset(0)
+    setDragging(false)
+    onClose()
+  }, [onClose])
+
   // Lock body scroll when open
   useEffect(() => {
     if (!open) return
@@ -25,10 +31,10 @@ export default function BottomSheet({ open, onClose, children }: BottomSheetProp
   // Close on Escape
   useEffect(() => {
     if (!open) return
-    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose() }
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') handleClose() }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [open, onClose])
+  }, [open, handleClose])
 
   const onTouchStart = useCallback((e: React.TouchEvent) => {
     startY.current = e.touches[0].clientY
@@ -44,15 +50,11 @@ export default function BottomSheet({ open, onClose, children }: BottomSheetProp
   const onTouchEnd = useCallback(() => {
     setDragging(false)
     if (dragOffset > DISMISS_THRESHOLD) {
-      onClose()
+      handleClose()
+    } else {
+      setDragOffset(0)
     }
-    setDragOffset(0)
-  }, [dragOffset, onClose])
-
-  // Reset drag offset when closing
-  useEffect(() => {
-    if (!open) setDragOffset(0)
-  }, [open])
+  }, [dragOffset, handleClose])
 
   if (!open) return null
 
@@ -61,7 +63,7 @@ export default function BottomSheet({ open, onClose, children }: BottomSheetProp
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/40 animate-fade-in"
-        onClick={onClose}
+        onClick={handleClose}
         aria-hidden
       />
 

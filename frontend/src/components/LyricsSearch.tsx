@@ -4,6 +4,7 @@ import { Search, X, ExternalLink, BookmarkPlus } from 'lucide-react'
 import api from '../services/api'
 import type { SavedLyric, SearchHistoryItem } from '../types'
 import SwipeToDelete from './SwipeToDelete'
+import BottomSheet from './BottomSheet'
 
 interface SpotifyTrack {
   id: string
@@ -30,6 +31,7 @@ type SearchMode = 'open' | 'save'
 
 export default function LyricsSearch() {
   const [error, setError] = useState<string | null>(null)
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const [mode, setMode] = useState<SearchMode>(
     () => (localStorage.getItem('searchMode') as SearchMode) ?? 'open',
   )
@@ -173,7 +175,7 @@ export default function LyricsSearch() {
               return (
                 <li key={item.id} className="min-w-0">
                   <SwipeToDelete
-                    onDelete={() => removeHistory.mutate(item.id)}
+                    onDelete={() => setPendingDeleteId(item.id)}
                     disabled={removeHistory.isPending}
                   >
                     <div
@@ -220,7 +222,7 @@ export default function LyricsSearch() {
 
                       {/* Remove (desktop only — mobile uses swipe) */}
                       <button
-                        onClick={() => removeHistory.mutate(item.id)}
+                        onClick={() => setPendingDeleteId(item.id)}
                         disabled={removeHistory.isPending}
                         aria-label="Remove from history"
                         className="hidden sm:flex flex-shrink-0 items-center justify-center text-foreground-subtle disabled:opacity-30 hover:text-foreground
@@ -236,6 +238,43 @@ export default function LyricsSearch() {
           </ul>
         </div>
       )}
+
+      {/* Confirm delete history entry */}
+      <BottomSheet open={pendingDeleteId !== null} onClose={() => setPendingDeleteId(null)}>
+        {(() => {
+          const item = history.find((h) => h.id === pendingDeleteId)
+          return (
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-base font-semibold text-foreground">Remove from history</h3>
+                <p className="text-sm text-foreground-muted mt-1">
+                  Remove <strong>{item?.track}</strong> from your search history?
+                </p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  onClick={() => {
+                    if (pendingDeleteId) removeHistory.mutate(pendingDeleteId)
+                    setPendingDeleteId(null)
+                  }}
+                  disabled={removeHistory.isPending}
+                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-red-500 text-white text-sm font-semibold
+                             disabled:opacity-50 hover:bg-red-600 transition-colors"
+                >
+                  Remove
+                </button>
+                <button
+                  onClick={() => setPendingDeleteId(null)}
+                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-surface-overlay text-foreground text-sm font-medium
+                             hover:bg-surface-overlay/80 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )
+        })()}
+      </BottomSheet>
     </div>
   )
 }

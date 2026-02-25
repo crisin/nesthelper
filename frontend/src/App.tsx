@@ -5,6 +5,8 @@ import Dashboard from './pages/Dashboard'
 import Discover from './pages/Discover'
 import Songs from './pages/Songs'
 import SongDetail from './pages/SongDetail'
+import Collections from './pages/Collections'
+import CollectionDetail from './pages/CollectionDetail'
 import Settings from './pages/Settings'
 import PrivateRoute from './components/PrivateRoute'
 import AppLayout from './components/AppLayout'
@@ -37,6 +39,14 @@ const router = createBrowserRouter([
   {
     path: '/songs/:id',
     element: <AppPage><SongDetail /></AppPage>,
+  },
+  {
+    path: '/collections',
+    element: <AppPage><Collections /></AppPage>,
+  },
+  {
+    path: '/collections/:id',
+    element: <AppPage><CollectionDetail /></AppPage>,
   },
   {
     path: '/settings',

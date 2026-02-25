@@ -11,6 +11,12 @@ enum TagType {
   MOOD
 }
 
+enum Visibility {
+  PRIVATE
+  FRIENDS
+  PUBLIC
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
@@ -23,6 +29,7 @@ model User {
   savedLyrics      SavedLyric[]
   searchHistory    SearchHistory[]
   lineAnnotations  LineAnnotation[]
+  collections      Collection[]
 }
 
 model SpotifyToken {
@@ -38,19 +45,21 @@ model SpotifyToken {
 }
 
 model SavedLyric {
-  id              String   @id @default(cuid())
+  id              String     @id @default(cuid())
   userId          String
   searchHistoryId String?
   lyrics          String
   track           String
   artist          String
   note            String?
-  createdAt       DateTime @default(now())
+  visibility      Visibility @default(PRIVATE)
+  createdAt       DateTime   @default(now())
 
   user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   searchHistory    SearchHistory? @relation(fields: [searchHistoryId], references: [id])
   lyricsStructured Lyrics?
   tags             SongTag[]
+  collectionItems  CollectionItem[]
 }
 
 model SearchHistory {
@@ -102,8 +111,9 @@ model LyricsLine {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  lyrics      Lyrics          @relation(fields: [lyricsId], references: [id], onDelete: Cascade)
-  annotations LineAnnotation[]
+  lyrics          Lyrics          @relation(fields: [lyricsId], references: [id], onDelete: Cascade)
+  annotations     LineAnnotation[]
+  collectionItems CollectionItem[]
 
   @@index([lyricsId, lineNumber])
 }
@@ -149,4 +159,36 @@ model SongTag {
 
   @@unique([savedLyricId, tag])
   @@index([tag])
+}
+
+// ─── Phase 2: Collections ─────────────────────────────────────────────────────
+
+model Collection {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  description String?
+  isPublic    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user  User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items CollectionItem[]
+
+  @@index([userId])
+}
+
+model CollectionItem {
+  id           String   @id @default(cuid())
+  collectionId String
+  savedLyricId String?
+  lineId       String?
+  position     Int
+  addedAt      DateTime @default(now())
+
+  collection Collection  @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  savedLyric SavedLyric? @relation(fields: [savedLyricId], references: [id], onDelete: SetNull)
+  line       LyricsLine? @relation(fields: [lineId], references: [id], onDelete: SetNull)
+
+  @@index([collectionId, position])
 }

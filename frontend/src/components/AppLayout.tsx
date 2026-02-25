@@ -1,4 +1,4 @@
-import { Compass, Home, Library, Settings } from "lucide-react";
+import { Compass, Home, Library, Settings, BookOpen } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import SpotifyConnect from "./SpotifyConnect";
@@ -8,6 +8,7 @@ const NAV = [
   { path: "/dashboard", label: "Dashboard", Icon: Home },
   { path: "/discover", label: "Entdecken", Icon: Compass },
   { path: "/songs", label: "Songs", Icon: Library },
+  { path: "/collections", label: "Collections", Icon: BookOpen },
   { path: "/settings", label: "Einstellungen", Icon: Settings },
 ];
 
@@ -46,8 +47,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
           {NAV.map(({ path, label, Icon }) => {
             const active =
-              path === "/songs"
-                ? location.pathname.startsWith("/songs")
+              path === "/songs" || path === "/collections"
+                ? location.pathname.startsWith(path)
                 : location.pathname === path;
             return (
               <Link
@@ -100,8 +101,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <div className="h-16 flex">
           {NAV.map(({ path, label, Icon }) => {
             const active =
-              path === "/songs"
-                ? location.pathname.startsWith("/songs")
+              path === "/songs" || path === "/collections"
+                ? location.pathname.startsWith(path)
                 : location.pathname === path;
             return (
               <Link

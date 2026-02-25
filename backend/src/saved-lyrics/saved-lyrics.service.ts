@@ -104,4 +104,19 @@ export class SavedLyricsService {
       orderBy: { createdAt: 'asc' },
     });
   }
+
+  // ─── Visibility ───────────────────────────────────────────────────────────
+
+  async updateVisibility(userId: string, id: string, visibility: 'PRIVATE' | 'FRIENDS' | 'PUBLIC') {
+    const item = await this.prisma.savedLyric.findFirst({
+      where: { id, userId },
+      select: { id: true },
+    });
+    if (!item) throw new NotFoundException('Saved lyric not found');
+    return (this.prisma.savedLyric.update as any)({
+      where: { id },
+      data: { visibility },
+      select: { id: true, visibility: true },
+    });
+  }
 }

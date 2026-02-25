@@ -62,12 +62,15 @@ export interface StructuredLyrics {
   versions: LyricsVersion[]
 }
 
+export type Visibility = 'PRIVATE' | 'FRIENDS' | 'PUBLIC'
+
 export interface SavedLyric {
   id: string
   track: string
   artist: string
   lyrics: string
   note?: string | null
+  visibility?: Visibility
   searchHistoryId?: string
   searchHistory?: { imgUrl?: string; url?: string; spotifyId?: string } | null
   tags?: SongTag[]
@@ -92,4 +95,43 @@ export interface CommunityLyric {
   lyrics: string
   createdAt: string
   user: { name: string | null }
+}
+
+// ─── Phase 2: Collections ─────────────────────────────────────────────────────
+
+export interface CollectionItem {
+  id: string
+  collectionId: string
+  savedLyricId?: string | null
+  lineId?: string | null
+  position: number
+  addedAt: string
+  savedLyric?: (SavedLyric & {
+    searchHistory?: { imgUrl?: string; url?: string; spotifyId?: string } | null
+  }) | null
+  line?: (LyricsLine & {
+    lyrics?: { savedLyric: Pick<SavedLyric, 'id' | 'track' | 'artist'> } | null
+  }) | null
+}
+
+export interface Collection {
+  id: string
+  userId: string
+  name: string
+  description?: string | null
+  isPublic: boolean
+  createdAt: string
+  updatedAt: string
+  _count?: { items: number }
+  items?: CollectionItem[]
+  user?: { name: string | null }
+}
+
+// ─── Phase 2: Community Insights ─────────────────────────────────────────────
+
+export interface TrackInsights {
+  saveCount: number
+  contributorCount: number
+  tagDistribution: { tag: string; count: number }[]
+  mostAnnotatedLines: { text: string; lineNumber: number; count: number }[]
 }

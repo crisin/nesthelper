@@ -1,9 +1,12 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, ExternalLink, Trash2, StickyNote, Check } from 'lucide-react'
+import {
+  ArrowLeft, ExternalLink, Trash2, StickyNote, Check,
+  Globe, Lock, Users, ChevronDown, ChevronUp, Users2,
+} from 'lucide-react'
 import api from '../services/api'
-import type { SavedLyric } from '../types'
+import type { SavedLyric, Visibility, TrackInsights } from '../types'
 import BottomSheet from '../components/BottomSheet'
 import TrackCover from '../components/TrackCover'
 import TagSelector from '../components/TagSelector'
@@ -89,6 +92,141 @@ function NoteSection({ savedLyricId, note }: { savedLyricId: string; note?: stri
   )
 }
 
+// ─── Visibility toggle ────────────────────────────────────────────────────────
+
+const VISIBILITY_CONFIG: Record<Visibility, { Icon: typeof Globe; label: string; next: Visibility }> = {
+  PRIVATE:  { Icon: Lock,   label: 'Privat',         next: 'PUBLIC' },
+  FRIENDS:  { Icon: Users,  label: 'Freunde',        next: 'PRIVATE' },
+  PUBLIC:   { Icon: Globe,  label: 'Öffentlich',     next: 'PRIVATE' },
+}
+
+function VisibilityToggle({ savedLyricId, visibility }: { savedLyricId: string; visibility?: Visibility }) {
+  const queryClient = useQueryClient()
+  const current: Visibility = visibility ?? 'PRIVATE'
+  const { Icon, label, next } = VISIBILITY_CONFIG[current]
+
+  const mutation = useMutation({
+    mutationFn: (v: Visibility) =>
+      api.patch(`/saved-lyrics/${savedLyricId}/visibility`, { visibility: v }).then((r) => r.data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['saved-lyrics'] }),
+  })
+
+  return (
+    <button
+      onClick={() => mutation.mutate(next)}
+      disabled={mutation.isPending}
+      title={`Sichtbarkeit: ${label} – klicken zum Ändern`}
+      className={[
+        'flex items-center gap-1 text-xs transition-colors disabled:opacity-40',
+        current === 'PUBLIC'
+          ? 'text-accent hover:text-accent/70'
+          : 'text-foreground-subtle hover:text-foreground-muted',
+      ].join(' ')}
+    >
+      <Icon size={12} strokeWidth={1.75} />
+      {label}
+    </button>
+  )
+}
+
+// ─── Community insights panel ─────────────────────────────────────────────────
+
+function CommunityInsightsPanel({ spotifyId }: { spotifyId: string }) {
+  const [open, setOpen] = useState(false)
+
+  const { data: insights, isLoading } = useQuery<TrackInsights>({
+    queryKey: ['insights', spotifyId],
+    queryFn: () =>
+      api.get<TrackInsights>(`/library/by-spotify/${spotifyId}/insights`).then((r) => r.data),
+    enabled: open,
+    staleTime: 5 * 60_000,
+  })
+
+  return (
+    <div className="border-t border-edge pt-4">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-2 text-[11px] font-semibold text-foreground-subtle
+                   uppercase tracking-widest hover:text-foreground-muted transition-colors"
+      >
+        <Users2 size={12} strokeWidth={2} />
+        Community
+        {open ? (
+          <ChevronUp size={10} strokeWidth={2} />
+        ) : (
+          <ChevronDown size={10} strokeWidth={2} />
+        )}
+      </button>
+
+      {open && (
+        <div className="mt-3 space-y-4">
+          {isLoading ? (
+            <div className="space-y-2">
+              {[1, 2].map((i) => (
+                <div key={i} className="h-3 rounded-full bg-surface-raised animate-pulse" />
+              ))}
+            </div>
+          ) : !insights || insights.saveCount === 0 ? (
+            <p className="text-xs text-foreground-subtle">
+              Noch keine öffentlichen Einträge für diesen Song.
+            </p>
+          ) : (
+            <>
+              {/* Save count */}
+              <p className="text-xs text-foreground-muted">
+                <span className="font-semibold text-foreground">{insights.saveCount}</span>{' '}
+                {insights.saveCount === 1 ? 'Person hat' : 'Personen haben'} diesen Song gespeichert
+                {insights.contributorCount > 1 && ` (${insights.contributorCount} Contributors)`}
+              </p>
+
+              {/* Most annotated line */}
+              {insights.mostAnnotatedLines.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-semibold text-foreground-subtle uppercase tracking-widest mb-1.5">
+                    Meistkommentierte Zeile
+                  </p>
+                  <div className="rounded-lg bg-surface-raised border border-edge px-3 py-2">
+                    <p className="text-xs text-foreground italic leading-relaxed">
+                      &ldquo;{insights.mostAnnotatedLines[0].text}&rdquo;
+                    </p>
+                    <p className="text-[10px] text-foreground-subtle mt-1">
+                      {insights.mostAnnotatedLines[0].count}{' '}
+                      {insights.mostAnnotatedLines[0].count === 1 ? 'Annotation' : 'Annotationen'}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Tag cloud */}
+              {insights.tagDistribution.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-semibold text-foreground-subtle uppercase tracking-widest mb-1.5">
+                    Community Tags
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {insights.tagDistribution.map(({ tag, count }) => (
+                      <span
+                        key={tag}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full
+                                   bg-surface-raised border border-edge text-[11px] text-foreground-muted"
+                      >
+                        {tag}
+                        <span className="text-[10px] text-foreground-subtle">{count}</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
 export default function SongDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -143,6 +281,7 @@ export default function SongDetail() {
 
   const imgUrl = song.searchHistory?.imgUrl
   const searchUrl = song.searchHistory?.url
+  const spotifyId = song.searchHistory?.spotifyId
   const tags = song.tags ?? []
 
   return (
@@ -183,13 +322,16 @@ export default function SongDetail() {
                 </a>
               )}
             </div>
-            <button
-              onClick={() => setConfirmDelete(true)}
-              className="flex-shrink-0 flex items-center gap-1 text-xs text-foreground-subtle hover:text-red-400 transition-colors mt-1"
-            >
-              <Trash2 size={12} strokeWidth={1.75} />
-              Löschen
-            </button>
+            <div className="flex items-center gap-3 flex-shrink-0 mt-1">
+              <VisibilityToggle savedLyricId={song.id} visibility={song.visibility} />
+              <button
+                onClick={() => setConfirmDelete(true)}
+                className="flex items-center gap-1 text-xs text-foreground-subtle hover:text-red-400 transition-colors"
+              >
+                <Trash2 size={12} strokeWidth={1.75} />
+                Löschen
+              </button>
+            </div>
           </div>
 
           {/* Tags */}
@@ -202,6 +344,9 @@ export default function SongDetail() {
 
       {/* Personal note */}
       <NoteSection savedLyricId={song.id} note={song.note} />
+
+      {/* Community insights */}
+      {spotifyId && <CommunityInsightsPanel spotifyId={spotifyId} />}
 
       {/* Delete confirmation */}
       <BottomSheet open={confirmDelete} onClose={() => setConfirmDelete(false)}>

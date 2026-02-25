@@ -16,4 +16,9 @@ export class LibraryController {
   getLyrics(@Param('id') id: string) {
     return this.service.getLyrics(id);
   }
+
+  @Get('by-spotify/:spotifyId/insights')
+  getInsights(@Param('spotifyId') spotifyId: string) {
+    return this.service.getInsights(spotifyId);
+  }
 }

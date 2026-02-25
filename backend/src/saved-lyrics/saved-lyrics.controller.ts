@@ -16,6 +16,7 @@ import { CreateSavedLyricDto } from './dto/create-saved-lyric.dto';
 import { UpdateSavedLyricDto } from './dto/update-saved-lyric.dto';
 import { AddTagDto } from './dto/add-tag.dto';
 import { UpsertNoteDto } from './dto/upsert-note.dto';
+import { UpdateVisibilityDto } from './dto/update-visibility.dto';
 import { SavedLyricsService } from './saved-lyrics.service';
 
 type AuthedRequest = { user: { id: string } };
@@ -85,5 +86,16 @@ export class SavedLyricsController {
     @Param('tag') tag: string,
   ) {
     return this.service.removeTag(req.user.id, id, tag);
+  }
+
+  // ─── Visibility ────────────────────────────────────────────────────────────
+
+  @Patch(':id/visibility')
+  updateVisibility(
+    @Req() req: AuthedRequest,
+    @Param('id') id: string,
+    @Body() dto: UpdateVisibilityDto,
+  ) {
+    return this.service.updateVisibility(req.user.id, id, dto.visibility);
   }
 }

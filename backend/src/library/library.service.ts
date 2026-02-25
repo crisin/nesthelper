@@ -52,6 +52,7 @@ export class LibraryService {
     const lyrics = await this.prisma.savedLyric.findMany({
       where: {
         lyrics: { not: '' },
+        visibility: 'PUBLIC',
         searchHistory: { spotifyId: track.spotifyId },
       },
       select: {
@@ -64,5 +65,64 @@ export class LibraryService {
     });
 
     return { track, lyrics };
+  }
+
+  async getInsights(spotifyId: string) {
+    // Pre-migration: cast query to any until `prisma migrate dev` regenerates the client
+    const savedLyrics: any[] = await (this.prisma.savedLyric.findMany as any)({
+      where: {
+        visibility: 'PUBLIC',
+        searchHistory: { spotifyId },
+      },
+      select: {
+        userId: true,
+        tags: { select: { tag: true } },
+        lyricsStructured: {
+          select: {
+            lines: {
+              select: {
+                text: true,
+                lineNumber: true,
+                _count: { select: { annotations: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const saveCount = savedLyrics.length;
+    const contributorCount = new Set(savedLyrics.map((l) => l.userId)).size;
+
+    const tagMap = new Map<string, number>();
+    for (const sl of savedLyrics) {
+      for (const t of sl.tags) {
+        tagMap.set(t.tag, (tagMap.get(t.tag) ?? 0) + 1);
+      }
+    }
+    const tagDistribution = [...tagMap.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([tag, count]) => ({ tag, count }));
+
+    const lineMap = new Map<string, { text: string; lineNumber: number; count: number }>();
+    for (const sl of savedLyrics) {
+      if (!sl.lyricsStructured) continue;
+      for (const line of sl.lyricsStructured.lines) {
+        const annotationCount = (line as any)._count.annotations as number;
+        if (!line.text.trim() || annotationCount === 0) continue;
+        const existing = lineMap.get(line.text);
+        lineMap.set(line.text, {
+          text: line.text,
+          lineNumber: line.lineNumber,
+          count: (existing?.count ?? 0) + annotationCount,
+        });
+      }
+    }
+    const mostAnnotatedLines = [...lineMap.values()]
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    return { saveCount, contributorCount, tagDistribution, mostAnnotatedLines };
   }
 }

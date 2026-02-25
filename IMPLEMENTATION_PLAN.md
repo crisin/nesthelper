@@ -30,7 +30,7 @@
 
 ---
 
-### Feature 1: Lyrics Workspace (Song Detail 2.0)
+### Feature 1: Lyrics Workspace (Song Detail 2.0) [DONE]
 
 **What changes:** `SavedLyric.lyrics` (plain `String`) becomes a structured, versioned, line-based object.
 

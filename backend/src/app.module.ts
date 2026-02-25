@@ -9,6 +9,7 @@ import { LibraryModule } from './library/library.module';
 import { LyricsModule } from './lyrics/lyrics.module';
 import { LineAnnotationsModule } from './line-annotations/line-annotations.module';
 import { SearchModule } from './search/search.module';
+import { CollectionsModule } from './collections/collections.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { SearchModule } from './search/search.module';
     LyricsModule,
     LineAnnotationsModule,
     SearchModule,
+    CollectionsModule,
   ],
 })
 export class AppModule {}

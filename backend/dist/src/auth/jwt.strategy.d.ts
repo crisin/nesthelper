@@ -11,9 +11,9 @@ export declare class JwtStrategy extends JwtStrategy_base {
     private readonly prisma;
     constructor(prisma: PrismaService);
     validate(payload: JwtPayload): Promise<{
-        email: string;
-        name: string | null;
         id: string;
+        name: string | null;
+        email: string;
     }>;
 }
 export {};

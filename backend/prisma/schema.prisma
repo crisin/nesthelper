@@ -6,6 +6,11 @@ datasource db {
   provider = "postgresql"
 }
 
+enum TagType {
+  CONTEXT
+  MOOD
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
@@ -14,9 +19,10 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  spotifyTokens SpotifyToken[]
-  savedLyrics   SavedLyric[]
-  searchHistory SearchHistory[]
+  spotifyTokens    SpotifyToken[]
+  savedLyrics      SavedLyric[]
+  searchHistory    SearchHistory[]
+  lineAnnotations  LineAnnotation[]
 }
 
 model SpotifyToken {
@@ -38,10 +44,13 @@ model SavedLyric {
   lyrics          String
   track           String
   artist          String
+  note            String?
   createdAt       DateTime @default(now())
 
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  searchHistory SearchHistory? @relation(fields: [searchHistoryId], references: [id])
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  searchHistory    SearchHistory? @relation(fields: [searchHistoryId], references: [id])
+  lyricsStructured Lyrics?
+  tags             SongTag[]
 }
 
 model SearchHistory {
@@ -67,4 +76,77 @@ model LibraryTrack {
   url         String
   firstSeenAt DateTime @default(now())
   lastSeenAt  DateTime @updatedAt
+}
+
+// ─── Phase 1: Structured Lyrics ──────────────────────────────────────────────
+
+model Lyrics {
+  id           String   @id @default(cuid())
+  savedLyricId String   @unique
+  rawText      String   @default("")
+  version      Int      @default(1)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  savedLyric SavedLyric     @relation(fields: [savedLyricId], references: [id], onDelete: Cascade)
+  lines      LyricsLine[]
+  versions   LyricsVersion[]
+}
+
+model LyricsLine {
+  id          String   @id @default(cuid())
+  lyricsId    String
+  lineNumber  Int
+  text        String
+  timestampMs Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  lyrics      Lyrics          @relation(fields: [lyricsId], references: [id], onDelete: Cascade)
+  annotations LineAnnotation[]
+
+  @@index([lyricsId, lineNumber])
+}
+
+model LyricsVersion {
+  id        String   @id @default(cuid())
+  lyricsId  String
+  version   Int
+  rawText   String
+  createdAt DateTime @default(now())
+
+  lyrics Lyrics @relation(fields: [lyricsId], references: [id], onDelete: Cascade)
+
+  @@index([lyricsId, version])
+}
+
+// ─── Phase 1: Personal Meaning Layer ─────────────────────────────────────────
+
+model LineAnnotation {
+  id        String   @id @default(cuid())
+  lineId    String
+  userId    String
+  text      String
+  emoji     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  line LyricsLine @relation(fields: [lineId], references: [id], onDelete: Cascade)
+  user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([lineId])
+  @@index([userId])
+}
+
+model SongTag {
+  id           String   @id @default(cuid())
+  savedLyricId String
+  tag          String
+  type         TagType  @default(CONTEXT)
+  createdAt    DateTime @default(now())
+
+  savedLyric SavedLyric @relation(fields: [savedLyricId], references: [id], onDelete: Cascade)
+
+  @@unique([savedLyricId, tag])
+  @@index([tag])
 }

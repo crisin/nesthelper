@@ -9,9 +9,9 @@ export declare class AuthService {
     constructor(prisma: PrismaService, jwt: JwtService);
     register(dto: RegisterDto): Promise<{
         user: {
-            email: string;
-            name: string | null;
             id: string;
+            name: string | null;
+            email: string;
         };
         access_token: string;
     }>;
@@ -24,9 +24,9 @@ export declare class AuthService {
         access_token: string;
     }>;
     updateProfile(userId: string, dto: UpdateProfileDto): Promise<{
-        email: string;
-        name: string | null;
         id: string;
+        name: string | null;
+        email: string;
     }>;
     private signToken;
 }

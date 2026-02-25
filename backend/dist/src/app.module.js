@@ -14,6 +14,10 @@ const auth_module_1 = require("./auth/auth.module");
 const spotify_module_1 = require("./spotify/spotify.module");
 const search_history_module_1 = require("./search-history/search-history.module");
 const saved_lyrics_module_1 = require("./saved-lyrics/saved-lyrics.module");
+const library_module_1 = require("./library/library.module");
+const lyrics_module_1 = require("./lyrics/lyrics.module");
+const line_annotations_module_1 = require("./line-annotations/line-annotations.module");
+const search_module_1 = require("./search/search.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -26,6 +30,10 @@ exports.AppModule = AppModule = __decorate([
             spotify_module_1.SpotifyModule,
             search_history_module_1.SearchHistoryModule,
             saved_lyrics_module_1.SavedLyricsModule,
+            library_module_1.LibraryModule,
+            lyrics_module_1.LyricsModule,
+            line_annotations_module_1.LineAnnotationsModule,
+            search_module_1.SearchModule,
         ],
     })
 ], AppModule);

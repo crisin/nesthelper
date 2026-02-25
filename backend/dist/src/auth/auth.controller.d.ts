@@ -26,9 +26,9 @@ export declare class AuthController {
         name?: string;
     };
     updateProfile(req: AuthedRequest, dto: UpdateProfileDto): Promise<{
-        email: string;
-        name: string | null;
         id: string;
+        name: string | null;
+        email: string;
     }>;
 }
 export {};

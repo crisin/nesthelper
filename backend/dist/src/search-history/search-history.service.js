@@ -32,10 +32,25 @@ let SearchHistoryService = class SearchHistoryService {
             },
         });
     }
-    create(userId, dto) {
-        return this.prisma.searchHistory.create({
-            data: { userId, ...dto },
-        });
+    async create(userId, dto) {
+        const [history] = await this.prisma.$transaction([
+            this.prisma.searchHistory.create({ data: { userId, ...dto } }),
+            this.prisma.libraryTrack.upsert({
+                where: { spotifyId: dto.spotifyId },
+                update: {
+                    url: dto.url,
+                    ...(dto.imgUrl ? { imgUrl: dto.imgUrl } : {}),
+                },
+                create: {
+                    spotifyId: dto.spotifyId,
+                    name: dto.track,
+                    artist: dto.artist,
+                    url: dto.url,
+                    imgUrl: dto.imgUrl,
+                },
+            }),
+        ]);
+        return history;
     }
     async remove(userId, id) {
         const item = await this.prisma.searchHistory.findFirst({

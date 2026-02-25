@@ -21,7 +21,8 @@ let SavedLyricsService = class SavedLyricsService {
         return this.prisma.savedLyric.findMany({
             where: { userId },
             include: {
-                searchHistory: { select: { imgUrl: true, url: true } },
+                searchHistory: { select: { imgUrl: true, url: true, spotifyId: true } },
+                tags: { orderBy: { createdAt: 'asc' } },
             },
             orderBy: { createdAt: 'desc' },
         });
@@ -34,6 +35,10 @@ let SavedLyricsService = class SavedLyricsService {
                 artist: dto.artist,
                 lyrics: dto.lyrics ?? '',
                 ...(dto.searchHistoryId ? { searchHistoryId: dto.searchHistoryId } : {}),
+            },
+            include: {
+                searchHistory: { select: { imgUrl: true, url: true, spotifyId: true } },
+                tags: true,
             },
         });
     }
@@ -51,6 +56,56 @@ let SavedLyricsService = class SavedLyricsService {
         if (!item)
             throw new common_1.NotFoundException('Saved lyric not found');
         await this.prisma.savedLyric.delete({ where: { id } });
+    }
+    async upsertNote(userId, id, text) {
+        const item = await this.prisma.savedLyric.findFirst({
+            where: { id, userId },
+            select: { id: true },
+        });
+        if (!item)
+            throw new common_1.NotFoundException('Saved lyric not found');
+        return this.prisma.savedLyric.update({
+            where: { id },
+            data: { note: text },
+            select: { id: true, note: true },
+        });
+    }
+    async addTag(userId, id, dto) {
+        const item = await this.prisma.savedLyric.findFirst({
+            where: { id, userId },
+            select: { id: true },
+        });
+        if (!item)
+            throw new common_1.NotFoundException('Saved lyric not found');
+        const normalised = dto.tag.trim().toLowerCase();
+        return this.prisma.songTag.upsert({
+            where: { savedLyricId_tag: { savedLyricId: id, tag: normalised } },
+            create: { savedLyricId: id, tag: normalised, type: dto.type ?? 'CONTEXT' },
+            update: {},
+        });
+    }
+    async removeTag(userId, id, tag) {
+        const item = await this.prisma.savedLyric.findFirst({
+            where: { id, userId },
+            select: { id: true },
+        });
+        if (!item)
+            throw new common_1.NotFoundException('Saved lyric not found');
+        await this.prisma.songTag.deleteMany({
+            where: { savedLyricId: id, tag: tag.toLowerCase() },
+        });
+    }
+    async getTags(userId, id) {
+        const item = await this.prisma.savedLyric.findFirst({
+            where: { id, userId },
+            select: { id: true },
+        });
+        if (!item)
+            throw new common_1.NotFoundException('Saved lyric not found');
+        return this.prisma.songTag.findMany({
+            where: { savedLyricId: id },
+            orderBy: { createdAt: 'asc' },
+        });
     }
 };
 exports.SavedLyricsService = SavedLyricsService;

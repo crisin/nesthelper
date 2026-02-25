@@ -6,6 +6,9 @@ import { SpotifyModule } from './spotify/spotify.module';
 import { SearchHistoryModule } from './search-history/search-history.module';
 import { SavedLyricsModule } from './saved-lyrics/saved-lyrics.module';
 import { LibraryModule } from './library/library.module';
+import { LyricsModule } from './lyrics/lyrics.module';
+import { LineAnnotationsModule } from './line-annotations/line-annotations.module';
+import { SearchModule } from './search/search.module';
 
 @Module({
   imports: [
@@ -16,6 +19,9 @@ import { LibraryModule } from './library/library.module';
     SearchHistoryModule,
     SavedLyricsModule,
     LibraryModule,
+    LyricsModule,
+    LineAnnotationsModule,
+    SearchModule,
   ],
 })
 export class AppModule {}

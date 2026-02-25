@@ -11,11 +11,11 @@ export declare class SearchHistoryController {
     getAll(req: AuthedRequest): import("@prisma/client").Prisma.PrismaPromise<{
         url: string;
         id: string;
-        createdAt: Date;
         userId: string;
-        spotifyId: string;
         track: string;
         artist: string;
+        createdAt: Date;
+        spotifyId: string;
         imgUrl: string | null;
     }[]>;
     getGlobal(): import("@prisma/client").Prisma.PrismaPromise<({
@@ -25,23 +25,23 @@ export declare class SearchHistoryController {
     } & {
         url: string;
         id: string;
-        createdAt: Date;
         userId: string;
-        spotifyId: string;
         track: string;
         artist: string;
+        createdAt: Date;
+        spotifyId: string;
         imgUrl: string | null;
     })[]>;
-    create(req: AuthedRequest, dto: CreateSearchHistoryDto): import("@prisma/client").Prisma.Prisma__SearchHistoryClient<{
+    create(req: AuthedRequest, dto: CreateSearchHistoryDto): Promise<{
         url: string;
         id: string;
-        createdAt: Date;
         userId: string;
-        spotifyId: string;
         track: string;
         artist: string;
+        createdAt: Date;
+        spotifyId: string;
         imgUrl: string | null;
-    }, never, import("@prisma/client/runtime/client").DefaultArgs, import("@prisma/client").Prisma.PrismaClientOptions>;
+    }>;
     remove(req: AuthedRequest, id: string): Promise<void>;
 }
 export {};

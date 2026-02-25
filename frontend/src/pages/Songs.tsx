@@ -46,7 +46,11 @@ export default function Songs() {
     const q = query.trim().toLowerCase()
     const list = q
       ? songs.filter(
-          (s) => s.track.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q),
+          (s) =>
+            s.track.toLowerCase().includes(q) ||
+            s.artist.toLowerCase().includes(q) ||
+            s.lyrics?.toLowerCase().includes(q) ||
+            s.tags?.some((t) => t.tag.includes(q)),
         )
       : [...songs]
 
@@ -100,7 +104,7 @@ export default function Songs() {
           />
           <input
             type="text"
-            placeholder="Search by track or artist…"
+            placeholder="Track, Artist, Lyrics oder Tag…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="w-full pl-9 pr-9 py-2 bg-surface-raised border border-edge rounded-lg text-sm

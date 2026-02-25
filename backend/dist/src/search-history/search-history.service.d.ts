@@ -6,11 +6,11 @@ export declare class SearchHistoryService {
     getAll(userId: string): import("@prisma/client").Prisma.PrismaPromise<{
         url: string;
         id: string;
-        createdAt: Date;
         userId: string;
-        spotifyId: string;
         track: string;
         artist: string;
+        createdAt: Date;
+        spotifyId: string;
         imgUrl: string | null;
     }[]>;
     getGlobal(): import("@prisma/client").Prisma.PrismaPromise<({
@@ -20,22 +20,22 @@ export declare class SearchHistoryService {
     } & {
         url: string;
         id: string;
-        createdAt: Date;
         userId: string;
-        spotifyId: string;
         track: string;
         artist: string;
+        createdAt: Date;
+        spotifyId: string;
         imgUrl: string | null;
     })[]>;
-    create(userId: string, dto: CreateSearchHistoryDto): import("@prisma/client").Prisma.Prisma__SearchHistoryClient<{
+    create(userId: string, dto: CreateSearchHistoryDto): Promise<{
         url: string;
         id: string;
-        createdAt: Date;
         userId: string;
-        spotifyId: string;
         track: string;
         artist: string;
+        createdAt: Date;
+        spotifyId: string;
         imgUrl: string | null;
-    }, never, import("@prisma/client/runtime/client").DefaultArgs, import("@prisma/client").Prisma.PrismaClientOptions>;
+    }>;
     remove(userId: string, id: string): Promise<void>;
 }

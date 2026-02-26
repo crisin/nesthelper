@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Eye, Pencil, History, ChevronDown, ChevronUp, MessageSquarePlus,
-  RotateCcw, Check, Music,
+  RotateCcw, Check, Music, Headphones, Timer, Loader2,
 } from 'lucide-react'
 import api from '../services/api'
-import type { StructuredLyrics, LineAnnotation } from '../types'
+import type { StructuredLyrics, LineAnnotation, LyricsFetchStatus } from '../types'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -19,16 +19,62 @@ function timeAgo(dateStr: string) {
   return `${Math.floor(h / 24)}d ago`
 }
 
+function formatMs(ms: number) {
+  const totalSec = Math.floor(ms / 1000)
+  const min = Math.floor(totalSec / 60)
+  const sec = totalSec % 60
+  return `${min}:${sec.toString().padStart(2, '0')}`
+}
+
+// ─── Fetch-status skeleton ─────────────────────────────────────────────────────
+
+function FetchingLyricsSkeleton() {
+  return (
+    <div className="rounded-xl bg-surface-raised border border-edge px-5 py-8 flex flex-col items-center gap-3">
+      <Loader2 size={20} className="text-foreground-subtle animate-spin" />
+      <div className="space-y-1 text-center">
+        <p className="text-sm text-foreground-muted">Lyrics werden geladen…</p>
+        <p className="text-xs text-foreground-subtle">Das dauert nur einen Moment.</p>
+      </div>
+      <div className="w-full mt-2 space-y-2.5">
+        {[58, 42, 55, 35, 48, 62, 40].map((w, i) => (
+          <div
+            key={i}
+            className="h-2.5 rounded-full bg-surface-overlay animate-pulse"
+            style={{ width: `${w}%`, animationDelay: `${i * 80}ms` }}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ─── Plain-text stanza fallback (legacy display) ──────────────────────────────
 
-function PlainLyricsView({ lyrics, onEdit }: { lyrics: string; onEdit: () => void }) {
+function PlainLyricsView({
+  lyrics,
+  onEdit,
+  fetchStatus,
+}: {
+  lyrics: string
+  onEdit: () => void
+  fetchStatus?: LyricsFetchStatus
+}) {
+  if (fetchStatus === 'FETCHING') return <FetchingLyricsSkeleton />
+
   if (!lyrics.trim()) {
     return (
       <div className="flex flex-col items-center justify-center py-16 rounded-xl border border-dashed border-edge gap-3 text-center">
         <Music size={26} className="text-foreground-subtle" strokeWidth={1.25} />
         <div className="space-y-1">
-          <p className="text-sm text-foreground-muted font-medium">Noch keine Lyrics</p>
-          <p className="text-xs text-foreground-subtle">Wechsel in den Editiermodus, um Lyrics hinzuzufügen.</p>
+          <p className="text-sm text-foreground-muted font-medium">
+            {fetchStatus === 'FAILED' ? 'Lyrics konnten nicht geladen werden' : 'Noch keine Lyrics'}
+          </p>
+          <p className="text-xs text-foreground-subtle">
+            {fetchStatus === 'FAILED'
+              ? 'Füge sie manuell hinzu.'
+              : 'Wechsel in den Editiermodus, um Lyrics hinzuzufügen.'}
+          </p>
         </div>
         <button
           onClick={onEdit}
@@ -58,16 +104,22 @@ function PlainLyricsView({ lyrics, onEdit }: { lyrics: string; onEdit: () => voi
   )
 }
 
-// ─── Structured line with annotation ─────────────────────────────────────────
+// ─── Structured line with annotation + seek ───────────────────────────────────
 
 function AnnotatedLine({
   lineId,
   text,
   annotations,
+  timestampMs,
+  isActive,
+  onSeek,
 }: {
   lineId: string
   text: string
   annotations: LineAnnotation[]
+  timestampMs?: number | null
+  isActive?: boolean
+  onSeek?: (ms: number) => void
 }) {
   const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
@@ -104,9 +156,34 @@ function AnnotatedLine({
   }
 
   return (
-    <div className="group">
+    <div
+      className={[
+        'group rounded-lg transition-colors px-2 -mx-2',
+        isActive ? 'bg-accent/10' : '',
+      ].join(' ')}
+    >
       <div className="flex items-start gap-2">
-        <span className="flex-1 text-[15px] leading-[1.85] text-foreground tracking-[0.008em]">
+        {/* Seek button — visible on hover, always visible when active */}
+        {timestampMs != null && onSeek && (
+          <button
+            onClick={() => onSeek(timestampMs)}
+            title={`Zu ${formatMs(timestampMs)} springen`}
+            className={[
+              'flex-shrink-0 mt-2 p-0.5 rounded transition-colors',
+              isActive
+                ? 'text-accent'
+                : 'text-foreground-subtle opacity-0 group-hover:opacity-100 hover:text-accent',
+            ].join(' ')}
+          >
+            <Timer size={10} strokeWidth={1.75} />
+          </button>
+        )}
+        <span
+          className={[
+            'flex-1 text-[15px] leading-[1.85] tracking-[0.008em] transition-colors',
+            isActive ? 'text-foreground font-medium' : 'text-foreground',
+          ].join(' ')}
+        >
           {text}
         </span>
         <button
@@ -165,14 +242,18 @@ function AnnotatedLine({
   )
 }
 
-// ─── Structured view (line-by-line with annotations) ─────────────────────────
+// ─── Structured view (line-by-line with annotations + karaoke support) ────────
 
 function StructuredLyricsView({
   structured,
   onEdit,
+  activeLineId,
+  onSeek,
 }: {
   structured: StructuredLyrics
   onEdit: () => void
+  activeLineId?: string | null
+  onSeek?: (ms: number) => void
 }) {
   const { data: annotations = {} } = useQuery<Record<string, LineAnnotation[]>>({
     queryKey: ['line-annotations', structured.id],
@@ -204,6 +285,9 @@ function StructuredLyricsView({
           lineId={line.id}
           text={line.text}
           annotations={annotations[line.id] ?? []}
+          timestampMs={line.timestampMs}
+          isActive={activeLineId === line.id}
+          onSeek={onSeek}
         />
       ))}
     </div>
@@ -287,19 +371,55 @@ function VersionHistory({
 interface Props {
   savedLyricId: string
   legacyLyrics: string
+  fetchStatus?: LyricsFetchStatus
 }
 
-export default function LyricsEditor({ savedLyricId, legacyLyrics }: Props) {
+export default function LyricsEditor({ savedLyricId, legacyLyrics, fetchStatus }: Props) {
   const queryClient = useQueryClient()
   const [mode, setMode] = useState<'view' | 'edit'>('view')
   const [draft, setDraft] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
+  const [karaoke, setKaraoke] = useState(false)
 
+  // Poll lyrics endpoint while auto-fetch is in progress
   const { data: structured = null } = useQuery<StructuredLyrics | null>({
     queryKey: ['lyrics', savedLyricId],
-    queryFn: () => api.get<StructuredLyrics | null>(`/lyrics/${savedLyricId}`).then((r) => r.data),
+    queryFn: () =>
+      api.get<StructuredLyrics | null>(`/lyrics/${savedLyricId}`).then((r) => r.data),
     staleTime: 60_000,
+    refetchInterval: fetchStatus === 'FETCHING' ? 5_000 : false,
   })
+
+  // Poll Spotify current track every second while karaoke mode is active
+  const { data: currentTrack } = useQuery<{ progress_ms: number } | null>({
+    queryKey: ['spotify-current-track'],
+    queryFn: () => api.get('/spotify/current-track').then((r) => r.data),
+    enabled: karaoke,
+    refetchInterval: 1_000,
+    staleTime: 0,
+  })
+
+  const progressMs = currentTrack?.progress_ms ?? 0
+
+  // Determine which line should be highlighted based on playback position
+  const activeLineId = useMemo(() => {
+    if (!karaoke || !structured) return null
+    const timedLines = structured.lines.filter((l) => l.timestampMs != null)
+    if (timedLines.length === 0) return null
+    let active = timedLines[0]
+    for (const line of timedLines) {
+      if (line.timestampMs! <= progressMs) active = line
+      else break
+    }
+    return active.id
+  }, [karaoke, progressMs, structured])
+
+  const seek = useMutation({
+    mutationFn: (positionMs: number) =>
+      api.post(`/spotify/seek?positionMs=${positionMs}`),
+  })
+
+  const hasTimestamps = structured?.lines.some((l) => l.timestampMs != null) ?? false
 
   const currentText =
     draft !== null ? draft : structured?.rawText ?? legacyLyrics ?? ''
@@ -336,43 +456,77 @@ export default function LyricsEditor({ savedLyricId, legacyLyrics }: Props) {
               · {timeAgo(structured.updatedAt)}
             </span>
           )}
+          {fetchStatus === 'FETCHING' && !structured && (
+            <span className="flex items-center gap-1 text-[10px] text-foreground-subtle">
+              <Loader2 size={9} className="animate-spin" />
+              Lädt…
+            </span>
+          )}
         </div>
 
-        {/* View / Edit toggle */}
-        <div className="flex items-center rounded-lg border border-edge bg-surface-raised p-0.5 gap-0.5">
-          <button
-            onClick={() => setMode('view')}
-            className={[
-              'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors',
-              mode === 'view'
-                ? 'bg-surface-overlay text-foreground'
-                : 'text-foreground-subtle hover:text-foreground-muted',
-            ].join(' ')}
-          >
-            <Eye size={11} strokeWidth={2} />
-            Ansicht
-          </button>
-          <button
-            onClick={() => { setMode('edit'); if (draft === null) setDraft(currentText) }}
-            className={[
-              'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors',
-              mode === 'edit'
-                ? 'bg-surface-overlay text-foreground'
-                : 'text-foreground-subtle hover:text-foreground-muted',
-            ].join(' ')}
-          >
-            <Pencil size={11} strokeWidth={2} />
-            Bearbeiten
-          </button>
+        <div className="flex items-center gap-1.5">
+          {/* Karaoke toggle — only shown when structured lyrics with timestamps exist */}
+          {mode === 'view' && hasTimestamps && (
+            <button
+              onClick={() => setKaraoke((v) => !v)}
+              title={karaoke ? 'Karaoke-Modus deaktivieren' : 'Karaoke-Modus aktivieren'}
+              className={[
+                'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors border',
+                karaoke
+                  ? 'bg-accent/10 border-accent/30 text-accent'
+                  : 'border-edge text-foreground-subtle hover:text-foreground-muted',
+              ].join(' ')}
+            >
+              <Headphones size={11} strokeWidth={2} />
+              Karaoke
+            </button>
+          )}
+
+          {/* View / Edit toggle */}
+          <div className="flex items-center rounded-lg border border-edge bg-surface-raised p-0.5 gap-0.5">
+            <button
+              onClick={() => setMode('view')}
+              className={[
+                'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors',
+                mode === 'view'
+                  ? 'bg-surface-overlay text-foreground'
+                  : 'text-foreground-subtle hover:text-foreground-muted',
+              ].join(' ')}
+            >
+              <Eye size={11} strokeWidth={2} />
+              Ansicht
+            </button>
+            <button
+              onClick={() => { setMode('edit'); if (draft === null) setDraft(currentText) }}
+              className={[
+                'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors',
+                mode === 'edit'
+                  ? 'bg-surface-overlay text-foreground'
+                  : 'text-foreground-subtle hover:text-foreground-muted',
+              ].join(' ')}
+            >
+              <Pencil size={11} strokeWidth={2} />
+              Bearbeiten
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Content */}
       {mode === 'view' ? (
         structured ? (
-          <StructuredLyricsView structured={structured} onEdit={() => setMode('edit')} />
+          <StructuredLyricsView
+            structured={structured}
+            onEdit={() => setMode('edit')}
+            activeLineId={activeLineId}
+            onSeek={(ms) => seek.mutate(ms)}
+          />
         ) : (
-          <PlainLyricsView lyrics={legacyLyrics} onEdit={() => setMode('edit')} />
+          <PlainLyricsView
+            lyrics={legacyLyrics}
+            onEdit={() => setMode('edit')}
+            fetchStatus={fetchStatus}
+          />
         )
       ) : (
         <>

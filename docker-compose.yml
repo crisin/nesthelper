@@ -41,6 +41,21 @@ services:
       "
     restart: "no"
 
+  # Redis (BullMQ job queues)
+  redis:
+    image: redis:7-alpine
+    container_name: spotify-helper-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   # Backend API Service
   backend:
     build:
@@ -51,8 +66,12 @@ services:
     depends_on:
       database:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@database:5432/${DB_NAME:-spotify_helper}?schema=public
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
       SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID}
       SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET}
       SPOTIFY_REDIRECT_URI: ${SPOTIFY_REDIRECT_URI}
@@ -87,3 +106,4 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:

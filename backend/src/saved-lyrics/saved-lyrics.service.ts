@@ -1,12 +1,18 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSavedLyricDto } from './dto/create-saved-lyric.dto';
 import { UpdateSavedLyricDto } from './dto/update-saved-lyric.dto';
 import { AddTagDto } from './dto/add-tag.dto';
+import { LYRICS_FETCH_QUEUE } from '../lyrics-fetch/lyrics-fetch.queue';
 
 @Injectable()
 export class SavedLyricsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() @InjectQueue(LYRICS_FETCH_QUEUE) private readonly lyricsQueue: Queue | null,
+  ) {}
 
   getAll(userId: string) {
     return this.prisma.savedLyric.findMany({
@@ -19,13 +25,16 @@ export class SavedLyricsService {
     });
   }
 
-  create(userId: string, dto: CreateSavedLyricDto) {
-    return this.prisma.savedLyric.create({
+  async create(userId: string, dto: CreateSavedLyricDto) {
+    const hasLyrics = !!(dto.lyrics?.trim());
+
+    const saved = await (this.prisma.savedLyric.create as any)({
       data: {
         userId,
         track: dto.track,
         artist: dto.artist,
         lyrics: dto.lyrics ?? '',
+        fetchStatus: hasLyrics ? 'DONE' : (this.lyricsQueue ? 'FETCHING' : 'IDLE'),
         ...(dto.searchHistoryId ? { searchHistoryId: dto.searchHistoryId } : {}),
       },
       include: {
@@ -33,6 +42,32 @@ export class SavedLyricsService {
         tags: true,
       },
     });
+
+    // Capture listening context (hour + day of week)
+    const now = new Date();
+    await this.prisma.listeningContext.create({
+      data: {
+        savedLyricId: saved.id,
+        hour: now.getHours(),
+        dayOfWeek: now.getDay(),
+      },
+    }).catch(() => { /* non-critical, ignore errors */ });
+
+    // Enqueue lyrics fetch if no lyrics provided and queue is available
+    if (!hasLyrics && this.lyricsQueue) {
+      await this.lyricsQueue.add('fetch', {
+        savedLyricId: saved.id,
+        track: dto.track,
+        artist: dto.artist,
+      }, {
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 5000 },
+        removeOnComplete: true,
+        removeOnFail: false,
+      });
+    }
+
+    return saved;
   }
 
   async updateLyrics(userId: string, id: string, dto: UpdateSavedLyricDto) {

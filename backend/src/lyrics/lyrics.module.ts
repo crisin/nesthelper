@@ -7,5 +7,6 @@ import { LyricsService } from './lyrics.service';
   imports: [AuthModule],
   providers: [LyricsService],
   controllers: [LyricsController],
+  exports: [LyricsService],
 })
 export class LyricsModule {}

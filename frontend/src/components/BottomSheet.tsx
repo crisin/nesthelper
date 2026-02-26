@@ -74,7 +74,7 @@ export default function BottomSheet({ open, onClose, children }: BottomSheetProp
         aria-modal="true"
         className="absolute inset-x-0 bottom-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2
                    bg-surface-raised rounded-t-2xl sm:rounded-2xl border border-edge shadow-card
-                   max-h-[80vh] sm:max-w-sm sm:w-full overflow-hidden pb-2"
+                   max-h-[80vh] sm:max-w-sm sm:w-full overflow-hidden pb-4"
         style={{
           transform: `translateY(${dragOffset}px)`,
           transition: dragging ? 'none' : 'transform 0.25s ease-out',

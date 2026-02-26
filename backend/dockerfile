@@ -1,5 +1,5 @@
-# ─── Build stage ──────────────────────────────────────────────────────────────
-FROM node:24-alpine AS builder
+# ─── Builder ─────────────────────────────────────────────
+FROM node:22-slim AS builder
 
 WORKDIR /app
 
@@ -8,31 +8,32 @@ RUN npm ci
 
 COPY . .
 
-# Generates Prisma client AND compiles TypeScript
+# generate prisma client explicitly
+RUN npx prisma generate
+
+# build nestjs
 RUN npm run build
 
-# ─── Production stage ─────────────────────────────────────────────────────────
-FROM node:24-alpine AS production
+
+# ─── Production ──────────────────────────────────────────
+FROM node:22-slim AS production
 
 WORKDIR /app
 
+ENV NODE_ENV=production
+
+# copy ONLY already-installed deps
+COPY --from=builder /app/node_modules ./node_modules
+
+# copy build output + prisma schema
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/prisma ./prisma
 COPY package*.json ./
 
-# Install production deps, then add the Prisma CLI (needed for migrate deploy at startup)
-RUN npm ci --omit=dev
-
-# Copy compiled app
-COPY --from=builder /app/dist ./dist
-
-# Copy Prisma artifacts
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/prisma ./prisma
-
-# Non-root user
-RUN addgroup -g 1001 -S nodejs && adduser -S nestjs -u 1001
+# non-root user
+RUN useradd -m nestjs
 USER nestjs
 
 EXPOSE 3001
 
-# Run pending migrations, then start the server
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main.js"]
+CMD ["sh", "-c", "node_modules/.bin/prisma migrate deploy && node dist/src/main.js"]

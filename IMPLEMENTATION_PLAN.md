@@ -685,7 +685,7 @@ Week 9:     Feature 4 — Community insights
 Week 10:    Feature 10 — Analytics dashboard (backend queries + charts)
 Week 11:    Feature 11 — Timeline view
 Week 12:    Feature 12 — Weekly digest (cron)
-Week 13-14: Feature 8 — AI lyrics fetch (Redis + BullMQ + external API)
+- Week 13-14: Feature 8 — AI lyrics fetch (Redis + BullMQ + external API) - will be implemented later
 Week 15:    Feature 9 — Spotify seek + karaoke mode
 Week 16-17: Feature 13 — Similarity engine (pgvector + embeddings)
 Week 18:    Feature 14 — Quote mode (canvas/puppeteer)

@@ -19,7 +19,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install production deps, then add the Prisma CLI (needed for migrate deploy at startup)
-RUN npm ci --only=production && npm install prisma
+RUN npm ci --omit=dev
 
 # Copy compiled app
 COPY --from=builder /app/dist ./dist

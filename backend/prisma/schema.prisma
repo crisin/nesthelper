@@ -17,6 +17,13 @@ enum Visibility {
   PUBLIC
 }
 
+enum LyricsFetchStatus {
+  IDLE
+  FETCHING
+  DONE
+  FAILED
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
@@ -51,13 +58,15 @@ model SavedLyric {
   lyrics          String
   track           String
   artist          String
-  note            String?
-  visibility      Visibility @default(PRIVATE)
-  createdAt       DateTime   @default(now())
+  note             String?
+  visibility       Visibility        @default(PRIVATE)
+  fetchStatus      LyricsFetchStatus @default(IDLE)
+  createdAt        DateTime          @default(now())
 
-  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  searchHistory    SearchHistory? @relation(fields: [searchHistoryId], references: [id])
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  searchHistory    SearchHistory?    @relation(fields: [searchHistoryId], references: [id])
   lyricsStructured Lyrics?
+  listeningContext ListeningContext?
   tags             SongTag[]
   collectionItems  CollectionItem[]
 }
@@ -159,6 +168,19 @@ model SongTag {
 
   @@unique([savedLyricId, tag])
   @@index([tag])
+}
+
+// ─── Phase 3: Listening Context ──────────────────────────────────────────────
+
+model ListeningContext {
+  id           String   @id @default(cuid())
+  savedLyricId String   @unique
+  hour         Int      // 0-23
+  dayOfWeek    Int      // 0 (Sun) – 6 (Sat)
+  deviceType   String?  // "smartphone" | "computer" | "speaker" etc.
+  savedAt      DateTime @default(now())
+
+  savedLyric SavedLyric @relation(fields: [savedLyricId], references: [id], onDelete: Cascade)
 }
 
 // ─── Phase 2: Collections ─────────────────────────────────────────────────────

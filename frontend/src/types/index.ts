@@ -64,6 +64,8 @@ export interface StructuredLyrics {
 
 export type Visibility = 'PRIVATE' | 'FRIENDS' | 'PUBLIC'
 
+export type LyricsFetchStatus = 'IDLE' | 'FETCHING' | 'DONE' | 'FAILED'
+
 export interface SavedLyric {
   id: string
   track: string
@@ -71,6 +73,7 @@ export interface SavedLyric {
   lyrics: string
   note?: string | null
   visibility?: Visibility
+  fetchStatus?: LyricsFetchStatus
   searchHistoryId?: string
   searchHistory?: { imgUrl?: string; url?: string; spotifyId?: string } | null
   tags?: SongTag[]

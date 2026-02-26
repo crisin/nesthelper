@@ -184,6 +184,17 @@ export class SpotifyService {
     return res.json();
   }
 
+  async seek(userId: string, positionMs: number): Promise<void> {
+    const accessToken = await this.getValidAccessToken(userId);
+    const res = await fetch(
+      `https://api.spotify.com/v1/me/player/seek?position_ms=${positionMs}`,
+      { method: 'PUT', headers: { Authorization: `Bearer ${accessToken}` } },
+    );
+    if (!res.ok && res.status !== 204) {
+      throw new Error('Spotify seek failed');
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // State encoding: base64url(userId:timestamp:hmac[:8])
   // Expires after 10 minutes; verified against JWT_SECRET to prevent forgery.

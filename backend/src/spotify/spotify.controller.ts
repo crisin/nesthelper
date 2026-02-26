@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Post,
   Query,
   Redirect,
   Req,
@@ -78,5 +79,13 @@ export class SpotifyController {
   @UseGuards(JwtAuthGuard)
   currentTrack(@Req() req: AuthedRequest) {
     return this.spotify.getCurrentTrack(req.user.id);
+  }
+
+  /** Seeks to a position in the currently playing track. */
+  @Post('seek')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  seek(@Req() req: AuthedRequest, @Query('positionMs') positionMs: string) {
+    return this.spotify.seek(req.user.id, parseInt(positionMs, 10));
   }
 }

@@ -15,6 +15,7 @@ interface GlobalFeedItem {
   id: string
   track: string
   artist: string
+  artists: string[]
   url: string
   imgUrl?: string
   createdAt: string

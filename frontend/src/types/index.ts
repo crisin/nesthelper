@@ -4,6 +4,18 @@ export interface User {
   name?: string
 }
 
+export interface SpotifyCurrentlyPlayingResponse {
+  item: {
+    id: string
+    name: string
+    artists: { name: string }[]
+    album: { images: { url: string }[] }
+    duration_ms: number
+  } | null
+  progress_ms: number | null
+  is_playing: boolean
+}
+
 export interface AuthResponse {
   access_token: string
   user: User

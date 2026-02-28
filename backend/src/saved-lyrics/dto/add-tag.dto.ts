@@ -1,9 +1,5 @@
 import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
-
-export enum TagTypeDto {
-  CONTEXT = 'CONTEXT',
-  MOOD = 'MOOD',
-}
+import { TagType } from '@prisma/client';
 
 export class AddTagDto {
   @IsString()
@@ -11,6 +7,6 @@ export class AddTagDto {
   tag: string;
 
   @IsOptional()
-  @IsEnum(TagTypeDto)
-  type?: TagTypeDto;
+  @IsEnum(TagType)
+  type?: TagType;
 }

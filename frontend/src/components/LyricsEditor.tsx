@@ -5,7 +5,7 @@ import {
   RotateCcw, Check, Music, Headphones, Timer, Loader2,
 } from 'lucide-react'
 import api from '../services/api'
-import type { StructuredLyrics, LineAnnotation, LyricsFetchStatus } from '../types'
+import type { StructuredLyrics, LineAnnotation, LyricsFetchStatus, SpotifyCurrentlyPlayingResponse } from '../types'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -394,9 +394,9 @@ export default function LyricsEditor({ savedLyricId, legacyLyrics, fetchStatus }
   })
 
   // Poll Spotify current track every second while karaoke mode is active
-  const { data: currentTrack } = useQuery<{ progress_ms: number } | null>({
+  const { data: currentTrack } = useQuery<SpotifyCurrentlyPlayingResponse | null>({
     queryKey: ['spotify-current-track'],
-    queryFn: () => api.get('/spotify/current-track').then((r) => r.data),
+    queryFn: () => api.get<SpotifyCurrentlyPlayingResponse>('/spotify/current-track').then((r) => r.data),
     enabled: karaoke,
     refetchInterval: 1_000,
     staleTime: 0,

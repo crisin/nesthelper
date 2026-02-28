@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
+import { TagType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSavedLyricDto } from './dto/create-saved-lyric.dto';
 import { UpdateSavedLyricDto } from './dto/update-saved-lyric.dto';
@@ -30,7 +31,7 @@ export class SavedLyricsService {
     const artist = artists[0] ?? '';
     const hasLyrics = !!(dto.lyrics?.trim());
 
-    const saved = await (this.prisma.savedLyric.create as any)({
+    const saved = await this.prisma.savedLyric.create({
       data: {
         userId,
         track: dto.track,
@@ -115,7 +116,7 @@ export class SavedLyricsService {
     const normalised = dto.tag.trim().toLowerCase();
     return this.prisma.songTag.upsert({
       where: { savedLyricId_tag: { savedLyricId: id, tag: normalised } },
-      create: { savedLyricId: id, tag: normalised, type: (dto.type as any) ?? 'CONTEXT' },
+      create: { savedLyricId: id, tag: normalised, type: dto.type ?? TagType.CONTEXT },
       update: {},
     });
   }
@@ -151,7 +152,7 @@ export class SavedLyricsService {
       select: { id: true },
     });
     if (!item) throw new NotFoundException('Saved lyric not found');
-    return (this.prisma.savedLyric.update as any)({
+    return this.prisma.savedLyric.update({
       where: { id },
       data: { visibility },
       select: { id: true, visibility: true },

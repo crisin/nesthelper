@@ -7,6 +7,18 @@ import { ConfigService } from '@nestjs/config';
 import { createHmac } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 
+export interface SpotifyCurrentlyPlayingResponse {
+  item: {
+    id: string;
+    name: string;
+    artists: { name: string }[];
+    album: { images: { url: string }[] };
+    duration_ms: number;
+  } | null;
+  progress_ms: number | null;
+  is_playing: boolean;
+}
+
 @Injectable()
 export class SpotifyService {
   private readonly clientId: string;
@@ -169,7 +181,7 @@ export class SpotifyService {
     return refreshed.access_token;
   }
 
-  async getCurrentTrack(userId: string) {
+  async getCurrentTrack(userId: string): Promise<SpotifyCurrentlyPlayingResponse | null> {
     const accessToken = await this.getValidAccessToken(userId);
 
     const res = await fetch(
@@ -180,8 +192,7 @@ export class SpotifyService {
     if (res.status === 204) return null; // Nothing playing
     if (!res.ok) throw new Error('Failed to fetch current track from Spotify');
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-    return res.json();
+    return (await res.json()) as SpotifyCurrentlyPlayingResponse;
   }
 
   async seek(userId: string, positionMs: number): Promise<void> {

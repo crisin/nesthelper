@@ -86,6 +86,7 @@ export class AnalyticsService {
         id: true,
         track: true,
         artist: true,
+        artists: true,
         createdAt: true,
         tags: {
           where: { type: 'MOOD' },

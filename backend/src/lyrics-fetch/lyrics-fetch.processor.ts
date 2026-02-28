@@ -1,6 +1,7 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
+import { LyricsFetchStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { LYRICS_FETCH_QUEUE, LyricsFetchJobData } from './lyrics-fetch.queue';
 
@@ -21,7 +22,7 @@ export class LyricsFetchProcessor extends WorkerHost {
 
       if (!lyrics) {
         this.logger.warn(`No lyrics found for "${track}" by "${artist}"`);
-        await this.setStatus(savedLyricId, 'FAILED');
+        await this.setStatus(savedLyricId, LyricsFetchStatus.FAILED);
         return;
       }
 
@@ -42,18 +43,18 @@ export class LyricsFetchProcessor extends WorkerHost {
         // Keep legacy lyrics field in sync
         await tx.savedLyric.update({
           where: { id: savedLyricId },
-          data: { lyrics, fetchStatus: 'DONE' as any },
+          data: { lyrics, fetchStatus: LyricsFetchStatus.DONE },
         });
       });
     } catch (err) {
       this.logger.error(`Lyrics fetch failed for ${savedLyricId}: ${(err as Error).message}`);
-      await this.setStatus(savedLyricId, 'FAILED');
+      await this.setStatus(savedLyricId, LyricsFetchStatus.FAILED);
       throw err; // rethrow so BullMQ can retry
     }
   }
 
-  private async setStatus(savedLyricId: string, status: 'DONE' | 'FAILED') {
-    await (this.prisma.savedLyric.update as any)({
+  private async setStatus(savedLyricId: string, status: LyricsFetchStatus): Promise<void> {
+    await this.prisma.savedLyric.update({
       where: { id: savedLyricId },
       data: { fetchStatus: status },
     });

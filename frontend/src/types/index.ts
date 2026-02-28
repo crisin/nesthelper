@@ -14,6 +14,7 @@ export interface SearchHistoryItem {
   spotifyId: string
   track: string
   artist: string
+  artists: string[]
   url: string
   imgUrl?: string
   createdAt: string
@@ -70,6 +71,7 @@ export interface SavedLyric {
   id: string
   track: string
   artist: string
+  artists: string[]
   lyrics: string
   note?: string | null
   visibility?: Visibility
@@ -85,6 +87,7 @@ export interface LibraryTrack {
   spotifyId: string
   name: string
   artist: string
+  artists: string[]
   imgUrl?: string
   url: string
   lyricsCount: number
@@ -113,7 +116,7 @@ export interface CollectionItem {
     searchHistory?: { imgUrl?: string; url?: string; spotifyId?: string } | null
   }) | null
   line?: (LyricsLine & {
-    lyrics?: { savedLyric: Pick<SavedLyric, 'id' | 'track' | 'artist'> } | null
+    lyrics?: { savedLyric: Pick<SavedLyric, 'id' | 'track' | 'artist' | 'artists'> } | null
   }) | null
 }
 
@@ -152,6 +155,7 @@ export interface TimelineSong {
   id: string
   track: string
   artist: string
+  artists: string[]
   createdAt: string
   tags: { tag: string }[]
   searchHistory?: { imgUrl?: string; spotifyId?: string } | null

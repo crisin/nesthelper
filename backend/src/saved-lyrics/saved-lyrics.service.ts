@@ -26,13 +26,16 @@ export class SavedLyricsService {
   }
 
   async create(userId: string, dto: CreateSavedLyricDto) {
+    const artists = dto.artists?.length ? dto.artists : (dto.artist ? [dto.artist] : []);
+    const artist = artists[0] ?? '';
     const hasLyrics = !!(dto.lyrics?.trim());
 
     const saved = await (this.prisma.savedLyric.create as any)({
       data: {
         userId,
         track: dto.track,
-        artist: dto.artist,
+        artist,
+        artists,
         lyrics: dto.lyrics ?? '',
         fetchStatus: hasLyrics ? 'DONE' : (this.lyricsQueue ? 'FETCHING' : 'IDLE'),
         ...(dto.searchHistoryId ? { searchHistoryId: dto.searchHistoryId } : {}),
@@ -58,7 +61,7 @@ export class SavedLyricsService {
       await this.lyricsQueue.add('fetch', {
         savedLyricId: saved.id,
         track: dto.track,
-        artist: dto.artist,
+        artist, // primary artist for lyrics.ovh
       }, {
         attempts: 3,
         backoff: { type: 'exponential', delay: 5000 },

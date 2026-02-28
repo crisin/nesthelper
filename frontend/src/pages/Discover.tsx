@@ -119,7 +119,7 @@ function LibraryCard({
       <TrackListItem
         src={track.imgUrl}
         track={track.name}
-        artist={track.artist}
+        artist={track.artists?.join(", ") || track.artist}
         size="md"
         className={highlight ? 'ring-2 ring-accent/50' : ''}
         onContentClick={() => setExpanded((v) => !v)}
@@ -250,7 +250,7 @@ function LibraryGridCard({
         <TrackCover
           src={track.imgUrl}
           track={track.name}
-          artist={track.artist}
+          artist={track.artists?.join(", ") || track.artist}
           className="w-full h-full"
           iconSize={28}
         />
@@ -311,7 +311,7 @@ function LibraryGridCard({
         onClick={() => setLyricsOpen(true)}
       >
         <p className="text-xs font-semibold text-foreground truncate leading-tight">{track.name}</p>
-        <p className="text-[11px] text-foreground-muted truncate mt-0.5">{track.artist}</p>
+        <p className="text-[11px] text-foreground-muted truncate mt-0.5">{track.artists?.join(", ") || track.artist}</p>
       </button>
 
       {/* Lyrics sheet */}
@@ -327,7 +327,7 @@ function LibraryGridCard({
           )}
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-foreground text-sm leading-tight truncate">{track.name}</p>
-            <p className="text-xs text-foreground-muted truncate mt-0.5">{track.artist}</p>
+            <p className="text-xs text-foreground-muted truncate mt-0.5">{track.artists?.join(", ") || track.artist}</p>
           </div>
           <button
             onClick={onSave}
@@ -472,7 +472,7 @@ export default function Discover() {
 
   const saveSong = useMutation({
     mutationFn: (track: LibraryTrack) =>
-      api.post('/saved-lyrics', { track: track.name, artist: track.artist }),
+      api.post('/saved-lyrics', { track: track.name, artist: track.artist, artists: track.artists }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['saved-lyrics'] }),
   })
 
@@ -670,7 +670,7 @@ export default function Discover() {
                     <TrackListItem
                       src={item.imgUrl}
                       track={item.track}
-                      artist={item.artist}
+                      artist={item.artists?.join(", ") || item.artist}
                       size="md"
                       interactive
                       onContentClick={() => {

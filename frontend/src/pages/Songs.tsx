@@ -170,7 +170,7 @@ export default function Songs() {
                     <TrackListItem
                       src={imgUrl}
                       track={song.track}
-                      artist={song.artist}
+                      artist={song.artists?.join(", ") || song.artist}
                       size="md"
                       onCardClick={() => navigate(`/songs/${song.id}`)}
                       meta={

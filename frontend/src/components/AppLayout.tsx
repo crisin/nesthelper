@@ -1,8 +1,9 @@
-import { BarChart2, Clock, Compass, Home, Library, Search, Settings, BookOpen } from "lucide-react";
+import { BarChart2, Clock, Compass, Home, Library, Settings, BookOpen } from "lucide-react";
 import type { ReactNode } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import SpotifyConnect from "./SpotifyConnect";
 import UsernameEdit from "./UsernameEdit";
+import LyricsSearchButton from "./LyricsSearchButton";
 
 const NAV = [
   { path: "/dashboard", label: "Dashboard", Icon: Home },
@@ -16,15 +17,6 @@ const NAV = [
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
-  const navigate = useNavigate();
-  // const navigate  = useNavigate()
-  // const clearAuth = useAuthStore((s) => s.clearAuth)
-  // const { isDark, toggle } = useTheme()
-
-  // function handleLogout() {
-  //   clearAuth()
-  //   navigate('/login')
-  // }
 
   return (
     <div className="min-h-screen bg-surface text-foreground flex">
@@ -37,7 +29,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             className="flex items-center gap-2.5 select-none"
           >
             <span className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0">
-              {/* <Music size={14} className="text-accent" strokeWidth={2} /> */}
               <img src="/glorp-1x.webp" />
             </span>
             <span className="text-foreground font-semibold text-sm tracking-tight">
@@ -46,21 +37,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </Link>
         </div>
 
-        {/* Search shortcut */}
-        <div className="px-3 pt-3 pb-1">
-          <button
-            onClick={() => navigate('/songs')}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-foreground-subtle
-                       bg-surface border border-edge hover:border-foreground-muted/40 hover:text-foreground-muted
-                       transition-colors"
-          >
-            <Search size={13} strokeWidth={1.75} />
-            <span className="text-xs">Lyrics suchen…</span>
-          </button>
-        </div>
-
         {/* Nav */}
-        <nav className="flex-1 px-3 py-2 space-y-0.5 overflow-y-auto">
+        <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
           {NAV.map(({ path, label, Icon }) => {
             const active =
               path === "/songs" || path === "/collections"
@@ -86,6 +64,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
         {/* User controls */}
         <div className="px-4 py-4 border-t border-edge flex-shrink-0 space-y-3">
+          <LyricsSearchButton />
           <SpotifyConnect />
           <UsernameEdit />
           {/* <div className="flex items-center justify-between pt-0.5">

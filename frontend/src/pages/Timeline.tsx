@@ -141,7 +141,7 @@ export default function Timeline() {
                     <TrackListItem
                       src={song.searchHistory?.imgUrl}
                       track={song.track}
-                      artist={song.artist}
+                      artist={song.artists?.join(", ") || song.artist}
                       size="sm"
                       onCardClick={() => navigate(`/songs/${song.id}`)}
                       actions={

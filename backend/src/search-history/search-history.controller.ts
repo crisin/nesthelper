@@ -23,13 +23,13 @@ export class SearchHistoryController {
 
   @Get()
   getAll(@Req() req: AuthedRequest) {
-    return this.service.getAll(req.user.id);
+    return this.service.getAll(req.user.id) as Record<string, string>[];
   }
 
   /** Returns the last 100 searches across all users (for the community feed). */
   @Get('global')
   getGlobal() {
-    return this.service.getGlobal();
+    return this.service.getGlobal() as Record<string, string>[];
   }
 
   @Post()

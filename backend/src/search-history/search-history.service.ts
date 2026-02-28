@@ -24,8 +24,21 @@ export class SearchHistoryService {
   }
 
   async create(userId: string, dto: CreateSearchHistoryDto) {
+    const artists = dto.artists?.length ? dto.artists : (dto.artist ? [dto.artist] : []);
+    const artist = artists[0] ?? '';
+
     const [history] = await this.prisma.$transaction([
-      this.prisma.searchHistory.create({ data: { userId, ...dto } }),
+      this.prisma.searchHistory.create({
+        data: {
+          userId,
+          spotifyId: dto.spotifyId,
+          track: dto.track,
+          artist,
+          artists,
+          url: dto.url,
+          ...(dto.imgUrl ? { imgUrl: dto.imgUrl } : {}),
+        },
+      }),
       this.prisma.libraryTrack.upsert({
         where: { spotifyId: dto.spotifyId },
         update: {
@@ -35,7 +48,8 @@ export class SearchHistoryService {
         create: {
           spotifyId: dto.spotifyId,
           name: dto.track,
-          artist: dto.artist,
+          artist,
+          artists,
           url: dto.url,
           imgUrl: dto.imgUrl,
         },

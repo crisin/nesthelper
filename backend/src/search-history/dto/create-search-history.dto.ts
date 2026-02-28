@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsUrl } from 'class-validator';
+import { IsArray, IsOptional, IsString, IsUrl } from 'class-validator';
 
 export class CreateSearchHistoryDto {
   @IsString()
@@ -7,8 +7,14 @@ export class CreateSearchHistoryDto {
   @IsString()
   track: string;
 
+  @IsOptional()
   @IsString()
-  artist: string;
+  artist?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  artists?: string[];
 
   @IsUrl()
   url: string;

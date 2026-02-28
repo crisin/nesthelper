@@ -300,7 +300,7 @@ export default function SongDetail() {
         <TrackCover
           src={imgUrl}
           track={song.track}
-          artist={song.artist}
+          artist={song.artists?.join(", ") || song.artist}
           className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl flex-shrink-0"
           iconSize={24}
         />
@@ -309,7 +309,7 @@ export default function SongDetail() {
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h1 className="text-lg font-semibold text-foreground leading-tight">{song.track}</h1>
-              <p className="text-sm text-foreground-muted mt-0.5">{song.artist}</p>
+              <p className="text-sm text-foreground-muted mt-0.5">{song.artists?.join(", ") || song.artist}</p>
               <div className="flex items-center gap-3 mt-1.5">
                 {searchUrl && (
                   <a
@@ -323,7 +323,7 @@ export default function SongDetail() {
                   </a>
                 )}
                 <a
-                  href={`https://www.google.com/search?q=${encodeURIComponent(`${song.track} ${song.artist} lyrics`)}`}
+                  href={`https://www.google.com/search?q=${encodeURIComponent(`${song.track} ${song.artists?.join(", ") || song.artist} lyrics`)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 text-xs text-foreground-subtle hover:text-accent transition-colors"

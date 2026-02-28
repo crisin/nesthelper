@@ -59,6 +59,7 @@ model SavedLyric {
   lyrics          String
   track           String
   artist          String
+  artists         String[]   @default([])
   note             String?
   visibility       Visibility        @default(PRIVATE)
   fetchStatus      LyricsFetchStatus @default(IDLE)
@@ -78,6 +79,7 @@ model SearchHistory {
   spotifyId String
   track     String
   artist    String
+  artists   String[] @default([])
   url       String
   imgUrl    String?
   createdAt DateTime @default(now())
@@ -91,6 +93,7 @@ model LibraryTrack {
   spotifyId   String   @unique
   name        String
   artist      String
+  artists     String[] @default([])
   imgUrl      String?
   url         String
   firstSeenAt DateTime @default(now())

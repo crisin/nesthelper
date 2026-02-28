@@ -7,6 +7,7 @@ import type { SavedLyric } from '../types'
 import SwipeToDelete from '../components/SwipeToDelete'
 import PullToRefresh from '../components/PullToRefresh'
 import TrackListItem from '../components/TrackListItem'
+import DigestBanner from '../components/DigestBanner'
 
 type SortKey = 'recent' | 'artist' | 'title'
 
@@ -81,6 +82,9 @@ export default function Songs() {
   return (
     <PullToRefresh onRefresh={handleRefresh}>
       <div className="px-4 sm:px-8 py-8 max-w-5xl mx-auto space-y-4 overflow-hidden">
+
+        {/* Weekly digest */}
+        <DigestBanner />
 
         {/* Header */}
         <div>

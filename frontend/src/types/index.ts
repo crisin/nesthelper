@@ -163,3 +163,21 @@ export interface TimelineMonth {
   dominantMood: string | null
   songs: TimelineSong[]
 }
+
+// ─── Phase 4: Weekly Digest ───────────────────────────────────────────────────
+
+export interface DigestContent {
+  savedCount: number
+  topWord: string | null
+  topArtist: string | null
+  communityInsight: string | null
+}
+
+export interface Digest {
+  id: string
+  userId: string
+  weekStart: string
+  content: DigestContent
+  read: boolean
+  createdAt: string
+}

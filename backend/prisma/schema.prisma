@@ -37,6 +37,7 @@ model User {
   searchHistory    SearchHistory[]
   lineAnnotations  LineAnnotation[]
   collections      Collection[]
+  digests          Digest[]
 }
 
 model SpotifyToken {
@@ -181,6 +182,22 @@ model ListeningContext {
   savedAt      DateTime @default(now())
 
   savedLyric SavedLyric @relation(fields: [savedLyricId], references: [id], onDelete: Cascade)
+}
+
+// ─── Phase 4: Weekly Digest ───────────────────────────────────────────────────
+
+model Digest {
+  id        String   @id @default(cuid())
+  userId    String
+  weekStart DateTime
+  content   Json
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekStart])
+  @@index([userId])
 }
 
 // ─── Phase 2: Collections ─────────────────────────────────────────────────────

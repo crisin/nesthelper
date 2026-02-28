@@ -61,10 +61,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             );
           })}
         </nav>
-
+        <div className="px-4 py-4 flex-shrink-0 space-y-3">
+          <LyricsSearchButton />
+        </div>
         {/* User controls */}
         <div className="px-4 py-4 border-t border-edge flex-shrink-0 space-y-3">
-          <LyricsSearchButton />
+          
           <SpotifyConnect />
           <UsernameEdit />
           {/* <div className="flex items-center justify-between pt-0.5">

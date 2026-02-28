@@ -108,6 +108,7 @@ function PlainLyricsView({
 
 function AnnotatedLine({
   lineId,
+  lyricsId,
   text,
   annotations,
   timestampMs,
@@ -115,6 +116,7 @@ function AnnotatedLine({
   onSeek,
 }: {
   lineId: string
+  lyricsId: string
   text: string
   annotations: LineAnnotation[]
   timestampMs?: number | null
@@ -133,7 +135,7 @@ function AnnotatedLine({
         ? api.patch(`/line-annotations/${myAnnotation.id}`, { text: draft }).then((r) => r.data)
         : api.post(`/line-annotations/${lineId}`, { text: draft }).then((r) => r.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['line-annotations', lineId] })
+      queryClient.invalidateQueries({ queryKey: ['line-annotations', lyricsId] })
       setOpen(false)
     },
   })
@@ -141,7 +143,7 @@ function AnnotatedLine({
   const deleteMutation = useMutation({
     mutationFn: () => api.delete(`/line-annotations/${myAnnotation!.id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['line-annotations', lineId] })
+      queryClient.invalidateQueries({ queryKey: ['line-annotations', lyricsId] })
       setOpen(false)
     },
   })
@@ -159,7 +161,7 @@ function AnnotatedLine({
     <div
       className={[
         'group rounded-lg transition-colors px-2 -mx-2',
-        isActive ? 'bg-accent/10' : '',
+        isActive ? 'bg-accent/10' : 'hover:bg-surface-overlay/50',
       ].join(' ')}
     >
       <div className="flex items-start gap-2">
@@ -283,6 +285,7 @@ function StructuredLyricsView({
         <AnnotatedLine
           key={line.id}
           lineId={line.id}
+          lyricsId={structured.id}
           text={line.text}
           annotations={annotations[line.id] ?? []}
           timestampMs={line.timestampMs}

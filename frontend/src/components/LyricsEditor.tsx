@@ -258,7 +258,7 @@ function StructuredLyricsView({
   const { data: annotations = {} } = useQuery<Record<string, LineAnnotation[]>>({
     queryKey: ['line-annotations', structured.id],
     queryFn: async () => {
-      const lineIds = structured.lines.map((l) => l.id)
+      const lineIds = (structured.lines ?? []).map((l) => l.id)
       const results = await Promise.all(
         lineIds.map((id) =>
           api.get<LineAnnotation[]>(`/line-annotations?lineId=${id}`).then((r) => ({
@@ -269,17 +269,17 @@ function StructuredLyricsView({
       )
       return Object.fromEntries(results.map((r) => [r.id, r.data]))
     },
-    enabled: structured.lines.length > 0,
+    enabled: (structured.lines?.length ?? 0) > 0,
     staleTime: 30_000,
   })
 
-  if (structured.lines.length === 0) {
+  if (!structured.lines?.length) {
     return <PlainLyricsView lyrics="" onEdit={onEdit} />
   }
 
   return (
     <div className="rounded-xl bg-surface-raised border border-edge px-5 sm:px-7 py-6 space-y-0.5">
-      {structured.lines.map((line) => (
+      {(structured.lines ?? []).map((line) => (
         <AnnotatedLine
           key={line.id}
           lineId={line.id}
@@ -404,7 +404,7 @@ export default function LyricsEditor({ savedLyricId, legacyLyrics, fetchStatus }
   // Determine which line should be highlighted based on playback position
   const activeLineId = useMemo(() => {
     if (!karaoke || !structured) return null
-    const timedLines = structured.lines.filter((l) => l.timestampMs != null)
+    const timedLines = (structured.lines ?? []).filter((l) => l.timestampMs != null)
     if (timedLines.length === 0) return null
     let active = timedLines[0]
     for (const line of timedLines) {
@@ -419,7 +419,7 @@ export default function LyricsEditor({ savedLyricId, legacyLyrics, fetchStatus }
       api.post(`/spotify/seek?positionMs=${positionMs}`),
   })
 
-  const hasTimestamps = structured?.lines.some((l) => l.timestampMs != null) ?? false
+  const hasTimestamps = structured?.lines?.some((l) => l.timestampMs != null) ?? false
 
   const currentText =
     draft !== null ? draft : structured?.rawText ?? legacyLyrics ?? ''

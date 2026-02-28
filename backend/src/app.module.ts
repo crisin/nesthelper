@@ -12,6 +12,7 @@ import { LineAnnotationsModule } from './line-annotations/line-annotations.modul
 import { SearchModule } from './search/search.module';
 import { CollectionsModule } from './collections/collections.module';
 import { LyricsFetchModule } from './lyrics-fetch/lyrics-fetch.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { LyricsFetchModule } from './lyrics-fetch/lyrics-fetch.module';
     SearchModule,
     CollectionsModule,
     LyricsFetchModule,
+    AnalyticsModule,
   ],
 })
 export class AppModule {}

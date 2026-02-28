@@ -1,4 +1,4 @@
-import { Compass, Home, Library, Settings, BookOpen } from "lucide-react";
+import { BarChart2, Compass, Home, Library, Settings, BookOpen } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import SpotifyConnect from "./SpotifyConnect";
@@ -9,6 +9,7 @@ const NAV = [
   { path: "/discover", label: "Entdecken", Icon: Compass },
   { path: "/songs", label: "Songs", Icon: Library },
   { path: "/collections", label: "Collections", Icon: BookOpen },
+  { path: "/analytics", label: "Analytics", Icon: BarChart2 },
   { path: "/settings", label: "Einstellungen", Icon: Settings },
 ];
 

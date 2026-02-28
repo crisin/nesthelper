@@ -138,3 +138,10 @@ export interface TrackInsights {
   tagDistribution: { tag: string; count: number }[]
   mostAnnotatedLines: { text: string; lineNumber: number; count: number }[]
 }
+
+// ─── Phase 4: Analytics ───────────────────────────────────────────────────────
+
+export interface WordFrequency { word: string; count: number }
+export interface TagCount { tag: string; count: number }
+export interface ArtistCount { artist: string; count: number }
+export interface WeekCount { week: string; count: number }

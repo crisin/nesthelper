@@ -145,3 +145,21 @@ export interface WordFrequency { word: string; count: number }
 export interface TagCount { tag: string; count: number }
 export interface ArtistCount { artist: string; count: number }
 export interface WeekCount { week: string; count: number }
+
+// ─── Phase 4: Memory Timeline ─────────────────────────────────────────────────
+
+export interface TimelineSong {
+  id: string
+  track: string
+  artist: string
+  createdAt: string
+  tags: { tag: string }[]
+  searchHistory?: { imgUrl?: string; spotifyId?: string } | null
+}
+
+export interface TimelineMonth {
+  month: string
+  year: number
+  dominantMood: string | null
+  songs: TimelineSong[]
+}

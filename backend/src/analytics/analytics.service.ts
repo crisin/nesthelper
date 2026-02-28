@@ -76,6 +76,54 @@ export class AnalyticsService {
     return rows.map((r) => ({ tag: r.tag, count: r._count.id }));
   }
 
+  async getMonthlyTimeline(userId: string, year: number) {
+    const start = new Date(year, 0, 1);
+    const end = new Date(year + 1, 0, 1);
+
+    const songs = await this.prisma.savedLyric.findMany({
+      where: { userId, createdAt: { gte: start, lt: end } },
+      select: {
+        id: true,
+        track: true,
+        artist: true,
+        createdAt: true,
+        tags: {
+          where: { type: 'MOOD' },
+          select: { tag: true },
+        },
+        searchHistory: { select: { imgUrl: true, spotifyId: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    // Group by month (0–11)
+    const monthMap = new Map<number, typeof songs>();
+    for (const song of songs) {
+      const m = new Date(song.createdAt).getMonth();
+      if (!monthMap.has(m)) monthMap.set(m, []);
+      monthMap.get(m)!.push(song);
+    }
+
+    const MONTH_NAMES = [
+      'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+      'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember',
+    ];
+
+    return [...monthMap.entries()]
+      .sort(([a], [b]) => a - b)
+      .map(([m, monthSongs]) => {
+        const freq = new Map<string, number>();
+        for (const song of monthSongs) {
+          for (const { tag } of song.tags) {
+            freq.set(tag, (freq.get(tag) ?? 0) + 1);
+          }
+        }
+        const dominantMood =
+          [...freq.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+        return { month: MONTH_NAMES[m], year, dominantMood, songs: monthSongs };
+      });
+  }
+
   async getTimeline(userId: string) {
     // Last 52 weeks of saves, grouped by ISO week (YYYY-Www)
     const since = new Date();

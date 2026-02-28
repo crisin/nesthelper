@@ -1,4 +1,4 @@
-import { Controller, Get, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AnalyticsService } from './analytics.service';
 
@@ -32,5 +32,14 @@ export class AnalyticsController {
   @Get('me/timeline')
   getTimeline(@Req() req: AuthedRequest) {
     return this.analytics.getTimeline(req.user.id);
+  }
+
+  @Get('me/monthly')
+  getMonthlyTimeline(
+    @Req() req: AuthedRequest,
+    @Query('year') year?: string,
+  ) {
+    const y = year ? parseInt(year, 10) : new Date().getFullYear();
+    return this.analytics.getMonthlyTimeline(req.user.id, y);
   }
 }

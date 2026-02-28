@@ -68,8 +68,7 @@ export class LibraryService {
   }
 
   async getInsights(spotifyId: string) {
-    // Pre-migration: cast query to any until `prisma migrate dev` regenerates the client
-    const savedLyrics: any[] = await (this.prisma.savedLyric.findMany as any)({
+    const savedLyrics = await this.prisma.savedLyric.findMany({
       where: {
         visibility: 'PUBLIC',
         searchHistory: { spotifyId },
@@ -109,7 +108,7 @@ export class LibraryService {
     for (const sl of savedLyrics) {
       if (!sl.lyricsStructured) continue;
       for (const line of sl.lyricsStructured.lines) {
-        const annotationCount = (line as any)._count.annotations as number;
+        const annotationCount = line._count.annotations;
         if (!line.text.trim() || annotationCount === 0) continue;
         const existing = lineMap.get(line.text);
         lineMap.set(line.text, {

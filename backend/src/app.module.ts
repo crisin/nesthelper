@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { BullModule } from '@nestjs/bullmq';
+import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { SpotifyModule } from './spotify/spotify.module';
@@ -12,10 +13,13 @@ import { LineAnnotationsModule } from './line-annotations/line-annotations.modul
 import { SearchModule } from './search/search.module';
 import { CollectionsModule } from './collections/collections.module';
 import { LyricsFetchModule } from './lyrics-fetch/lyrics-fetch.module';
+import { AnalyticsModule } from './analytics/analytics.module';
+import { DigestModule } from './digest/digest.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     BullModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
@@ -36,6 +40,8 @@ import { LyricsFetchModule } from './lyrics-fetch/lyrics-fetch.module';
     SearchModule,
     CollectionsModule,
     LyricsFetchModule,
+    AnalyticsModule,
+    DigestModule,
   ],
 })
 export class AppModule {}

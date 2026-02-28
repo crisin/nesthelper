@@ -39,6 +39,7 @@
     "pg": "^8.18.0",
     "reflect-metadata": "^0.2.2",
     "@nestjs/bullmq": "^11.0.2",
+    "@nestjs/schedule": "^5.0.1",
     "bullmq": "^5.56.0",
     "rxjs": "^7.8.1",
     "spotify-web-api-node": "^5.0.2"

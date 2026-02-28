@@ -61,7 +61,7 @@ export class CollectionsService {
               include: {
                 lyrics: {
                   include: {
-                    savedLyric: { select: { id: true, track: true, artist: true } },
+                    savedLyric: { select: { id: true, track: true, artist: true, artists: true } },
                   },
                 },
               },

@@ -7,6 +7,8 @@ import Songs from './pages/Songs'
 import SongDetail from './pages/SongDetail'
 import Collections from './pages/Collections'
 import CollectionDetail from './pages/CollectionDetail'
+import Analytics from './pages/Analytics'
+import Timeline from './pages/Timeline'
 import Settings from './pages/Settings'
 import PrivateRoute from './components/PrivateRoute'
 import AppLayout from './components/AppLayout'
@@ -47,6 +49,14 @@ const router = createBrowserRouter([
   {
     path: '/collections/:id',
     element: <AppPage><CollectionDetail /></AppPage>,
+  },
+  {
+    path: '/analytics',
+    element: <AppPage><Analytics /></AppPage>,
+  },
+  {
+    path: '/timeline',
+    element: <AppPage><Timeline /></AppPage>,
   },
   {
     path: '/settings',

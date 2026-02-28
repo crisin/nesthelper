@@ -1,11 +1,17 @@
-import { IsOptional, IsString } from 'class-validator';
+import { IsArray, IsOptional, IsString } from 'class-validator';
 
 export class CreateSavedLyricDto {
   @IsString()
   track: string;
 
+  @IsOptional()
   @IsString()
-  artist: string;
+  artist?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  artists?: string[];
 
   @IsOptional()
   @IsString()

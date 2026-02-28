@@ -165,13 +165,13 @@ function AddSongSheet({
                   <TrackCover
                     src={s.searchHistory?.imgUrl}
                     track={s.track}
-                    artist={s.artist}
+                    artist={s.artists?.join(", ") || s.artist}
                     className="w-9 h-9 rounded-lg flex-shrink-0"
                     iconSize={14}
                   />
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-foreground truncate">{s.track}</p>
-                    <p className="text-xs text-foreground-muted truncate">{s.artist}</p>
+                    <p className="text-xs text-foreground-muted truncate">{s.artists?.join(", ") || s.artist}</p>
                   </div>
                 </button>
               </li>
@@ -219,7 +219,7 @@ function ItemRow({
         <TrackCover
           src={song.searchHistory?.imgUrl}
           track={song.track}
-          artist={song.artist}
+          artist={song.artists?.join(", ") || song.artist}
           className="w-10 h-10 rounded-lg flex-shrink-0"
           iconSize={16}
         />
@@ -228,7 +228,7 @@ function ItemRow({
           onClick={() => navigate(`/songs/${song.id}`)}
         >
           <p className="text-sm font-medium text-foreground truncate">{song.track}</p>
-          <p className="text-xs text-foreground-muted truncate">{song.artist}</p>
+          <p className="text-xs text-foreground-muted truncate">{song.artists?.join(", ") || song.artist}</p>
         </button>
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
           <button
@@ -271,7 +271,7 @@ function ItemRow({
           <p className="text-sm text-foreground leading-relaxed italic">&ldquo;{line.text}&rdquo;</p>
           {parent && (
             <p className="text-xs text-foreground-subtle mt-0.5">
-              {parent.track} · {parent.artist}
+              {parent.track} · {parent.artists?.join(", ") || parent.artist}
             </p>
           )}
         </div>

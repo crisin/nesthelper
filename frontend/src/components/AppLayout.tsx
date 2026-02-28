@@ -1,27 +1,22 @@
-import { Compass, Home, Library, Settings, BookOpen } from "lucide-react";
+import { BarChart2, Clock, Compass, Home, Library, Settings, BookOpen } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import SpotifyConnect from "./SpotifyConnect";
 import UsernameEdit from "./UsernameEdit";
+import LyricsSearchButton from "./LyricsSearchButton";
 
 const NAV = [
   { path: "/dashboard", label: "Dashboard", Icon: Home },
   { path: "/discover", label: "Entdecken", Icon: Compass },
   { path: "/songs", label: "Songs", Icon: Library },
   { path: "/collections", label: "Collections", Icon: BookOpen },
+  { path: "/analytics", label: "Analytics", Icon: BarChart2 },
+  { path: "/timeline", label: "Timeline", Icon: Clock },
   { path: "/settings", label: "Einstellungen", Icon: Settings },
 ];
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
-  // const navigate  = useNavigate()
-  // const clearAuth = useAuthStore((s) => s.clearAuth)
-  // const { isDark, toggle } = useTheme()
-
-  // function handleLogout() {
-  //   clearAuth()
-  //   navigate('/login')
-  // }
 
   return (
     <div className="min-h-screen bg-surface text-foreground flex">
@@ -34,7 +29,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             className="flex items-center gap-2.5 select-none"
           >
             <span className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0">
-              {/* <Music size={14} className="text-accent" strokeWidth={2} /> */}
               <img src="/glorp-1x.webp" />
             </span>
             <span className="text-foreground font-semibold text-sm tracking-tight">
@@ -70,6 +64,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
         {/* User controls */}
         <div className="px-4 py-4 border-t border-edge flex-shrink-0 space-y-3">
+          <LyricsSearchButton />
           <SpotifyConnect />
           <UsernameEdit />
           {/* <div className="flex items-center justify-between pt-0.5">

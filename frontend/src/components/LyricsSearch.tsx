@@ -7,17 +7,7 @@ import type { SavedLyric, SearchHistoryItem } from "../types";
 import SwipeToDelete from "./SwipeToDelete";
 import BottomSheet from "./BottomSheet";
 import TrackListItem from "./TrackListItem";
-
-interface SpotifyTrack {
-  id: string;
-  name: string;
-  artists: { name: string }[];
-  album: { images: { url: string }[] };
-}
-
-interface CurrentTrackResponse {
-  item: SpotifyTrack | null;
-}
+import { useLyricsSearch } from "../hooks/useLyricsSearch";
 
 function timeAgo(dateStr: string) {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -29,21 +19,12 @@ function timeAgo(dateStr: string) {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
-type SearchMode = "open" | "save";
-
 export default function LyricsSearch() {
   const navigate = useNavigate();
-  const [error, setError] = useState<string | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
-  const [mode, setMode] = useState<SearchMode>(
-    () => (localStorage.getItem("searchMode") as SearchMode) ?? "open",
-  );
   const queryClient = useQueryClient();
 
-  function toggleMode(next: SearchMode) {
-    setMode(next);
-    localStorage.setItem("searchMode", next);
-  }
+  const { handleSearch, isPending, error, clearError, mode, toggleMode } = useLyricsSearch();
 
   const { data: history = [] } = useQuery<SearchHistoryItem[]>({
     queryKey: ["search-history"],
@@ -62,18 +43,12 @@ export default function LyricsSearch() {
       .map((s) => [s.searchHistoryId!, s.id]),
   );
 
-  const saveEntry = useMutation({
-    mutationFn: (entry: Omit<SearchHistoryItem, "id" | "createdAt">) =>
-      api.post<SearchHistoryItem>("/search-history", entry).then((r) => r.data),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["search-history"] }),
-  });
-
   const saveFavorite = useMutation({
     mutationFn: (item: SearchHistoryItem) =>
       api.post("/saved-lyrics", {
         track: item.track,
         artist: item.artist,
+        artists: item.artists,
         searchHistoryId: item.id,
       }),
     onSuccess: () =>
@@ -92,34 +67,6 @@ export default function LyricsSearch() {
       queryClient.invalidateQueries({ queryKey: ["search-history"] }),
   });
 
-  async function handleSearch() {
-    setError(null);
-    try {
-      const res = await api.get<CurrentTrackResponse>("/spotify/current-track");
-      const track = res.data?.item;
-      if (!track) {
-        setError("Derzeit wird nichts abgespielt");
-        return;
-      }
-
-      const artist = track.artists.map((a) => a.name).join(", ");
-      const url = `https://www.google.com/search?q=${encodeURIComponent(`${artist} ${track.name} lyrics`)}`;
-
-      if (mode === "open") window.open(url, "_blank", "noopener,noreferrer");
-      saveEntry.mutate({
-        spotifyId: track.id,
-        track: track.name,
-        artist,
-        url,
-        imgUrl: track.album.images[0]?.url,
-      });
-    } catch {
-      setError(
-        "Aktueller Track kann nicht abgerufen werden. Ist Spotify verbunden?",
-      );
-    }
-  }
-
   function toggleFavorite(item: SearchHistoryItem) {
     const savedId = savedByHistoryId.get(item.id);
     if (savedId) unsaveFavorite.mutate(savedId);
@@ -133,11 +80,12 @@ export default function LyricsSearch() {
         <div className="flex items-center gap-2">
           <button
             onClick={handleSearch}
+            disabled={isPending}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-accent text-black font-semibold text-sm
-                       hover:opacity-90 transition-opacity active:scale-[0.98]"
+                       hover:opacity-90 transition-opacity active:scale-[0.98] disabled:opacity-60"
           >
             <Search size={14} strokeWidth={2.25} />
-            Lyrics suchen
+            {isPending ? "Lädt…" : "Lyrics suchen"}
           </button>
 
           {/* Mode toggle */}
@@ -178,7 +126,7 @@ export default function LyricsSearch() {
           >
             <span className="flex-1">{error}</span>
             <button
-              onClick={() => setError(null)}
+              onClick={clearError}
               className="flex-shrink-0 text-red-400 hover:text-red-600 transition-colors"
               aria-label="Dismiss error"
             >
@@ -206,7 +154,7 @@ export default function LyricsSearch() {
                     <TrackListItem
                       src={item.imgUrl}
                       track={item.track}
-                      artist={item.artist}
+                      artist={item.artists?.join(", ") ?? item.artist}
                       size="md"
                       interactive
                       onContentClick={() =>

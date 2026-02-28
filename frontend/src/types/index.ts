@@ -4,6 +4,18 @@ export interface User {
   name?: string
 }
 
+export interface SpotifyCurrentlyPlayingResponse {
+  item: {
+    id: string
+    name: string
+    artists: { name: string }[]
+    album: { images: { url: string }[] }
+    duration_ms: number
+  } | null
+  progress_ms: number | null
+  is_playing: boolean
+}
+
 export interface AuthResponse {
   access_token: string
   user: User
@@ -14,6 +26,7 @@ export interface SearchHistoryItem {
   spotifyId: string
   track: string
   artist: string
+  artists: string[]
   url: string
   imgUrl?: string
   createdAt: string
@@ -70,6 +83,7 @@ export interface SavedLyric {
   id: string
   track: string
   artist: string
+  artists: string[]
   lyrics: string
   note?: string | null
   visibility?: Visibility
@@ -85,6 +99,7 @@ export interface LibraryTrack {
   spotifyId: string
   name: string
   artist: string
+  artists: string[]
   imgUrl?: string
   url: string
   lyricsCount: number
@@ -113,7 +128,7 @@ export interface CollectionItem {
     searchHistory?: { imgUrl?: string; url?: string; spotifyId?: string } | null
   }) | null
   line?: (LyricsLine & {
-    lyrics?: { savedLyric: Pick<SavedLyric, 'id' | 'track' | 'artist'> } | null
+    lyrics?: { savedLyric: Pick<SavedLyric, 'id' | 'track' | 'artist' | 'artists'> } | null
   }) | null
 }
 
@@ -137,4 +152,48 @@ export interface TrackInsights {
   contributorCount: number
   tagDistribution: { tag: string; count: number }[]
   mostAnnotatedLines: { text: string; lineNumber: number; count: number }[]
+}
+
+// ─── Phase 4: Analytics ───────────────────────────────────────────────────────
+
+export interface WordFrequency { word: string; count: number }
+export interface TagCount { tag: string; count: number }
+export interface ArtistCount { artist: string; count: number }
+export interface WeekCount { week: string; count: number }
+
+// ─── Phase 4: Memory Timeline ─────────────────────────────────────────────────
+
+export interface TimelineSong {
+  id: string
+  track: string
+  artist: string
+  artists: string[]
+  createdAt: string
+  tags: { tag: string }[]
+  searchHistory?: { imgUrl?: string; spotifyId?: string } | null
+}
+
+export interface TimelineMonth {
+  month: string
+  year: number
+  dominantMood: string | null
+  songs: TimelineSong[]
+}
+
+// ─── Phase 4: Weekly Digest ───────────────────────────────────────────────────
+
+export interface DigestContent {
+  savedCount: number
+  topWord: string | null
+  topArtist: string | null
+  communityInsight: string | null
+}
+
+export interface Digest {
+  id: string
+  userId: string
+  weekStart: string
+  content: DigestContent
+  read: boolean
+  createdAt: string
 }

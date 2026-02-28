@@ -2,14 +2,6 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 
-interface DigestContent {
-  savedCount: number;
-  topWord: string | null;
-  topArtist: string | null;
-  communityInsight: string | null;
-  [key: string]: unknown; // satisfies Prisma InputJsonObject constraint
-}
-
 const STOPWORDS = new Set([
   'the',
   'a',
@@ -205,7 +197,8 @@ export class DigestService {
     const topWord =
       [...wordFreq.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
 
-    const content: DigestContent = {
+    // Typed as Record so TypeScript accepts it as Prisma InputJsonObject
+    const content: Record<string, string | number | null> = {
       savedCount,
       topWord,
       topArtist,

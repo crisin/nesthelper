@@ -340,7 +340,7 @@ export default function SongDetail() {
       </div>
 
       {/* Lyrics */}
-      <LyricsEditor savedLyricId={song.id} legacyLyrics={song.lyrics ?? ''} />
+      <LyricsEditor savedLyricId={song.id} legacyLyrics={song.lyrics ?? ''} fetchStatus={song.fetchStatus} />
 
       {/* Personal note */}
       <NoteSection savedLyricId={song.id} note={song.note} />

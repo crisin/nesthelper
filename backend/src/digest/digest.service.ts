@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 interface DigestContent {
@@ -120,8 +121,8 @@ export class DigestService {
 
     await this.prisma.digest.upsert({
       where: { userId_weekStart: { userId, weekStart } },
-      create: { userId, weekStart, content },
-      update: { content, read: false },
+      create: { userId, weekStart, content: content as Prisma.InputJsonValue },
+      update: { content: content as Prisma.InputJsonValue, read: false },
     });
   }
 

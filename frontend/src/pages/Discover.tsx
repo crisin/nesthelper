@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronDown, ExternalLink, LayoutGrid, LayoutList } from 'lucide-react'
+import { ChevronDown, ExternalLink, FileText, LayoutGrid, LayoutList } from 'lucide-react'
 import api from '../services/api'
 import type { CommunityLyric, LibraryTrack, SavedLyric } from '../types'
 import PullToRefresh from '../components/PullToRefresh'
@@ -95,6 +95,7 @@ function LibraryCard({
   isSaved,
   onSave,
   isSaving,
+  onNavigate,
   id,
   highlight = false,
 }: {
@@ -102,6 +103,7 @@ function LibraryCard({
   isSaved: boolean
   onSave: () => void
   isSaving: boolean
+  onNavigate: () => void
   id?: string
   highlight?: boolean
 }) {
@@ -154,6 +156,13 @@ function LibraryCard({
             >
               <ExternalLink size={13} strokeWidth={1.75} />
             </a>
+            <button
+              onClick={onNavigate}
+              aria-label="Lyrics bearbeiten"
+              className="w-8 h-8 flex items-center justify-center text-foreground-subtle hover:text-foreground transition-colors"
+            >
+              <FileText size={13} strokeWidth={1.75} />
+            </button>
             <button
               onClick={onSave}
               disabled={isSaving}
@@ -228,11 +237,13 @@ function LibraryGridCard({
   isSaved,
   onSave,
   isSaving,
+  onNavigate,
 }: {
   track: LibraryTrack
   isSaved: boolean
   onSave: () => void
   isSaving: boolean
+  onNavigate: () => void
 }) {
   const [lyricsOpen, setLyricsOpen] = useState(false)
 
@@ -307,14 +318,23 @@ function LibraryGridCard({
         )}
       </div>
 
-      {/* Footer — click to open lyrics sheet */}
-      <button
-        className="w-full px-2.5 py-2.5 text-left hover:bg-surface-overlay active:bg-surface-overlay transition-colors"
-        onClick={() => setLyricsOpen(true)}
-      >
-        <p className="text-xs font-semibold text-foreground truncate leading-tight">{track.name}</p>
-        <p className="text-[11px] text-foreground-muted truncate mt-0.5">{track.artists?.join(", ") || track.artist}</p>
-      </button>
+      {/* Footer */}
+      <div className="flex items-center">
+        <button
+          className="flex-1 min-w-0 px-2.5 py-2.5 text-left hover:bg-surface-overlay active:bg-surface-overlay transition-colors"
+          onClick={() => setLyricsOpen(true)}
+        >
+          <p className="text-xs font-semibold text-foreground truncate leading-tight">{track.name}</p>
+          <p className="text-[11px] text-foreground-muted truncate mt-0.5">{track.artists?.join(", ") || track.artist}</p>
+        </button>
+        <button
+          onClick={onNavigate}
+          aria-label="Lyrics bearbeiten"
+          className="flex-shrink-0 w-8 h-8 mr-1 flex items-center justify-center text-foreground-subtle hover:text-foreground transition-colors"
+        >
+          <FileText size={13} strokeWidth={1.75} />
+        </button>
+      </div>
 
       {/* Lyrics sheet */}
       <BottomSheet open={lyricsOpen} onClose={() => setLyricsOpen(false)}>
@@ -495,6 +515,7 @@ export default function Discover() {
       isSaved: favoritedSpotifyIds.has(track.spotifyId),
       onSave: () => toggleFavorite.mutate(track.spotifyId),
       isSaving: toggleFavorite.isPending,
+      onNavigate: () => navigate(`/favorites/${track.spotifyId}`),
     }
   }
 

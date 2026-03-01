@@ -238,10 +238,10 @@ export default function SongDetail() {
     queryFn: () => api.get<SavedLyric[]>('/saved-lyrics').then((r) => r.data),
   })
 
-  const song = songs.find((s) => s.id === id)
+  const song = songs.find((s) => s.id === id) ?? songs.find((s) => s.spotifyId === id)
 
   const remove = useMutation({
-    mutationFn: () => api.delete(`/saved-lyrics/${id}`),
+    mutationFn: (songId: string) => api.delete(`/saved-lyrics/${songId}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['saved-lyrics'] })
       navigate('/favorites')
@@ -371,7 +371,7 @@ export default function SongDetail() {
           </div>
           <div className="flex flex-col sm:flex-row gap-2">
             <button
-              onClick={() => remove.mutate()}
+              onClick={() => remove.mutate(song.id)}
               disabled={remove.isPending}
               className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-red-500 text-white text-sm font-semibold
                          disabled:opacity-50 hover:bg-red-600 transition-colors"

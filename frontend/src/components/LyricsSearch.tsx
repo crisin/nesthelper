@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Search, X, ExternalLink, BookmarkPlus } from "lucide-react";
+import { Search, X, ExternalLink, BookmarkPlus, FileText } from "lucide-react";
 import api from "../services/api";
 import type { SavedLyric, SearchHistoryItem } from "../types";
 import SwipeToDelete from "./SwipeToDelete";
@@ -157,6 +157,13 @@ export default function LyricsSearch() {
                           <span className="text-[11px] text-foreground-subtle flex-shrink-0 tabular-nums">
                             {timeAgo(item.createdAt)}
                           </span>
+                          <button
+                            onClick={() => navigate(`/favorites/${item.spotifyId}`)}
+                            aria-label="Lyrics bearbeiten"
+                            className="flex-shrink-0 w-9 h-9 sm:w-auto sm:h-auto flex items-center justify-center text-foreground-subtle hover:text-foreground transition-colors sm:opacity-0 sm:group-hover:opacity-100"
+                          >
+                            <FileText size={15} strokeWidth={1.75} />
+                          </button>
                           <button
                             onClick={() => toggleFavorite(item)}
                             disabled={

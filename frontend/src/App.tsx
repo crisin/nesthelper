@@ -3,7 +3,7 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import Discover from './pages/Discover'
-import Songs from './pages/Songs'
+import Favorites from './pages/Favorites'
 import SongDetail from './pages/SongDetail'
 import Collections from './pages/Collections'
 import CollectionDetail from './pages/CollectionDetail'
@@ -35,11 +35,11 @@ const router = createBrowserRouter([
     element: <AppPage><Discover /></AppPage>,
   },
   {
-    path: '/songs',
-    element: <AppPage><Songs /></AppPage>,
+    path: '/favorites',
+    element: <AppPage><Favorites /></AppPage>,
   },
   {
-    path: '/songs/:id',
+    path: '/favorites/:id',
     element: <AppPage><SongDetail /></AppPage>,
   },
   {

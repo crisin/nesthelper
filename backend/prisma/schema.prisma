@@ -53,17 +53,19 @@ model SpotifyToken {
 }
 
 model SavedLyric {
-  id              String     @id @default(cuid())
+  id              String            @id @default(cuid())
   userId          String
   searchHistoryId String?
+  spotifyId       String?
   lyrics          String
   track           String
   artist          String
-  artists         String[]   @default([])
-  note             String?
-  visibility       Visibility        @default(PRIVATE)
-  fetchStatus      LyricsFetchStatus @default(IDLE)
-  createdAt        DateTime          @default(now())
+  artists         String[]          @default([])
+  note            String?
+  isFavorite      Boolean           @default(false)
+  visibility      Visibility        @default(PRIVATE)
+  fetchStatus     LyricsFetchStatus @default(IDLE)
+  createdAt       DateTime          @default(now())
 
   user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   searchHistory    SearchHistory?    @relation(fields: [searchHistoryId], references: [id])
@@ -71,6 +73,8 @@ model SavedLyric {
   listeningContext ListeningContext?
   tags             SongTag[]
   collectionItems  CollectionItem[]
+
+  @@unique([userId, spotifyId])
 }
 
 model SearchHistory {

@@ -33,24 +33,55 @@ let SearchHistoryService = class SearchHistoryService {
         });
     }
     async create(userId, dto) {
-        const [history] = await this.prisma.$transaction([
-            this.prisma.searchHistory.create({ data: { userId, ...dto } }),
-            this.prisma.libraryTrack.upsert({
-                where: { spotifyId: dto.spotifyId },
+        const artists = dto.artists?.length
+            ? dto.artists
+            : dto.artist
+                ? [dto.artist]
+                : [];
+        const artist = artists[0] ?? '';
+        const { spotifyId } = dto;
+        return this.prisma.$transaction(async (tx) => {
+            const history = await tx.searchHistory.create({
+                data: {
+                    userId,
+                    spotifyId,
+                    track: dto.track,
+                    artist,
+                    artists,
+                    url: dto.url,
+                    ...(dto.imgUrl ? { imgUrl: dto.imgUrl } : {}),
+                },
+            });
+            await tx.libraryTrack.upsert({
+                where: { spotifyId },
                 update: {
                     url: dto.url,
                     ...(dto.imgUrl ? { imgUrl: dto.imgUrl } : {}),
                 },
                 create: {
-                    spotifyId: dto.spotifyId,
+                    spotifyId,
                     name: dto.track,
-                    artist: dto.artist,
+                    artist,
+                    artists,
                     url: dto.url,
                     imgUrl: dto.imgUrl,
                 },
-            }),
-        ]);
-        return history;
+            });
+            await tx.savedLyric.upsert({
+                where: { userId_spotifyId: { userId, spotifyId } },
+                create: {
+                    userId,
+                    spotifyId,
+                    track: dto.track,
+                    artist,
+                    artists,
+                    lyrics: '',
+                    searchHistoryId: history.id,
+                },
+                update: {},
+            });
+            return history;
+        });
     }
     async remove(userId, id) {
         const item = await this.prisma.searchHistory.findFirst({

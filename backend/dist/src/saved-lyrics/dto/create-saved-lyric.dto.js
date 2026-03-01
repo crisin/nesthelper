@@ -14,6 +14,7 @@ const class_validator_1 = require("class-validator");
 class CreateSavedLyricDto {
     track;
     artist;
+    artists;
     lyrics;
     searchHistoryId;
 }
@@ -23,9 +24,16 @@ __decorate([
     __metadata("design:type", String)
 ], CreateSavedLyricDto.prototype, "track", void 0);
 __decorate([
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateSavedLyricDto.prototype, "artist", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsString)({ each: true }),
+    __metadata("design:type", Array)
+], CreateSavedLyricDto.prototype, "artists", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),

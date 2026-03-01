@@ -32,33 +32,24 @@ export default function LyricsSearch() {
       api.get<SearchHistoryItem[]>("/search-history").then((r) => r.data),
   });
 
-  const { data: savedLyrics = [] } = useQuery<SavedLyric[]>({
-    queryKey: ["saved-lyrics"],
-    queryFn: () => api.get<SavedLyric[]>("/saved-lyrics").then((r) => r.data),
+  const { data: favorites = [] } = useQuery<SavedLyric[]>({
+    queryKey: ["saved-lyrics-favorites"],
+    queryFn: () => api.get<SavedLyric[]>("/saved-lyrics/favorites").then((r) => r.data),
   });
 
-  const savedByHistoryId = new Map(
-    savedLyrics
-      .filter((s) => s.searchHistoryId)
-      .map((s) => [s.searchHistoryId!, s.id]),
-  );
+  // Track which spotifyIds are favorited
+  const favoritedSpotifyIds = new Set(favorites.map((s) => s.spotifyId).filter(Boolean));
 
   const saveFavorite = useMutation({
-    mutationFn: (item: SearchHistoryItem) =>
-      api.post("/saved-lyrics", {
-        track: item.track,
-        artist: item.artist,
-        artists: item.artists,
-        searchHistoryId: item.id,
-      }),
+    mutationFn: (spotifyId: string) => api.post(`/saved-lyrics/favorite/${spotifyId}`),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["saved-lyrics"] }),
+      queryClient.invalidateQueries({ queryKey: ["saved-lyrics-favorites"] }),
   });
 
   const unsaveFavorite = useMutation({
-    mutationFn: (savedId: string) => api.delete(`/saved-lyrics/${savedId}`),
+    mutationFn: (spotifyId: string) => api.delete(`/saved-lyrics/favorite/${spotifyId}`),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["saved-lyrics"] }),
+      queryClient.invalidateQueries({ queryKey: ["saved-lyrics-favorites"] }),
   });
 
   const removeHistory = useMutation({
@@ -68,9 +59,8 @@ export default function LyricsSearch() {
   });
 
   function toggleFavorite(item: SearchHistoryItem) {
-    const savedId = savedByHistoryId.get(item.id);
-    if (savedId) unsaveFavorite.mutate(savedId);
-    else saveFavorite.mutate(item);
+    if (favoritedSpotifyIds.has(item.spotifyId)) unsaveFavorite.mutate(item.spotifyId);
+    else saveFavorite.mutate(item.spotifyId);
   }
 
   return (
@@ -144,7 +134,7 @@ export default function LyricsSearch() {
           </p>
           <ul className="space-y-1.5">
             {history.map((item) => {
-              const isSaved = savedByHistoryId.has(item.id);
+              const isSaved = favoritedSpotifyIds.has(item.spotifyId);
               return (
                 <li key={item.id} className="min-w-0">
                   <SwipeToDelete

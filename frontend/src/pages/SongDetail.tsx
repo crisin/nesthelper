@@ -244,7 +244,7 @@ export default function SongDetail() {
     mutationFn: () => api.delete(`/saved-lyrics/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['saved-lyrics'] })
-      navigate('/songs')
+      navigate('/favorites')
     },
   })
 
@@ -268,11 +268,11 @@ export default function SongDetail() {
     return (
       <div className="px-4 sm:px-8 py-8 max-w-5xl mx-auto">
         <button
-          onClick={() => navigate('/songs')}
+          onClick={() => navigate('/favorites')}
           className="flex items-center gap-1.5 text-sm text-foreground-muted hover:text-foreground transition-colors mb-6"
         >
           <ArrowLeft size={15} strokeWidth={1.75} />
-          Gespeicherte Songs
+          Favoriten
         </button>
         <p className="text-sm text-foreground-subtle">Song nicht gefunden.</p>
       </div>
@@ -288,11 +288,11 @@ export default function SongDetail() {
     <div className="px-4 sm:px-8 py-8 max-w-5xl mx-auto space-y-6 overflow-hidden">
       {/* Back */}
       <button
-        onClick={() => navigate('/songs')}
+        onClick={() => navigate('/favorites')}
         className="flex items-center gap-1.5 py-1.5 -ml-1 px-1 text-sm text-foreground-muted hover:text-foreground transition-colors"
       >
         <ArrowLeft size={15} strokeWidth={1.75} />
-        Gespeicherte Songs
+        Favoriten
       </button>
 
       {/* Song header */}

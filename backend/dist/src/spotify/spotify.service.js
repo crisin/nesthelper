@@ -142,7 +142,14 @@ let SpotifyService = class SpotifyService {
             return null;
         if (!res.ok)
             throw new Error('Failed to fetch current track from Spotify');
-        return res.json();
+        return (await res.json());
+    }
+    async seek(userId, positionMs) {
+        const accessToken = await this.getValidAccessToken(userId);
+        const res = await fetch(`https://api.spotify.com/v1/me/player/seek?position_ms=${positionMs}`, { method: 'PUT', headers: { Authorization: `Bearer ${accessToken}` } });
+        if (!res.ok && res.status !== 204) {
+            throw new Error('Spotify seek failed');
+        }
     }
     encodeState(userId) {
         const ts = Date.now().toString();

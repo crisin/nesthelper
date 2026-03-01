@@ -225,7 +225,7 @@ function ItemRow({
         />
         <button
           className="flex-1 min-w-0 text-left"
-          onClick={() => navigate(`/songs/${song.id}`)}
+          onClick={() => navigate(`/favorites/${song.id}`)}
         >
           <p className="text-sm font-medium text-foreground truncate">{song.track}</p>
           <p className="text-xs text-foreground-muted truncate">{song.artists?.join(", ") || song.artist}</p>

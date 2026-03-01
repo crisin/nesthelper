@@ -143,7 +143,7 @@ export default function Timeline() {
                       track={song.track}
                       artist={song.artists?.join(", ") || song.artist}
                       size="sm"
-                      onCardClick={() => navigate(`/songs/${song.id}`)}
+                      onCardClick={() => navigate(`/favorites/${song.id}`)}
                       actions={
                         <ChevronRight
                           size={14}

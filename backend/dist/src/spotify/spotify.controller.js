@@ -50,6 +50,9 @@ let SpotifyController = class SpotifyController {
     currentTrack(req) {
         return this.spotify.getCurrentTrack(req.user.id);
     }
+    seek(req, positionMs) {
+        return this.spotify.seek(req.user.id, parseInt(positionMs, 10));
+    }
 };
 exports.SpotifyController = SpotifyController;
 __decorate([
@@ -95,6 +98,16 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], SpotifyController.prototype, "currentTrack", null);
+__decorate([
+    (0, common_1.Post)('seek'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.HttpCode)(common_1.HttpStatus.NO_CONTENT),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Query)('positionMs')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], SpotifyController.prototype, "seek", null);
 exports.SpotifyController = SpotifyController = __decorate([
     (0, common_1.Controller)('spotify'),
     __metadata("design:paramtypes", [spotify_service_1.SpotifyService,

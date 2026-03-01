@@ -81,11 +81,13 @@ export type LyricsFetchStatus = 'IDLE' | 'FETCHING' | 'DONE' | 'FAILED'
 
 export interface SavedLyric {
   id: string
+  spotifyId?: string | null
   track: string
   artist: string
   artists: string[]
   lyrics: string
   note?: string | null
+  isFavorite?: boolean
   visibility?: Visibility
   fetchStatus?: LyricsFetchStatus
   searchHistoryId?: string

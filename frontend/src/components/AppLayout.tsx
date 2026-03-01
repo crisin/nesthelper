@@ -8,7 +8,7 @@ import LyricsSearchButton from "./LyricsSearchButton";
 const NAV = [
   { path: "/dashboard", label: "Dashboard", Icon: Home },
   { path: "/discover", label: "Entdecken", Icon: Compass },
-  { path: "/songs", label: "Songs", Icon: Library },
+  { path: "/favorites", label: "Favoriten", Icon: Library },
   { path: "/collections", label: "Collections", Icon: BookOpen },
   { path: "/analytics", label: "Analytics", Icon: BarChart2 },
   { path: "/timeline", label: "Timeline", Icon: Clock },
@@ -41,7 +41,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
           {NAV.map(({ path, label, Icon }) => {
             const active =
-              path === "/songs" || path === "/collections"
+              path === "/favorites" || path === "/collections"
                 ? location.pathname.startsWith(path)
                 : location.pathname === path;
             return (
@@ -98,7 +98,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <div className="h-16 flex">
           {NAV.map(({ path, label, Icon }) => {
             const active =
-              path === "/songs" || path === "/collections"
+              path === "/favorites" || path === "/collections"
                 ? location.pathname.startsWith(path)
                 : location.pathname === path;
             return (

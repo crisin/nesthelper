@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { SearchHistory } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSearchHistoryDto } from './dto/create-search-history.dto';
 
@@ -23,43 +24,61 @@ export class SearchHistoryService {
     });
   }
 
-  async create(userId: string, dto: CreateSearchHistoryDto) {
+  async create(userId: string, dto: CreateSearchHistoryDto): Promise<SearchHistory> {
     const artists = dto.artists?.length
       ? dto.artists
       : dto.artist
         ? [dto.artist]
         : [];
     const artist = artists[0] ?? '';
+    const { spotifyId } = dto;
 
-    const [history] = await this.prisma.$transaction([
-      this.prisma.searchHistory.create({
+    return this.prisma.$transaction(async (tx) => {
+      const history = await tx.searchHistory.create({
         data: {
           userId,
-          spotifyId: dto.spotifyId,
+          spotifyId,
           track: dto.track,
           artist,
           artists,
           url: dto.url,
           ...(dto.imgUrl ? { imgUrl: dto.imgUrl } : {}),
         },
-      }),
-      this.prisma.libraryTrack.upsert({
-        where: { spotifyId: dto.spotifyId },
+      });
+
+      await tx.libraryTrack.upsert({
+        where: { spotifyId },
         update: {
           url: dto.url,
           ...(dto.imgUrl ? { imgUrl: dto.imgUrl } : {}),
         },
         create: {
-          spotifyId: dto.spotifyId,
+          spotifyId,
           name: dto.track,
           artist,
           artists,
           url: dto.url,
           imgUrl: dto.imgUrl,
         },
-      }),
-    ]);
-    return history;
+      });
+
+      // Auto-create a SavedLyric for this track — this is the record the user can favorite
+      await tx.savedLyric.upsert({
+        where: { userId_spotifyId: { userId, spotifyId } },
+        create: {
+          userId,
+          spotifyId,
+          track: dto.track,
+          artist,
+          artists,
+          lyrics: '',
+          searchHistoryId: history.id,
+        },
+        update: {}, // never overwrite existing lyrics/notes/favorites
+      });
+
+      return history;
+    });
   }
 
   async remove(userId: string, id: string): Promise<void> {

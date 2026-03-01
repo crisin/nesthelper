@@ -20,6 +20,7 @@ export declare class SpotifyController {
         spotifyId: string | null;
     }>;
     disconnect(req: AuthedRequest): Promise<void>;
-    currentTrack(req: AuthedRequest): Promise<any>;
+    currentTrack(req: AuthedRequest): Promise<import("./spotify.service").SpotifyCurrentlyPlayingResponse | null>;
+    seek(req: AuthedRequest, positionMs: string): Promise<void>;
 }
 export {};

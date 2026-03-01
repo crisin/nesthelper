@@ -28,6 +28,25 @@ export class SavedLyricsService {
     });
   }
 
+  getFavorites(userId: string) {
+    return this.prisma.savedLyric.findMany({
+      where: { userId, isFavorite: true },
+      include: {
+        searchHistory: { select: { imgUrl: true, url: true, spotifyId: true } },
+        tags: { orderBy: { createdAt: 'asc' } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async setFavorite(userId: string, spotifyId: string, isFavorite: boolean) {
+    return this.prisma.savedLyric.update({
+      where: { userId_spotifyId: { userId, spotifyId } },
+      data: { isFavorite },
+      select: { id: true, spotifyId: true, isFavorite: true },
+    });
+  }
+
   async create(userId: string, dto: CreateSavedLyricDto) {
     const artists = dto.artists?.length
       ? dto.artists

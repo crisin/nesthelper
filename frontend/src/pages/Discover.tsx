@@ -13,6 +13,7 @@ import TrackListItem from '../components/TrackListItem'
 
 interface GlobalFeedItem {
   id: string
+  spotifyId: string
   track: string
   artist: string
   artists: string[]
@@ -155,8 +156,8 @@ function LibraryCard({
             </a>
             <button
               onClick={onSave}
-              disabled={isSaved || isSaving}
-              aria-label={isSaved ? 'Already saved' : 'Save to my songs'}
+              disabled={isSaving}
+              aria-label={isSaved ? 'Remove from favorites' : 'Save to favorites'}
               className={[
                 'w-9 h-9 flex items-center justify-center text-lg leading-none transition-all disabled:opacity-30',
                 isSaved ? 'text-accent' : 'text-foreground-subtle hover:text-accent',
@@ -262,8 +263,8 @@ function LibraryGridCard({
         {/* Heart — always visible */}
         <button
           onClick={onSave}
-          disabled={isSaved || isSaving}
-          aria-label={isSaved ? 'Already saved' : 'Save to my songs'}
+          disabled={isSaving}
+          aria-label={isSaved ? 'Remove from favorites' : 'Save to favorites'}
           className={[
             'absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center text-base leading-none',
             'bg-black/40 backdrop-blur-sm transition-all disabled:opacity-40',
@@ -332,8 +333,8 @@ function LibraryGridCard({
           </div>
           <button
             onClick={onSave}
-            disabled={isSaved || isSaving}
-            aria-label={isSaved ? 'Already saved' : 'Save to my songs'}
+            disabled={isSaving}
+            aria-label={isSaved ? 'Remove from favorites' : 'Save to favorites'}
             className={[
               'flex-shrink-0 w-9 h-9 flex items-center justify-center text-lg leading-none transition-all disabled:opacity-30',
               isSaved ? 'text-accent' : 'text-foreground-subtle hover:text-accent',
@@ -438,15 +439,12 @@ export default function Discover() {
     enabled: tab === 'activity',
   })
 
-  const { data: savedLyrics = [] } = useQuery<SavedLyric[]>({
-    queryKey: ['saved-lyrics'],
-    queryFn: () => api.get<SavedLyric[]>('/saved-lyrics').then((r) => r.data),
+  const { data: favorites = [] } = useQuery<SavedLyric[]>({
+    queryKey: ['saved-lyrics-favorites'],
+    queryFn: () => api.get<SavedLyric[]>('/saved-lyrics/favorites').then((r) => r.data),
   })
 
-  const savedSet = new Set(savedLyrics.map((s) => `${s.track}|||${s.artist}`))
-  const savedByHistoryId = new Map(
-    savedLyrics.filter((s) => s.searchHistoryId).map((s) => [s.searchHistoryId!, s.id]),
-  )
+  const favoritedSpotifyIds = new Set(favorites.map((s) => s.spotifyId).filter(Boolean) as string[])
 
   const sortedLibrary = useMemo(() => {
     const list = [...library]
@@ -471,20 +469,12 @@ export default function Discover() {
     return groups
   }, [sortedLibrary, librarySort])
 
-  const saveSong = useMutation({
-    mutationFn: (track: LibraryTrack) =>
-      api.post('/saved-lyrics', { track: track.name, artist: track.artist, artists: track.artists }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['saved-lyrics'] }),
-  })
-
-  const saveFeedItem = useMutation({
-    mutationFn: (item: GlobalFeedItem) =>
-      api.post('/saved-lyrics', { track: item.track, artist: item.artist, searchHistoryId: item.id }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['saved-lyrics'] }),
-  })
-  const unsaveFeedItem = useMutation({
-    mutationFn: (savedId: string) => api.delete(`/saved-lyrics/${savedId}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['saved-lyrics'] }),
+  const toggleFavorite = useMutation({
+    mutationFn: (spotifyId: string) =>
+      favoritedSpotifyIds.has(spotifyId)
+        ? api.delete(`/saved-lyrics/favorite/${spotifyId}`)
+        : api.post(`/saved-lyrics/favorite/${spotifyId}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['saved-lyrics-favorites'] }),
   })
 
   const handleRefresh = useCallback(() => {
@@ -502,9 +492,9 @@ export default function Discover() {
   function cardProps(track: LibraryTrack) {
     return {
       track,
-      isSaved: savedSet.has(`${track.name}|||${track.artist}`),
-      onSave: () => saveSong.mutate(track),
-      isSaving: saveSong.isPending,
+      isSaved: favoritedSpotifyIds.has(track.spotifyId),
+      onSave: () => toggleFavorite.mutate(track.spotifyId),
+      isSaving: toggleFavorite.isPending,
     }
   }
 
@@ -665,7 +655,7 @@ export default function Discover() {
           ) : (
             <ul className="space-y-1.5">
               {feed.map((item) => {
-                const isSaved = savedByHistoryId.has(item.id)
+                const isSaved = favoritedSpotifyIds.has(item.spotifyId)
                 return (
                   <li key={item.id}>
                     <TrackListItem
@@ -691,12 +681,8 @@ export default function Discover() {
                             {timeAgo(item.createdAt)}
                           </span>
                           <button
-                            onClick={() => {
-                              const savedId = savedByHistoryId.get(item.id)
-                              if (savedId) unsaveFeedItem.mutate(savedId)
-                              else saveFeedItem.mutate(item)
-                            }}
-                            disabled={saveFeedItem.isPending || unsaveFeedItem.isPending}
+                            onClick={() => toggleFavorite.mutate(item.spotifyId)}
+                            disabled={toggleFavorite.isPending}
                             aria-label={isSaved ? 'Remove from favorites' : 'Save to favorites'}
                             className={[
                               'w-9 h-9 sm:w-auto sm:h-auto flex items-center justify-center text-lg leading-none transition-all disabled:opacity-30',

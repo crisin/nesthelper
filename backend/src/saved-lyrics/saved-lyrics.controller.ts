@@ -31,6 +31,28 @@ export class SavedLyricsController {
     return this.service.getAll(req.user.id);
   }
 
+  // ─── Favorites ─────────────────────────────────────────────────────────────
+  // These routes must come before /:id to avoid being swallowed by the param
+
+  @Get('favorites')
+  getFavorites(@Req() req: AuthedRequest) {
+    return this.service.getFavorites(req.user.id);
+  }
+
+  @Post('favorite/:spotifyId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  addFavorite(@Req() req: AuthedRequest, @Param('spotifyId') spotifyId: string) {
+    return this.service.setFavorite(req.user.id, spotifyId, true);
+  }
+
+  @Delete('favorite/:spotifyId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  removeFavorite(@Req() req: AuthedRequest, @Param('spotifyId') spotifyId: string) {
+    return this.service.setFavorite(req.user.id, spotifyId, false);
+  }
+
+  // ─── CRUD ──────────────────────────────────────────────────────────────────
+
   @Post()
   create(@Req() req: AuthedRequest, @Body() dto: CreateSavedLyricDto) {
     return this.service.create(req.user.id, dto);

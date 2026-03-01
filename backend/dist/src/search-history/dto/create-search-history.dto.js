@@ -15,6 +15,7 @@ class CreateSearchHistoryDto {
     spotifyId;
     track;
     artist;
+    artists;
     url;
     imgUrl;
 }
@@ -28,9 +29,16 @@ __decorate([
     __metadata("design:type", String)
 ], CreateSearchHistoryDto.prototype, "track", void 0);
 __decorate([
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateSearchHistoryDto.prototype, "artist", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsString)({ each: true }),
+    __metadata("design:type", Array)
+], CreateSearchHistoryDto.prototype, "artists", void 0);
 __decorate([
     (0, class_validator_1.IsUrl)(),
     __metadata("design:type", String)

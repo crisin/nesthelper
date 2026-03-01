@@ -22,7 +22,11 @@ export class LineAnnotationsService {
     });
   }
 
-  async update(userId: string, annotationId: string, dto: CreateLineAnnotationDto) {
+  async update(
+    userId: string,
+    annotationId: string,
+    dto: CreateLineAnnotationDto,
+  ) {
     const annotation = await this.prisma.lineAnnotation.findFirst({
       where: { id: annotationId, userId },
     });
@@ -44,7 +48,9 @@ export class LineAnnotationsService {
   private async assertLineOwnership(userId: string, lineId: string) {
     const line = await this.prisma.lyricsLine.findFirst({
       where: { id: lineId },
-      include: { lyrics: { select: { savedLyric: { select: { userId: true } } } } },
+      include: {
+        lyrics: { select: { savedLyric: { select: { userId: true } } } },
+      },
     });
     if (!line || line.lyrics.savedLyric.userId !== userId) {
       throw new NotFoundException('Line not found');

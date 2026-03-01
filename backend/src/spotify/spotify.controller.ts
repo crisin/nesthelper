@@ -45,7 +45,8 @@ export class SpotifyController {
     @Query('state') state: string,
     @Query('error') error?: string,
   ) {
-    const base = this.config.get('FRONTEND_URL') ?? 'http://127.0.0.1:5173';
+    const base =
+      this.config.get<string>('FRONTEND_URL') ?? 'http://127.0.0.1:5173';
 
     if (error || !code || !state) {
       return { url: `${base}/dashboard?spotify=error` };

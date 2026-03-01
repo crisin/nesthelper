@@ -181,7 +181,9 @@ export class SpotifyService {
     return refreshed.access_token;
   }
 
-  async getCurrentTrack(userId: string): Promise<SpotifyCurrentlyPlayingResponse | null> {
+  async getCurrentTrack(
+    userId: string,
+  ): Promise<SpotifyCurrentlyPlayingResponse | null> {
     const accessToken = await this.getValidAccessToken(userId);
 
     const res = await fetch(

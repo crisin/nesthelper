@@ -35,7 +35,11 @@ export class SearchService {
         id: { notIn: [...songIds] },
         OR: [
           { lyrics: { contains: term, mode: 'insensitive' } },
-          { lyricsStructured: { rawText: { contains: term, mode: 'insensitive' } } },
+          {
+            lyricsStructured: {
+              rawText: { contains: term, mode: 'insensitive' },
+            },
+          },
         ],
       },
       include: {

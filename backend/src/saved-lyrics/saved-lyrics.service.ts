@@ -12,7 +12,9 @@ import { LYRICS_FETCH_QUEUE } from '../lyrics-fetch/lyrics-fetch.queue';
 export class SavedLyricsService {
   constructor(
     private readonly prisma: PrismaService,
-    @Optional() @InjectQueue(LYRICS_FETCH_QUEUE) private readonly lyricsQueue: Queue | null,
+    @Optional()
+    @InjectQueue(LYRICS_FETCH_QUEUE)
+    private readonly lyricsQueue: Queue | null,
   ) {}
 
   getAll(userId: string) {
@@ -27,9 +29,13 @@ export class SavedLyricsService {
   }
 
   async create(userId: string, dto: CreateSavedLyricDto) {
-    const artists = dto.artists?.length ? dto.artists : (dto.artist ? [dto.artist] : []);
+    const artists = dto.artists?.length
+      ? dto.artists
+      : dto.artist
+        ? [dto.artist]
+        : [];
     const artist = artists[0] ?? '';
-    const hasLyrics = !!(dto.lyrics?.trim());
+    const hasLyrics = !!dto.lyrics?.trim();
 
     const saved = await this.prisma.savedLyric.create({
       data: {
@@ -38,8 +44,14 @@ export class SavedLyricsService {
         artist,
         artists,
         lyrics: dto.lyrics ?? '',
-        fetchStatus: hasLyrics ? 'DONE' : (this.lyricsQueue ? 'FETCHING' : 'IDLE'),
-        ...(dto.searchHistoryId ? { searchHistoryId: dto.searchHistoryId } : {}),
+        fetchStatus: hasLyrics
+          ? 'DONE'
+          : this.lyricsQueue
+            ? 'FETCHING'
+            : 'IDLE',
+        ...(dto.searchHistoryId
+          ? { searchHistoryId: dto.searchHistoryId }
+          : {}),
       },
       include: {
         searchHistory: { select: { imgUrl: true, url: true, spotifyId: true } },
@@ -49,33 +61,43 @@ export class SavedLyricsService {
 
     // Capture listening context (hour + day of week)
     const now = new Date();
-    await this.prisma.listeningContext.create({
-      data: {
-        savedLyricId: saved.id,
-        hour: now.getHours(),
-        dayOfWeek: now.getDay(),
-      },
-    }).catch(() => { /* non-critical, ignore errors */ });
+    await this.prisma.listeningContext
+      .create({
+        data: {
+          savedLyricId: saved.id,
+          hour: now.getHours(),
+          dayOfWeek: now.getDay(),
+        },
+      })
+      .catch(() => {
+        /* non-critical, ignore errors */
+      });
 
     // Enqueue lyrics fetch if no lyrics provided and queue is available
     if (!hasLyrics && this.lyricsQueue) {
-      await this.lyricsQueue.add('fetch', {
-        savedLyricId: saved.id,
-        track: dto.track,
-        artist, // primary artist for lyrics.ovh
-      }, {
-        attempts: 3,
-        backoff: { type: 'exponential', delay: 5000 },
-        removeOnComplete: true,
-        removeOnFail: false,
-      });
+      await this.lyricsQueue.add(
+        'fetch',
+        {
+          savedLyricId: saved.id,
+          track: dto.track,
+          artist, // primary artist for lyrics.ovh
+        },
+        {
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 5000 },
+          removeOnComplete: true,
+          removeOnFail: false,
+        },
+      );
     }
 
     return saved;
   }
 
   async updateLyrics(userId: string, id: string, dto: UpdateSavedLyricDto) {
-    const item = await this.prisma.savedLyric.findFirst({ where: { id, userId } });
+    const item = await this.prisma.savedLyric.findFirst({
+      where: { id, userId },
+    });
     if (!item) throw new NotFoundException('Saved lyric not found');
     return this.prisma.savedLyric.update({
       where: { id },
@@ -84,7 +106,9 @@ export class SavedLyricsService {
   }
 
   async remove(userId: string, id: string): Promise<void> {
-    const item = await this.prisma.savedLyric.findFirst({ where: { id, userId } });
+    const item = await this.prisma.savedLyric.findFirst({
+      where: { id, userId },
+    });
     if (!item) throw new NotFoundException('Saved lyric not found');
     await this.prisma.savedLyric.delete({ where: { id } });
   }
@@ -116,7 +140,11 @@ export class SavedLyricsService {
     const normalised = dto.tag.trim().toLowerCase();
     return this.prisma.songTag.upsert({
       where: { savedLyricId_tag: { savedLyricId: id, tag: normalised } },
-      create: { savedLyricId: id, tag: normalised, type: dto.type ?? TagType.CONTEXT },
+      create: {
+        savedLyricId: id,
+        tag: normalised,
+        type: dto.type ?? TagType.CONTEXT,
+      },
       update: {},
     });
   }
@@ -146,7 +174,11 @@ export class SavedLyricsService {
 
   // ─── Visibility ───────────────────────────────────────────────────────────
 
-  async updateVisibility(userId: string, id: string, visibility: 'PRIVATE' | 'FRIENDS' | 'PUBLIC') {
+  async updateVisibility(
+    userId: string,
+    id: string,
+    visibility: 'PRIVATE' | 'FRIENDS' | 'PUBLIC',
+  ) {
     const item = await this.prisma.savedLyric.findFirst({
       where: { id, userId },
       select: { id: true },

@@ -104,7 +104,10 @@ export class LibraryService {
       .slice(0, 10)
       .map(([tag, count]) => ({ tag, count }));
 
-    const lineMap = new Map<string, { text: string; lineNumber: number; count: number }>();
+    const lineMap = new Map<
+      string,
+      { text: string; lineNumber: number; count: number }
+    >();
     for (const sl of savedLyrics) {
       if (!sl.lyricsStructured) continue;
       for (const line of sl.lyricsStructured.lines) {

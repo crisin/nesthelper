@@ -15,7 +15,9 @@ export class LyricsFetchProcessor extends WorkerHost {
 
   async process(job: Job<LyricsFetchJobData>): Promise<void> {
     const { savedLyricId, track, artist } = job.data;
-    this.logger.log(`Fetching lyrics for "${track}" by "${artist}" (${savedLyricId})`);
+    this.logger.log(
+      `Fetching lyrics for "${track}" by "${artist}" (${savedLyricId})`,
+    );
 
     try {
       const lyrics = await this.fetchFromLyricsOvh(track, artist);
@@ -38,7 +40,9 @@ export class LyricsFetchProcessor extends WorkerHost {
             },
           },
         });
-        this.logger.log(`Created Lyrics record ${created.id} with ${lines.length} lines`);
+        this.logger.log(
+          `Created Lyrics record ${created.id} with ${lines.length} lines`,
+        );
 
         // Keep legacy lyrics field in sync
         await tx.savedLyric.update({
@@ -47,13 +51,18 @@ export class LyricsFetchProcessor extends WorkerHost {
         });
       });
     } catch (err) {
-      this.logger.error(`Lyrics fetch failed for ${savedLyricId}: ${(err as Error).message}`);
+      this.logger.error(
+        `Lyrics fetch failed for ${savedLyricId}: ${(err as Error).message}`,
+      );
       await this.setStatus(savedLyricId, LyricsFetchStatus.FAILED);
       throw err; // rethrow so BullMQ can retry
     }
   }
 
-  private async setStatus(savedLyricId: string, status: LyricsFetchStatus): Promise<void> {
+  private async setStatus(
+    savedLyricId: string,
+    status: LyricsFetchStatus,
+  ): Promise<void> {
     await this.prisma.savedLyric.update({
       where: { id: savedLyricId },
       data: { fetchStatus: status },
@@ -64,7 +73,10 @@ export class LyricsFetchProcessor extends WorkerHost {
    * Fetches lyrics from lyrics.ovh (free, no API key needed).
    * Returns null if the request fails or returns no lyrics.
    */
-  private async fetchFromLyricsOvh(track: string, artist: string): Promise<string | null> {
+  private async fetchFromLyricsOvh(
+    track: string,
+    artist: string,
+  ): Promise<string | null> {
     try {
       const url = `https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(track)}`;
       const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });

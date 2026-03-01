@@ -34,7 +34,11 @@ export class LyricsService {
       result = await this.prisma.$transaction(async (tx) => {
         // Snapshot current state as a new version entry
         await tx.lyricsVersion.create({
-          data: { lyricsId: existing.id, version: existing.version, rawText: existing.rawText },
+          data: {
+            lyricsId: existing.id,
+            version: existing.version,
+            rawText: existing.rawText,
+          },
         });
 
         // Prune old versions beyond limit
@@ -45,7 +49,9 @@ export class LyricsService {
           select: { id: true },
         });
         if (old.length > 0) {
-          await tx.lyricsVersion.deleteMany({ where: { id: { in: old.map((v) => v.id) } } });
+          await tx.lyricsVersion.deleteMany({
+            where: { id: { in: old.map((v) => v.id) } },
+          });
         }
 
         // Replace all lines
@@ -56,7 +62,9 @@ export class LyricsService {
           data: {
             rawText,
             version: { increment: 1 },
-            lines: { create: lines.map((text, i) => ({ lineNumber: i + 1, text })) },
+            lines: {
+              create: lines.map((text, i) => ({ lineNumber: i + 1, text })),
+            },
           },
           include: {
             lines: { orderBy: { lineNumber: 'asc' } },
@@ -69,7 +77,9 @@ export class LyricsService {
         data: {
           savedLyricId,
           rawText,
-          lines: { create: lines.map((text, i) => ({ lineNumber: i + 1, text })) },
+          lines: {
+            create: lines.map((text, i) => ({ lineNumber: i + 1, text })),
+          },
         },
         include: {
           lines: { orderBy: { lineNumber: 'asc' } },
@@ -90,7 +100,9 @@ export class LyricsService {
   async restoreVersion(userId: string, savedLyricId: string, version: number) {
     await this.assertOwnership(userId, savedLyricId);
 
-    const lyrics = await this.prisma.lyrics.findUnique({ where: { savedLyricId } });
+    const lyrics = await this.prisma.lyrics.findUnique({
+      where: { savedLyricId },
+    });
     if (!lyrics) throw new NotFoundException('Lyrics not found');
 
     const snap = await this.prisma.lyricsVersion.findFirst({

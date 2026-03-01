@@ -24,7 +24,11 @@ export class SearchHistoryService {
   }
 
   async create(userId: string, dto: CreateSearchHistoryDto) {
-    const artists = dto.artists?.length ? dto.artists : (dto.artist ? [dto.artist] : []);
+    const artists = dto.artists?.length
+      ? dto.artists
+      : dto.artist
+        ? [dto.artist]
+        : [];
     const artist = artists[0] ?? '';
 
     const [history] = await this.prisma.$transaction([

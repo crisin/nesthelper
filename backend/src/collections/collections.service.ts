@@ -53,7 +53,9 @@ export class CollectionsService {
           include: {
             savedLyric: {
               include: {
-                searchHistory: { select: { imgUrl: true, url: true, spotifyId: true } },
+                searchHistory: {
+                  select: { imgUrl: true, url: true, spotifyId: true },
+                },
                 tags: true,
               },
             },
@@ -61,7 +63,14 @@ export class CollectionsService {
               include: {
                 lyrics: {
                   include: {
-                    savedLyric: { select: { id: true, track: true, artist: true, artists: true } },
+                    savedLyric: {
+                      select: {
+                        id: true,
+                        track: true,
+                        artist: true,
+                        artists: true,
+                      },
+                    },
                   },
                 },
               },
@@ -92,7 +101,9 @@ export class CollectionsService {
       where: { id },
       data: {
         ...(dto.name !== undefined ? { name: dto.name } : {}),
-        ...(dto.description !== undefined ? { description: dto.description } : {}),
+        ...(dto.description !== undefined
+          ? { description: dto.description }
+          : {}),
         ...(dto.isPublic !== undefined ? { isPublic: dto.isPublic } : {}),
       },
     });
@@ -103,7 +114,11 @@ export class CollectionsService {
     await this.prisma.collection.delete({ where: { id } });
   }
 
-  async addItem(userId: string, collectionId: string, dto: AddCollectionItemDto) {
+  async addItem(
+    userId: string,
+    collectionId: string,
+    dto: AddCollectionItemDto,
+  ) {
     await this.assertOwner(userId, collectionId);
     const agg = await this.prisma.collectionItem.aggregate({
       where: { collectionId },
@@ -127,7 +142,11 @@ export class CollectionsService {
     });
   }
 
-  async reorder(userId: string, collectionId: string, dto: ReorderCollectionItemsDto) {
+  async reorder(
+    userId: string,
+    collectionId: string,
+    dto: ReorderCollectionItemsDto,
+  ) {
     await this.assertOwner(userId, collectionId);
     await this.prisma.$transaction(
       dto.orderedIds.map((itemId, i) =>

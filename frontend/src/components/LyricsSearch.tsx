@@ -169,10 +169,10 @@ export default function LyricsSearch() {
                   href={`https://www.google.com/search?q=${encodeURIComponent(`${item.track} ${item.artists?.join(", ") || item.artist} lyrics`)}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs text-foreground-subtle hover:text-accent transition-colors"
+                  aria-label="Lyrics suchen"
+                            className="flex-shrink-0 w-9 h-9 sm:w-auto sm:h-auto flex items-center justify-center text-foreground-subtle hover:text-foreground transition-colors sm:opacity-0 sm:group-hover:opacity-100"
                 >
-                  Lyrics suchen
-                  <ExternalLink size={11} strokeWidth={1.75} />
+                  <ExternalLink size={15} strokeWidth={1.75} />
                 </a>
                           <button
                             onClick={() => toggleFavorite(item)}

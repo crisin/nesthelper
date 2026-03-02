@@ -164,6 +164,16 @@ export default function LyricsSearch() {
                           >
                             <FileText size={15} strokeWidth={1.75} />
                           </button>
+
+                             <a
+                  href={`https://www.google.com/search?q=${encodeURIComponent(`${item.track} ${item.artists?.join(", ") || item.artist} lyrics`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs text-foreground-subtle hover:text-accent transition-colors"
+                >
+                  Lyrics suchen
+                  <ExternalLink size={11} strokeWidth={1.75} />
+                </a>
                           <button
                             onClick={() => toggleFavorite(item)}
                             disabled={

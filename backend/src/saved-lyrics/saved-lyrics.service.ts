@@ -47,6 +47,52 @@ export class SavedLyricsService {
     });
   }
 
+  async ensureBySpotifyId(userId: string, spotifyId: string) {
+    const include = {
+      searchHistory: { select: { imgUrl: true, url: true, spotifyId: true } },
+      tags: { orderBy: { createdAt: 'asc' as const } },
+    };
+
+    const existing = await this.prisma.savedLyric.findUnique({
+      where: { userId_spotifyId: { userId, spotifyId } },
+      include,
+    });
+    if (existing) return existing;
+
+    const [libraryTrack, searchHistory] = await Promise.all([
+      this.prisma.libraryTrack.findUnique({ where: { spotifyId } }),
+      this.prisma.searchHistory.findFirst({
+        where: { userId, spotifyId },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
+
+    if (!libraryTrack && !searchHistory) {
+      throw new NotFoundException('Track not found');
+    }
+
+    const trackName = (libraryTrack?.name ?? searchHistory?.track) as string;
+    const rawArtists = libraryTrack?.artists?.length
+      ? libraryTrack.artists
+      : searchHistory?.artists?.length
+        ? searchHistory.artists
+        : [libraryTrack?.artist ?? searchHistory?.artist ?? ''];
+    const artist = rawArtists[0] ?? '';
+
+    return this.prisma.savedLyric.create({
+      data: {
+        userId,
+        spotifyId,
+        track: trackName,
+        artist,
+        artists: rawArtists,
+        lyrics: '',
+        ...(searchHistory ? { searchHistoryId: searchHistory.id } : {}),
+      },
+      include,
+    });
+  }
+
   async create(userId: string, dto: CreateSavedLyricDto) {
     const artists = dto.artists?.length
       ? dto.artists

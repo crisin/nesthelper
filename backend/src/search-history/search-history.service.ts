@@ -24,7 +24,10 @@ export class SearchHistoryService {
     });
   }
 
-  async create(userId: string, dto: CreateSearchHistoryDto): Promise<SearchHistory> {
+  async create(
+    userId: string,
+    dto: CreateSearchHistoryDto,
+  ): Promise<SearchHistory> {
     const artists = dto.artists?.length
       ? dto.artists
       : dto.artist

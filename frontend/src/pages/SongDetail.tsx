@@ -238,9 +238,22 @@ export default function SongDetail() {
     queryFn: () => api.get<SavedLyric[]>('/saved-lyrics').then((r) => r.data),
   })
 
-  const song = songs.find((s) => s.id === id)
+  const songFromList = songs.find((s) => s.id === id)
     ?? songs.find((s) => s.spotifyId === id)
     ?? songs.find((s) => s.searchHistory?.spotifyId === id)
+
+  // Fallback: when not found in list (e.g. navigating from Discover before auto-upsert ran),
+  // call the ensure endpoint which finds or creates a SavedLyric for the spotifyId.
+  const { data: ensuredSong, isLoading: isEnsuring } = useQuery<SavedLyric>({
+    queryKey: ['saved-lyrics-by-spotify', id],
+    queryFn: () => api.get<SavedLyric>(`/saved-lyrics/by-spotify/${id}`).then((r) => r.data),
+    enabled: !isLoading && !songFromList && !!id,
+    staleTime: 5 * 60_000,
+    retry: false,
+  })
+
+  const song = songFromList ?? ensuredSong
+  const isSongLoading = isLoading || (!songFromList && isEnsuring)
 
   const remove = useMutation({
     mutationFn: (songId: string) => api.delete(`/saved-lyrics/${songId}`),
@@ -250,7 +263,7 @@ export default function SongDetail() {
     },
   })
 
-  if (isLoading) {
+  if (isSongLoading) {
     return (
       <div className="px-4 sm:px-8 py-8 max-w-5xl mx-auto space-y-6">
         <div className="h-5 w-24 rounded-full bg-surface-raised animate-pulse" />

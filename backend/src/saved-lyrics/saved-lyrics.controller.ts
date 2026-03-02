@@ -39,15 +39,29 @@ export class SavedLyricsController {
     return this.service.getFavorites(req.user.id);
   }
 
+  @Get('by-spotify/:spotifyId')
+  ensureBySpotify(
+    @Req() req: AuthedRequest,
+    @Param('spotifyId') spotifyId: string,
+  ) {
+    return this.service.ensureBySpotifyId(req.user.id, spotifyId);
+  }
+
   @Post('favorite/:spotifyId')
   @HttpCode(HttpStatus.NO_CONTENT)
-  addFavorite(@Req() req: AuthedRequest, @Param('spotifyId') spotifyId: string) {
+  addFavorite(
+    @Req() req: AuthedRequest,
+    @Param('spotifyId') spotifyId: string,
+  ) {
     return this.service.setFavorite(req.user.id, spotifyId, true);
   }
 
   @Delete('favorite/:spotifyId')
   @HttpCode(HttpStatus.NO_CONTENT)
-  removeFavorite(@Req() req: AuthedRequest, @Param('spotifyId') spotifyId: string) {
+  removeFavorite(
+    @Req() req: AuthedRequest,
+    @Param('spotifyId') spotifyId: string,
+  ) {
     return this.service.setFavorite(req.user.id, spotifyId, false);
   }
 

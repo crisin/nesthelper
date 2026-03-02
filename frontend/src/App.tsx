@@ -43,6 +43,10 @@ const router = createBrowserRouter([
     element: <AppPage><SongDetail /></AppPage>,
   },
   {
+    path: '/songs/:id',
+    element: <AppPage><SongDetail /></AppPage>,
+  },
+  {
     path: '/collections',
     element: <AppPage><Collections /></AppPage>,
   },

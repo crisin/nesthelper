@@ -515,7 +515,7 @@ export default function Discover() {
       isSaved: favoritedSpotifyIds.has(track.spotifyId),
       onSave: () => toggleFavorite.mutate(track.spotifyId),
       isSaving: toggleFavorite.isPending,
-      onNavigate: () => navigate(`/favorites/${track.spotifyId}`),
+      onNavigate: () => navigate(`/songs/${track.spotifyId}`),
     }
   }
 

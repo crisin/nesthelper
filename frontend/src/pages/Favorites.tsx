@@ -1,13 +1,116 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Search, X, ChevronRight, ExternalLink } from 'lucide-react'
+import { Search, X, ChevronRight, ExternalLink, Eye } from 'lucide-react'
 import api from '../services/api'
 import type { SavedLyric } from '../types'
 import SwipeToDelete from '../components/SwipeToDelete'
 import PullToRefresh from '../components/PullToRefresh'
 import TrackListItem from '../components/TrackListItem'
 import DigestBanner from '../components/DigestBanner'
+
+// ─── Lyrics viewer overlay ────────────────────────────────────────────────────
+
+function LyricsViewer({ song, onClose }: { song: SavedLyric; onClose: () => void }) {
+  const [zoom, setZoom] = useState(1)
+  const imgUrl = song.searchHistory?.imgUrl
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  // Lock body scroll
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [])
+
+  function adjustZoom(delta: number) {
+    setZoom((z) => Math.min(2.5, Math.max(0.65, +(z + delta).toFixed(2))))
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/55" onClick={onClose} />
+
+      {/* Sheet */}
+      <div className="relative z-10 w-full sm:max-w-2xl sm:mx-4 bg-surface-raised rounded-t-2xl sm:rounded-2xl border border-edge shadow-2xl max-h-[88vh] flex flex-col">
+
+        {/* Drag handle */}
+        <div className="sm:hidden flex justify-center pt-3 pb-1 flex-shrink-0">
+          <div className="w-8 h-1 rounded-full bg-foreground-subtle/40" />
+        </div>
+
+        {/* Header */}
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-edge flex-shrink-0">
+          {imgUrl && (
+            <img src={imgUrl} alt={song.track}
+              className="w-9 h-9 rounded-lg object-cover flex-shrink-0" />
+          )}
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-foreground truncate leading-tight">{song.track}</p>
+            <p className="text-xs text-foreground-muted truncate">{song.artists?.join(', ') || song.artist}</p>
+          </div>
+
+          {/* Zoom controls */}
+          <div className="flex items-center gap-0.5 flex-shrink-0 bg-surface border border-edge rounded-lg p-0.5">
+            <button
+              onClick={() => adjustZoom(-0.15)}
+              disabled={zoom <= 0.65}
+              aria-label="Verkleinern"
+              className="w-7 h-7 flex items-center justify-center text-foreground-subtle hover:text-foreground disabled:opacity-30 transition-colors rounded-md text-xs font-bold"
+            >
+              A−
+            </button>
+            <button
+              onClick={() => setZoom(1)}
+              aria-label="Zoom zurücksetzen"
+              className="px-1.5 h-7 flex items-center text-[11px] text-foreground-subtle tabular-nums min-w-[38px] justify-center hover:text-foreground transition-colors"
+            >
+              {Math.round(zoom * 100)}%
+            </button>
+            <button
+              onClick={() => adjustZoom(0.15)}
+              disabled={zoom >= 2.5}
+              aria-label="Vergrößern"
+              className="w-7 h-7 flex items-center justify-center text-foreground-subtle hover:text-foreground disabled:opacity-30 transition-colors rounded-md text-xs font-bold"
+            >
+              A+
+            </button>
+          </div>
+
+          <button
+            onClick={onClose}
+            aria-label="Schließen"
+            className="flex-shrink-0 w-7 h-7 flex items-center justify-center text-foreground-subtle hover:text-foreground transition-colors rounded-lg"
+          >
+            <X size={15} strokeWidth={1.75} />
+          </button>
+        </div>
+
+        {/* Lyrics */}
+        <div className="flex-1 overflow-auto px-5 py-5">
+          {song.lyrics ? (
+            <p
+              className="whitespace-pre-wrap leading-relaxed text-foreground"
+              style={{ fontSize: `${zoom}rem` }}
+            >
+              {song.lyrics}
+            </p>
+          ) : (
+            <p className="text-foreground-subtle text-sm py-8 text-center">
+              Noch keine Lyrics gespeichert.
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 type SortKey = 'recent' | 'artist' | 'title'
 
@@ -28,10 +131,11 @@ const SORTS: { key: SortKey; label: string }[] = [
 ]
 
 export default function Favorites() {
-  const [query, setQuery]   = useState('')
-  const [sort, setSort]     = useState<SortKey>('recent')
-  const navigate            = useNavigate()
-  const queryClient         = useQueryClient()
+  const [query, setQuery]         = useState('')
+  const [sort, setSort]           = useState<SortKey>('recent')
+  const [viewingSong, setViewing] = useState<SavedLyric | null>(null)
+  const navigate                  = useNavigate()
+  const queryClient               = useQueryClient()
 
   const { data: songs = [], isLoading } = useQuery<SavedLyric[]>({
     queryKey: ['saved-lyrics-favorites'],
@@ -82,6 +186,7 @@ export default function Favorites() {
   }
 
   return (
+    <>
     <PullToRefresh onRefresh={handleRefresh}>
       <div className="px-4 sm:px-8 py-8 max-w-5xl mx-auto space-y-4 overflow-hidden">
 
@@ -210,6 +315,13 @@ export default function Favorites() {
                               <ExternalLink size={13} strokeWidth={1.75} />
                             </span>
                           )}
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setViewing(song) }}
+                            aria-label="Lyrics anzeigen"
+                            className="w-8 h-8 flex items-center justify-center text-foreground-subtle hover:text-foreground transition-colors sm:opacity-0 sm:group-hover:opacity-100"
+                          >
+                            <Eye size={13} strokeWidth={1.75} />
+                          </button>
                           <ChevronRight
                             size={15}
                             className="text-foreground-subtle group-hover:text-foreground-muted transition-colors"
@@ -226,5 +338,10 @@ export default function Favorites() {
         )}
       </div>
     </PullToRefresh>
+
+    {viewingSong != null && (
+      <LyricsViewer song={viewingSong} onClose={() => setViewing(null)} />
+    )}
+    </>
   )
 }

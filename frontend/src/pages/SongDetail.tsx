@@ -238,7 +238,9 @@ export default function SongDetail() {
     queryFn: () => api.get<SavedLyric[]>('/saved-lyrics').then((r) => r.data),
   })
 
-  const song = songs.find((s) => s.id === id) ?? songs.find((s) => s.spotifyId === id)
+  const song = songs.find((s) => s.id === id)
+    ?? songs.find((s) => s.spotifyId === id)
+    ?? songs.find((s) => s.searchHistory?.spotifyId === id)
 
   const remove = useMutation({
     mutationFn: (songId: string) => api.delete(`/saved-lyrics/${songId}`),
@@ -268,11 +270,11 @@ export default function SongDetail() {
     return (
       <div className="px-4 sm:px-8 py-8 max-w-5xl mx-auto">
         <button
-          onClick={() => navigate('/favorites')}
+          onClick={() => navigate(-1)}
           className="flex items-center gap-1.5 text-sm text-foreground-muted hover:text-foreground transition-colors mb-6"
         >
           <ArrowLeft size={15} strokeWidth={1.75} />
-          Favoriten
+          Zurück
         </button>
         <p className="text-sm text-foreground-subtle">Song nicht gefunden.</p>
       </div>
@@ -288,11 +290,11 @@ export default function SongDetail() {
     <div className="px-4 sm:px-8 py-8 max-w-5xl mx-auto space-y-6 overflow-hidden">
       {/* Back */}
       <button
-        onClick={() => navigate('/favorites')}
+        onClick={() => navigate(-1)}
         className="flex items-center gap-1.5 py-1.5 -ml-1 px-1 text-sm text-foreground-muted hover:text-foreground transition-colors"
       >
         <ArrowLeft size={15} strokeWidth={1.75} />
-        Favoriten
+        Zurück
       </button>
 
       {/* Song header */}

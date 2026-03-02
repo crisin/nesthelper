@@ -175,7 +175,7 @@ export default function LyricsSearch() {
                           </a>
                           <button
                             onClick={() =>
-                              navigate(`/favorites/${item.spotifyId}`)
+                              navigate(`/songs/${item.spotifyId}`)
                             }
                             aria-label="Lyrics bearbeiten"
                             className="flex-shrink-0 w-9 h-9 sm:w-auto sm:h-auto flex items-center justify-center text-foreground-subtle hover:text-foreground transition-colors sm:opacity-0 sm:group-hover:opacity-100"

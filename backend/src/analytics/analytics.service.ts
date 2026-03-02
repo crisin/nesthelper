@@ -267,7 +267,8 @@ export class AnalyticsService {
     for (const rawText of rawTexts) {
       const words = rawText
         .toLowerCase()
-        .replace(/[^a-z0-9'\s]/g, ' ')
+        .replace(/['\u2018\u2019\u02bc]/g, '') // remove apostrophes (don't → dont)
+        .replace(/[^\p{L}\p{N}\s]/gu, ' ') // keep Unicode letters + digits
         .split(/\s+/)
         .filter((w) => w.length > 2 && !STOPWORDS.has(w));
       for (const word of words) {

@@ -1,7 +1,10 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { BarChart2, Music, Tag, User, Calendar } from 'lucide-react'
 import api from '../services/api'
 import type { WordFrequency, TagCount, ArtistCount, WeekCount } from '../types'
+
+type Tab = 'me' | 'global'
 
 // ─── Horizontal bar chart ────────────────────────────────────────────────────
 
@@ -153,64 +156,31 @@ function EmptyState({ message }: { message: string }) {
   return <p className="text-sm text-foreground-subtle py-2">{message}</p>
 }
 
-// ─── Main page ────────────────────────────────────────────────────────────────
+// ─── Shared analytics sections ────────────────────────────────────────────────
 
-export default function Analytics() {
-  const { data: words = [], isLoading: loadingWords } = useQuery<WordFrequency[]>({
-    queryKey: ['analytics-words'],
-    queryFn: () => api.get<WordFrequency[]>('/analytics/me/words').then((r) => r.data),
-    staleTime: 5 * 60_000,
-  })
-
-  const { data: emotions = [], isLoading: loadingEmotions } = useQuery<TagCount[]>({
-    queryKey: ['analytics-emotions'],
-    queryFn: () => api.get<TagCount[]>('/analytics/me/emotions').then((r) => r.data),
-    staleTime: 5 * 60_000,
-  })
-
-  const { data: artists = [], isLoading: loadingArtists } = useQuery<ArtistCount[]>({
-    queryKey: ['analytics-artists'],
-    queryFn: () => api.get<ArtistCount[]>('/analytics/me/artists').then((r) => r.data),
-    staleTime: 5 * 60_000,
-  })
-
-  const { data: themes = [], isLoading: loadingThemes } = useQuery<TagCount[]>({
-    queryKey: ['analytics-themes'],
-    queryFn: () => api.get<TagCount[]>('/analytics/me/themes').then((r) => r.data),
-    staleTime: 5 * 60_000,
-  })
-
-  const { data: timeline = [], isLoading: loadingTimeline } = useQuery<WeekCount[]>({
-    queryKey: ['analytics-timeline'],
-    queryFn: () => api.get<WeekCount[]>('/analytics/me/timeline').then((r) => r.data),
-    staleTime: 5 * 60_000,
-  })
-
-  const topWords = words.slice(0, 20)
+function AnalyticsSections({
+  words,
+  emotions,
+  artists,
+  themes,
+  timeline,
+  loading,
+}: {
+  words: WordFrequency[]
+  emotions: TagCount[]
+  artists: ArtistCount[]
+  themes: TagCount[]
+  timeline: WeekCount[]
+  loading: boolean
+}) {
+  const topWords   = words.slice(0, 20)
   const topArtists = artists.slice(0, 15)
-  const maxWords = topWords[0]?.count ?? 1
+  const maxWords   = topWords[0]?.count ?? 1
   const maxArtists = topArtists[0]?.count ?? 1
-  const totalSaves = timeline.reduce((s, w) => s + w.count, 0)
 
   return (
-    <div className="px-4 sm:px-8 py-8 max-w-5xl mx-auto space-y-6">
-      {/* Header */}
-      <div>
-        <p className="text-[11px] font-semibold text-foreground-subtle uppercase tracking-widest mb-1">
-          Persönlich
-        </p>
-        <h1 className="text-xl font-semibold text-foreground flex items-baseline gap-2">
-          Analytics
-          {totalSaves > 0 && (
-            <span className="text-sm font-normal text-foreground-muted">
-              {totalSaves} {totalSaves === 1 ? 'Song' : 'Songs'} in den letzten 52 Wochen
-            </span>
-          )}
-        </h1>
-      </div>
-
-      {/* Saves over time */}
-      <Section icon={Calendar} title="Gespeicherte Songs" isLoading={loadingTimeline}>
+    <>
+      <Section icon={Calendar} title="Aktivität (letzte 52 Wochen)" isLoading={loading}>
         {timeline.length === 0 ? (
           <EmptyState message="Noch keine Daten" />
         ) : (
@@ -218,28 +188,26 @@ export default function Analytics() {
         )}
       </Section>
 
-      {/* Two-column grid for words + artists */}
       <div className="grid sm:grid-cols-2 gap-4">
-        <Section icon={Music} title="Häufigste Wörter" isLoading={loadingWords}>
+        <Section icon={Music} title="Häufigste Wörter" isLoading={loading}>
           {topWords.length === 0 ? (
-            <EmptyState message="Noch keine Lyrics gespeichert" />
+            <EmptyState message="Noch keine Lyrics" />
           ) : (
             <BarList items={topWords} labelKey="word" maxCount={maxWords} accent />
           )}
         </Section>
 
-        <Section icon={User} title="Top Artists" isLoading={loadingArtists}>
+        <Section icon={User} title="Top Artists" isLoading={loading}>
           {topArtists.length === 0 ? (
-            <EmptyState message="Noch keine Songs gespeichert" />
+            <EmptyState message="Noch keine Songs" />
           ) : (
             <BarList items={topArtists} labelKey="artist" maxCount={maxArtists} />
           )}
         </Section>
       </div>
 
-      {/* Two-column grid for moods + themes */}
       <div className="grid sm:grid-cols-2 gap-4">
-        <Section icon={Tag} title="Stimmungen" isLoading={loadingEmotions}>
+        <Section icon={Tag} title="Stimmungen" isLoading={loading}>
           {emotions.length === 0 ? (
             <EmptyState message="Noch keine Mood-Tags" />
           ) : (
@@ -247,7 +215,7 @@ export default function Analytics() {
           )}
         </Section>
 
-        <Section icon={BarChart2} title="Themen" isLoading={loadingThemes}>
+        <Section icon={BarChart2} title="Themen" isLoading={loading}>
           {themes.length === 0 ? (
             <EmptyState message="Noch keine Context-Tags" />
           ) : (
@@ -255,6 +223,138 @@ export default function Analytics() {
           )}
         </Section>
       </div>
+    </>
+  )
+}
+
+// ─── Main page ────────────────────────────────────────────────────────────────
+
+export default function Analytics() {
+  const [tab, setTab] = useState<Tab>('me')
+
+  // ── Personal queries ──────────────────────────────────────────────────────
+  const { data: myWords = [],    isLoading: loadingMyWords    } = useQuery<WordFrequency[]>({
+    queryKey: ['analytics-words'],
+    queryFn: () => api.get<WordFrequency[]>('/analytics/me/words').then((r) => r.data),
+    staleTime: 5 * 60_000,
+  })
+  const { data: myEmotions = [], isLoading: loadingMyEmotions } = useQuery<TagCount[]>({
+    queryKey: ['analytics-emotions'],
+    queryFn: () => api.get<TagCount[]>('/analytics/me/emotions').then((r) => r.data),
+    staleTime: 5 * 60_000,
+  })
+  const { data: myArtists = [],  isLoading: loadingMyArtists  } = useQuery<ArtistCount[]>({
+    queryKey: ['analytics-artists'],
+    queryFn: () => api.get<ArtistCount[]>('/analytics/me/artists').then((r) => r.data),
+    staleTime: 5 * 60_000,
+  })
+  const { data: myThemes = [],   isLoading: loadingMyThemes   } = useQuery<TagCount[]>({
+    queryKey: ['analytics-themes'],
+    queryFn: () => api.get<TagCount[]>('/analytics/me/themes').then((r) => r.data),
+    staleTime: 5 * 60_000,
+  })
+  const { data: myTimeline = [], isLoading: loadingMyTimeline } = useQuery<WeekCount[]>({
+    queryKey: ['analytics-timeline'],
+    queryFn: () => api.get<WeekCount[]>('/analytics/me/timeline').then((r) => r.data),
+    staleTime: 5 * 60_000,
+  })
+
+  // ── Global queries (fetched only when tab is active) ──────────────────────
+  const { data: glWords = [],    isLoading: loadingGlWords    } = useQuery<WordFrequency[]>({
+    queryKey: ['analytics-global-words'],
+    queryFn: () => api.get<WordFrequency[]>('/analytics/global/words').then((r) => r.data),
+    staleTime: 5 * 60_000,
+    enabled: tab === 'global',
+  })
+  const { data: glEmotions = [], isLoading: loadingGlEmotions } = useQuery<TagCount[]>({
+    queryKey: ['analytics-global-emotions'],
+    queryFn: () => api.get<TagCount[]>('/analytics/global/emotions').then((r) => r.data),
+    staleTime: 5 * 60_000,
+    enabled: tab === 'global',
+  })
+  const { data: glArtists = [],  isLoading: loadingGlArtists  } = useQuery<ArtistCount[]>({
+    queryKey: ['analytics-global-artists'],
+    queryFn: () => api.get<ArtistCount[]>('/analytics/global/artists').then((r) => r.data),
+    staleTime: 5 * 60_000,
+    enabled: tab === 'global',
+  })
+  const { data: glThemes = [],   isLoading: loadingGlThemes   } = useQuery<TagCount[]>({
+    queryKey: ['analytics-global-themes'],
+    queryFn: () => api.get<TagCount[]>('/analytics/global/themes').then((r) => r.data),
+    staleTime: 5 * 60_000,
+    enabled: tab === 'global',
+  })
+  const { data: glTimeline = [], isLoading: loadingGlTimeline } = useQuery<WeekCount[]>({
+    queryKey: ['analytics-global-timeline'],
+    queryFn: () => api.get<WeekCount[]>('/analytics/global/timeline').then((r) => r.data),
+    staleTime: 5 * 60_000,
+    enabled: tab === 'global',
+  })
+
+  const totalMySaves = myTimeline.reduce((s, w) => s + w.count, 0)
+  const totalGlSaves = glTimeline.reduce((s, w) => s + w.count, 0)
+  const totalSaves   = tab === 'me' ? totalMySaves : totalGlSaves
+
+  const myLoading = loadingMyWords || loadingMyEmotions || loadingMyArtists || loadingMyThemes || loadingMyTimeline
+  const glLoading = loadingGlWords || loadingGlEmotions || loadingGlArtists || loadingGlThemes || loadingGlTimeline
+
+  return (
+    <div className="px-4 sm:px-8 py-8 max-w-5xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <p className="text-[11px] font-semibold text-foreground-subtle uppercase tracking-widest mb-1">
+            {tab === 'me' ? 'Persönlich' : 'Community'}
+          </p>
+          <h1 className="text-xl font-semibold text-foreground flex items-baseline gap-2">
+            Analytics
+            {totalSaves > 0 && (
+              <span className="text-sm font-normal text-foreground-muted">
+                {totalSaves} {totalSaves === 1 ? 'Song' : 'Songs'} in den letzten 52 Wochen
+              </span>
+            )}
+          </h1>
+        </div>
+
+        {/* Tab switcher */}
+        <div className="flex gap-1 p-1 rounded-lg bg-surface-raised border border-edge">
+          {(['me', 'global'] as Tab[]).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={[
+                'px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
+                tab === t
+                  ? 'bg-surface-overlay text-foreground shadow-sm'
+                  : 'text-foreground-muted hover:text-foreground',
+              ].join(' ')}
+            >
+              {t === 'me' ? 'Meine' : 'Gesamt'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Sections */}
+      {tab === 'me' ? (
+        <AnalyticsSections
+          words={myWords}
+          emotions={myEmotions}
+          artists={myArtists}
+          themes={myThemes}
+          timeline={myTimeline}
+          loading={myLoading}
+        />
+      ) : (
+        <AnalyticsSections
+          words={glWords}
+          emotions={glEmotions}
+          artists={glArtists}
+          themes={glThemes}
+          timeline={glTimeline}
+          loading={glLoading}
+        />
+      )}
     </div>
   )
 }

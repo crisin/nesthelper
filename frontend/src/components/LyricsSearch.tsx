@@ -24,7 +24,8 @@ export default function LyricsSearch() {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
-  const { handleSearch, isPending, error, clearError, mode, toggleMode } = useLyricsSearch();
+  const { handleSearch, isPending, error, clearError, mode, toggleMode } =
+    useLyricsSearch();
 
   const { data: history = [] } = useQuery<SearchHistoryItem[]>({
     queryKey: ["search-history"],
@@ -34,20 +35,25 @@ export default function LyricsSearch() {
 
   const { data: favorites = [] } = useQuery<SavedLyric[]>({
     queryKey: ["saved-lyrics-favorites"],
-    queryFn: () => api.get<SavedLyric[]>("/saved-lyrics/favorites").then((r) => r.data),
+    queryFn: () =>
+      api.get<SavedLyric[]>("/saved-lyrics/favorites").then((r) => r.data),
   });
 
   // Track which spotifyIds are favorited
-  const favoritedSpotifyIds = new Set(favorites.map((s) => s.spotifyId).filter(Boolean));
+  const favoritedSpotifyIds = new Set(
+    favorites.map((s) => s.spotifyId).filter(Boolean),
+  );
 
   const saveFavorite = useMutation({
-    mutationFn: (spotifyId: string) => api.post(`/saved-lyrics/favorite/${spotifyId}`),
+    mutationFn: (spotifyId: string) =>
+      api.post(`/saved-lyrics/favorite/${spotifyId}`),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ["saved-lyrics-favorites"] }),
   });
 
   const unsaveFavorite = useMutation({
-    mutationFn: (spotifyId: string) => api.delete(`/saved-lyrics/favorite/${spotifyId}`),
+    mutationFn: (spotifyId: string) =>
+      api.delete(`/saved-lyrics/favorite/${spotifyId}`),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ["saved-lyrics-favorites"] }),
   });
@@ -59,7 +65,8 @@ export default function LyricsSearch() {
   });
 
   function toggleFavorite(item: SearchHistoryItem) {
-    if (favoritedSpotifyIds.has(item.spotifyId)) unsaveFavorite.mutate(item.spotifyId);
+    if (favoritedSpotifyIds.has(item.spotifyId))
+      unsaveFavorite.mutate(item.spotifyId);
     else saveFavorite.mutate(item.spotifyId);
   }
 
@@ -157,23 +164,25 @@ export default function LyricsSearch() {
                           <span className="text-[11px] text-foreground-subtle flex-shrink-0 tabular-nums">
                             {timeAgo(item.createdAt)}
                           </span>
+                          <a
+                            href={`https://www.google.com/search?q=${encodeURIComponent(`${item.track} ${item.artists?.join(", ") || item.artist} lyrics`)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label="Lyrics suchen"
+                            className="flex-shrink-0 w-9 h-9 sm:w-auto sm:h-auto flex items-center justify-center text-foreground-subtle hover:text-foreground transition-colors sm:opacity-0 sm:group-hover:opacity-100"
+                          >
+                            <ExternalLink size={15} strokeWidth={1.75} />
+                          </a>
                           <button
-                            onClick={() => navigate(`/favorites/${item.spotifyId}`)}
+                            onClick={() =>
+                              navigate(`/favorites/${item.spotifyId}`)
+                            }
                             aria-label="Lyrics bearbeiten"
                             className="flex-shrink-0 w-9 h-9 sm:w-auto sm:h-auto flex items-center justify-center text-foreground-subtle hover:text-foreground transition-colors sm:opacity-0 sm:group-hover:opacity-100"
                           >
                             <FileText size={15} strokeWidth={1.75} />
                           </button>
 
-                             <a
-                  href={`https://www.google.com/search?q=${encodeURIComponent(`${item.track} ${item.artists?.join(", ") || item.artist} lyrics`)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="Lyrics suchen"
-                            className="flex-shrink-0 w-9 h-9 sm:w-auto sm:h-auto flex items-center justify-center text-foreground-subtle hover:text-foreground transition-colors sm:opacity-0 sm:group-hover:opacity-100"
-                >
-                  <ExternalLink size={15} strokeWidth={1.75} />
-                </a>
                           <button
                             onClick={() => toggleFavorite(item)}
                             disabled={

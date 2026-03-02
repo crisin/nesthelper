@@ -42,4 +42,31 @@ export class AnalyticsController {
     const y = year ? parseInt(year, 10) : new Date().getFullYear();
     return this.analytics.getMonthlyTimeline(req.user.id, y);
   }
+
+  // ── Global ──────────────────────────────────────────────────────────────────
+
+  @Get('global/words')
+  getGlobalTopWords() {
+    return this.analytics.getGlobalTopWords();
+  }
+
+  @Get('global/emotions')
+  getGlobalEmotions() {
+    return this.analytics.getGlobalEmotions();
+  }
+
+  @Get('global/artists')
+  getGlobalArtists() {
+    return this.analytics.getGlobalArtists();
+  }
+
+  @Get('global/themes')
+  getGlobalThemes() {
+    return this.analytics.getGlobalThemes();
+  }
+
+  @Get('global/timeline')
+  getGlobalTimeline() {
+    return this.analytics.getGlobalTimeline();
+  }
 }

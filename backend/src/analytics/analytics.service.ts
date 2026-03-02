@@ -117,23 +117,7 @@ export class AnalyticsService {
       where: { savedLyric: { userId } },
       select: { rawText: true },
     });
-
-    const freq = new Map<string, number>();
-    for (const { rawText } of lyrics) {
-      const words = rawText
-        .toLowerCase()
-        .replace(/[^a-z0-9'\s]/g, ' ')
-        .split(/\s+/)
-        .filter((w) => w.length > 2 && !STOPWORDS.has(w));
-      for (const word of words) {
-        freq.set(word, (freq.get(word) ?? 0) + 1);
-      }
-    }
-
-    return [...freq.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 50)
-      .map(([word, count]) => ({ word, count }));
+    return this.countWords(lyrics.map((l) => l.rawText));
   }
 
   async getEmotions(userId: string) {
@@ -228,18 +212,84 @@ export class AnalyticsService {
       });
   }
 
-  async getTimeline(userId: string) {
-    // Last 52 weeks of saves, grouped by ISO week (YYYY-Www)
+  // ── Global (cross-user) ────────────────────────────────────────────────────
+
+  async getGlobalTopWords() {
+    // Only PUBLIC songs to respect privacy
+    const lyrics = await this.prisma.lyrics.findMany({
+      where: { savedLyric: { visibility: 'PUBLIC' } },
+      select: { rawText: true },
+    });
+    return this.countWords(lyrics.map((l) => l.rawText));
+  }
+
+  async getGlobalEmotions() {
+    const rows = await this.prisma.songTag.groupBy({
+      by: ['tag'],
+      where: { type: 'MOOD' },
+      _count: { id: true },
+      orderBy: { _count: { id: 'desc' } },
+      take: 20,
+    });
+    return rows.map((r) => ({ tag: r.tag, count: r._count.id }));
+  }
+
+  async getGlobalArtists() {
+    const rows = await this.prisma.savedLyric.groupBy({
+      by: ['artist'],
+      where: { artist: { not: '' } },
+      _count: { id: true },
+      orderBy: { _count: { id: 'desc' } },
+      take: 20,
+    });
+    return rows.map((r) => ({ artist: r.artist, count: r._count.id }));
+  }
+
+  async getGlobalThemes() {
+    const rows = await this.prisma.songTag.groupBy({
+      by: ['tag'],
+      where: { type: 'CONTEXT' },
+      _count: { id: true },
+      orderBy: { _count: { id: 'desc' } },
+      take: 15,
+    });
+    return rows.map((r) => ({ tag: r.tag, count: r._count.id }));
+  }
+
+  async getGlobalTimeline() {
+    return this.buildTimeline();
+  }
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+
+  private countWords(rawTexts: string[]) {
+    const freq = new Map<string, number>();
+    for (const rawText of rawTexts) {
+      const words = rawText
+        .toLowerCase()
+        .replace(/[^a-z0-9'\s]/g, ' ')
+        .split(/\s+/)
+        .filter((w) => w.length > 2 && !STOPWORDS.has(w));
+      for (const word of words) {
+        freq.set(word, (freq.get(word) ?? 0) + 1);
+      }
+    }
+    return [...freq.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 50)
+      .map(([word, count]) => ({ word, count }));
+  }
+
+  private async buildTimeline(userId?: string) {
     const since = new Date();
     since.setDate(since.getDate() - 364);
 
     const saves = await this.prisma.savedLyric.findMany({
-      where: { userId, createdAt: { gte: since } },
+      where: { ...(userId ? { userId } : {}), createdAt: { gte: since } },
       select: { createdAt: true },
       orderBy: { createdAt: 'asc' },
     });
 
-    // Build a map of all 52 weeks (filled with 0 by default)
     const weeks: Record<string, number> = {};
     for (let i = 51; i >= 0; i--) {
       const d = new Date();
@@ -253,6 +303,10 @@ export class AnalyticsService {
     }
 
     return Object.entries(weeks).map(([week, count]) => ({ week, count }));
+  }
+
+  async getTimeline(userId: string) {
+    return this.buildTimeline(userId);
   }
 }
 

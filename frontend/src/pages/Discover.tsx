@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronDown, ExternalLink, FileText, LayoutGrid, LayoutList } from 'lucide-react'
+import { ChevronDown, ExternalLink, FileText, LayoutGrid, LayoutList, Search, X } from 'lucide-react'
 import api from '../services/api'
 import type { CommunityLyric, LibraryTrack, SavedLyric } from '../types'
 import PullToRefresh from '../components/PullToRefresh'
@@ -466,6 +466,8 @@ export default function Discover() {
 
   const favoritedSpotifyIds = new Set(favorites.map((s) => s.spotifyId).filter(Boolean) as string[])
 
+  const [libraryQuery, setLibraryQuery] = useState('')
+
   const sortedLibrary = useMemo(() => {
     const list = [...library]
     if (librarySort === 'artist') list.sort((a, b) => a.artist.localeCompare(b.artist))
@@ -474,9 +476,20 @@ export default function Discover() {
     return list
   }, [library, librarySort])
 
-  // Group by artist when artist sort is active
+  const filteredLibrary = useMemo(() => {
+    const q = libraryQuery.trim().toLowerCase()
+    if (!q) return sortedLibrary
+    return sortedLibrary.filter(
+      (t) =>
+        t.name.toLowerCase().includes(q) ||
+        t.artist.toLowerCase().includes(q) ||
+        t.artists.some((a) => a.toLowerCase().includes(q)),
+    )
+  }, [sortedLibrary, libraryQuery])
+
+  // Group by artist only when sort=artist and no query active
   const artistGroups = useMemo(() => {
-    if (librarySort !== 'artist') return null
+    if (librarySort !== 'artist' || libraryQuery.trim()) return null
     const groups: { artist: string; tracks: LibraryTrack[] }[] = []
     for (const track of sortedLibrary) {
       const last = groups[groups.length - 1]
@@ -487,7 +500,7 @@ export default function Discover() {
       }
     }
     return groups
-  }, [sortedLibrary, librarySort])
+  }, [sortedLibrary, librarySort, libraryQuery])
 
   const toggleFavorite = useMutation({
     mutationFn: (spotifyId: string) =>
@@ -572,6 +585,33 @@ export default function Discover() {
           ))}
         </div>
 
+        {/* Library search */}
+        {tab === 'library' && (
+          <div className="relative">
+            <Search
+              size={14}
+              strokeWidth={1.75}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground-subtle pointer-events-none"
+            />
+            <input
+              type="text"
+              placeholder="Bibliothek durchsuchen…"
+              value={libraryQuery}
+              onChange={(e) => setLibraryQuery(e.target.value)}
+              className="w-full pl-9 pr-8 py-2 rounded-xl bg-surface-raised border border-edge text-sm
+                         placeholder:text-foreground-subtle/60 focus:outline-none focus:border-foreground-muted/50 transition-colors"
+            />
+            {libraryQuery && (
+              <button
+                onClick={() => setLibraryQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-foreground-subtle hover:text-foreground transition-colors"
+              >
+                <X size={13} strokeWidth={1.75} />
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Library controls: sort + layout toggle */}
         {tab === 'library' && library.length > 1 && (
           <div className="flex items-center gap-2">
@@ -652,8 +692,11 @@ export default function Discover() {
             <p className="text-sm text-foreground-subtle py-4">
               No songs yet — search lyrics on the Home page to populate the library.
             </p>
+          ) : filteredLibrary.length === 0 ? (
+            <p className="text-sm text-foreground-subtle py-4">
+              Keine Treffer für &ldquo;{libraryQuery}&rdquo;.
+            </p>
           ) : artistGroups ? (
-            // Grouped by artist
             <div className="space-y-4">
               {artistGroups.map(({ artist, tracks }) => (
                 <div key={artist} className="space-y-2">
@@ -663,7 +706,7 @@ export default function Discover() {
               ))}
             </div>
           ) : (
-            renderLibraryTracks(sortedLibrary)
+            renderLibraryTracks(filteredLibrary)
           )
         )}
 

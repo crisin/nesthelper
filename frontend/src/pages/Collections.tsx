@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Plus, BookOpen, Globe, Lock, ChevronRight, Trash2, Check } from 'lucide-react'
+import { Plus, BookOpen, Globe, Lock, ChevronRight, Trash2, Check, Search, X } from 'lucide-react'
 import api from '../services/api'
 import type { Collection } from '../types'
 import TrackCover from '../components/TrackCover'
@@ -182,6 +182,7 @@ export default function Collections() {
   const [tab, setTab] = useState<'mine' | 'discover'>('mine')
   const [creating, setCreating] = useState(false)
   const [newName, setNewName] = useState('')
+  const [query, setQuery] = useState('')
 
   const { data: collections = [], isLoading } = useQuery<Collection[]>({
     queryKey: ['collections'],
@@ -194,6 +195,22 @@ export default function Collections() {
     enabled: tab === 'discover',
     staleTime: 60_000,
   })
+
+  const filteredCollections = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return collections
+    return collections.filter((c) => c.name.toLowerCase().includes(q))
+  }, [collections, query])
+
+  const filteredPublicCollections = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return publicCollections
+    return publicCollections.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        (c.user?.name ?? '').toLowerCase().includes(q),
+    )
+  }, [publicCollections, query])
 
   const createMutation = useMutation({
     mutationFn: (name: string) =>
@@ -251,7 +268,7 @@ export default function Collections() {
         {(['mine', 'discover'] as const).map((t) => (
           <button
             key={t}
-            onClick={() => setTab(t)}
+            onClick={() => { setTab(t); setQuery('') }}
             className={[
               'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
               tab === t
@@ -266,6 +283,31 @@ export default function Collections() {
             )}
           </button>
         ))}
+      </div>
+
+      {/* Search bar */}
+      <div className="relative">
+        <Search
+          size={14}
+          strokeWidth={1.75}
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground-subtle pointer-events-none"
+        />
+        <input
+          type="text"
+          placeholder={tab === 'mine' ? 'Collections durchsuchen…' : 'Nach Name oder Autor suchen…'}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          className="w-full pl-9 pr-8 py-2 rounded-xl bg-surface-raised border border-edge text-sm
+                     placeholder:text-foreground-subtle/60 focus:outline-none focus:border-foreground-muted/50 transition-colors"
+        />
+        {query && (
+          <button
+            onClick={() => setQuery('')}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-foreground-subtle hover:text-foreground transition-colors"
+          >
+            <X size={13} strokeWidth={1.75} />
+          </button>
+        )}
       </div>
 
       {/* My collections tab */}
@@ -290,9 +332,13 @@ export default function Collections() {
                 Erste Collection erstellen
               </button>
             </div>
+          ) : filteredCollections.length === 0 ? (
+            <p className="text-sm text-foreground-subtle py-4">
+              Keine Treffer für &ldquo;{query}&rdquo;.
+            </p>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {collections.map((c) => (
+              {filteredCollections.map((c) => (
                 <CollectionCard key={c.id} collection={c} onDelete={() => deleteMutation.mutate(c.id)} />
               ))}
             </div>
@@ -312,9 +358,13 @@ export default function Collections() {
                 Noch hat niemand eine Collection veröffentlicht.
               </p>
             </div>
+          ) : filteredPublicCollections.length === 0 ? (
+            <p className="text-sm text-foreground-subtle py-4">
+              Keine Treffer für &ldquo;{query}&rdquo;.
+            </p>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {publicCollections.map((c) => (
+              {filteredPublicCollections.map((c) => (
                 <PublicCollectionCard key={c.id} collection={c} />
               ))}
             </div>

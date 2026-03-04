@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Eye, Pencil, History, ChevronDown, ChevronUp, MessageSquarePlus,
-  RotateCcw, Check, Music, Headphones, Timer, Loader2,
+  RotateCcw, Check, Music, Headphones, Timer, Loader2, Rewind,
 } from 'lucide-react'
 import api from '../services/api'
 import type { StructuredLyrics, LineAnnotation, LyricsFetchStatus, SpotifyCurrentlyPlayingResponse } from '../types'
@@ -397,7 +397,7 @@ export default function LyricsEditor({ savedLyricId, legacyLyrics, fetchStatus }
   const { data: currentTrack } = useQuery<SpotifyCurrentlyPlayingResponse | null>({
     queryKey: ['spotify-current-track'],
     queryFn: () => api.get<SpotifyCurrentlyPlayingResponse>('/spotify/current-track').then((r) => r.data),
-    enabled: karaoke,
+    enabled: karaoke || mode === 'edit',
     refetchInterval: 1_000,
     staleTime: 0,
   })
@@ -540,7 +540,7 @@ export default function LyricsEditor({ savedLyricId, legacyLyrics, fetchStatus }
             value={currentText}
             onChange={(e) => setDraft(e.target.value)}
           />
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <button
               onClick={() => save.mutate(currentText)}
               disabled={!isDirty || save.isPending}
@@ -557,6 +557,22 @@ export default function LyricsEditor({ savedLyricId, legacyLyrics, fetchStatus }
               >
                 Verwerfen
               </button>
+            )}
+            {currentTrack?.is_playing && (
+              <div className="flex items-center gap-1 ml-auto">
+                <Rewind size={10} className="text-foreground-subtle" strokeWidth={1.75} />
+                {[5, 10].map((sec) => (
+                  <button
+                    key={sec}
+                    onClick={() => seek.mutate(Math.max(0, progressMs - sec * 1000))}
+                    title={`${sec}s zurückspulen`}
+                    className="px-2 py-1 rounded-md border border-edge text-[11px] text-foreground-muted
+                               hover:text-foreground hover:border-foreground-muted/50 transition-colors"
+                  >
+                    −{sec}s
+                  </button>
+                ))}
+              </div>
             )}
           </div>
         </>

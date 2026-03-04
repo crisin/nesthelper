@@ -250,6 +250,26 @@ export class SavedLyricsService {
     });
   }
 
+  // ─── Public lyrics for a track ────────────────────────────────────────────
+
+  getPublicLyricsForTrack(userId: string, spotifyId: string) {
+    return this.prisma.savedLyric.findMany({
+      where: {
+        spotifyId,
+        visibility: 'PUBLIC',
+        userId: { not: userId },
+        lyrics: { not: '' },
+      },
+      select: {
+        id: true,
+        lyrics: true,
+        user: { select: { name: true } },
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   // ─── Visibility ───────────────────────────────────────────────────────────
 
   async updateVisibility(

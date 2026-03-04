@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, Eye } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import api from '../services/api'
 import TrackListItem from '../components/TrackListItem'
-import type { TimelineMonth } from '../types'
+import LyricsViewer from '../components/LyricsViewer'
+import type { TimelineMonth, TimelineSong } from '../types'
 
 // ─── Mood → emoji map (best-effort on free-text tags) ─────────────────────────
 
@@ -65,6 +66,7 @@ export default function Timeline() {
   const navigate = useNavigate()
   const currentYear = new Date().getFullYear()
   const [year, setYear] = useState(currentYear)
+  const [viewing, setViewing] = useState<TimelineSong | null>(null)
 
   const { data: months = [], isLoading } = useQuery<TimelineMonth[]>({
     queryKey: ['timeline-monthly', year],
@@ -145,11 +147,19 @@ export default function Timeline() {
                       size="sm"
                       onCardClick={() => navigate(`/favorites/${song.id}`)}
                       actions={
-                        <ChevronRight
-                          size={14}
-                          className="text-foreground-subtle flex-shrink-0"
-                          strokeWidth={1.75}
-                        />
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          {song.lyrics && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setViewing(song) }}
+                              aria-label="Lyrics anzeigen"
+                              className="w-7 h-7 flex items-center justify-center text-foreground-subtle
+                                         hover:text-foreground transition-colors opacity-0 group-hover:opacity-100"
+                            >
+                              <Eye size={13} strokeWidth={1.75} />
+                            </button>
+                          )}
+                          <ChevronRight size={14} className="text-foreground-subtle" strokeWidth={1.75} />
+                        </div>
                       }
                     />
                   </li>
@@ -158,6 +168,17 @@ export default function Timeline() {
             </section>
           ))}
         </div>
+      )}
+
+      {viewing && (
+        <LyricsViewer
+          track={viewing.track}
+          artist={viewing.artist}
+          artists={viewing.artists}
+          imgUrl={viewing.searchHistory?.imgUrl}
+          lyrics={viewing.lyrics ?? ''}
+          onClose={() => setViewing(null)}
+        />
       )}
     </div>
   )

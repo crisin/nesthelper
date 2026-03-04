@@ -39,6 +39,14 @@ export class SavedLyricsController {
     return this.service.getFavorites(req.user.id);
   }
 
+  @Get('public-lyrics/:spotifyId')
+  getPublicLyrics(
+    @Req() req: AuthedRequest,
+    @Param('spotifyId') spotifyId: string,
+  ) {
+    return this.service.getPublicLyricsForTrack(req.user.id, spotifyId);
+  }
+
   @Get('by-spotify/:spotifyId')
   ensureBySpotify(
     @Req() req: AuthedRequest,

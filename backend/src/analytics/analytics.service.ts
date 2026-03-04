@@ -164,6 +164,7 @@ export class AnalyticsService {
         track: true,
         artist: true,
         artists: true,
+        lyrics: true,
         createdAt: true,
         tags: {
           where: { type: 'MOOD' },

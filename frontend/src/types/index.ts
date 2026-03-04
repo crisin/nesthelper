@@ -171,6 +171,7 @@ export interface TimelineSong {
   track: string
   artist: string
   artists: string[]
+  lyrics?: string
   createdAt: string
   tags: { tag: string }[]
   searchHistory?: { imgUrl?: string; spotifyId?: string } | null
@@ -190,6 +191,13 @@ export interface DigestContent {
   topWord: string | null
   topArtist: string | null
   communityInsight: string | null
+}
+
+export interface CommunityLyrics {
+  id: string
+  lyrics: string
+  user: { name: string | null }
+  createdAt: string
 }
 
 export interface Digest {

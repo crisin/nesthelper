@@ -4,14 +4,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft, ExternalLink, Trash2, StickyNote, Check,
   Globe, Lock, Users, ChevronDown, ChevronUp, Users2,
-  Clapperboard, Play, Pencil, X,
+  Clapperboard, Play, Pencil, X, Eye,
 } from 'lucide-react'
 import api from '../services/api'
-import type { SavedLyric, Visibility, TrackInsights } from '../types'
+import type { SavedLyric, Visibility, TrackInsights, CommunityLyrics } from '../types'
 import BottomSheet from '../components/BottomSheet'
 import TrackCover from '../components/TrackCover'
 import TagSelector from '../components/TagSelector'
 import LyricsEditor from '../components/LyricsEditor'
+import LyricsViewer from '../components/LyricsViewer'
 
 // ─── Note section ─────────────────────────────────────────────────────────────
 
@@ -330,6 +331,107 @@ function VisibilityToggle({ savedLyricId, visibility }: { savedLyricId: string; 
   )
 }
 
+// ─── Community lyrics panel ───────────────────────────────────────────────────
+
+function CommunityLyricsPanel({
+  spotifyId,
+  track,
+  artist,
+  artists,
+  imgUrl,
+  hasUserLyrics,
+}: {
+  spotifyId: string
+  track: string
+  artist: string
+  artists?: string[]
+  imgUrl?: string | null
+  hasUserLyrics: boolean
+}) {
+  const [open, setOpen] = useState(!hasUserLyrics)
+  const [viewing, setViewing] = useState<CommunityLyrics | null>(null)
+
+  const { data: entries = [], isLoading } = useQuery<CommunityLyrics[]>({
+    queryKey: ['community-lyrics', spotifyId],
+    queryFn: () =>
+      api.get<CommunityLyrics[]>(`/saved-lyrics/public-lyrics/${spotifyId}`).then((r) => r.data),
+    staleTime: 5 * 60_000,
+  })
+
+  // Auto-open the first entry when user has no lyrics and results arrive
+  const [autoOpened, setAutoOpened] = useState(false)
+  if (!hasUserLyrics && !autoOpened && entries.length > 0) {
+    setViewing(entries[0])
+    setAutoOpened(true)
+  }
+
+  if (!isLoading && entries.length === 0) return null
+
+  return (
+    <>
+      <div className="border-t border-edge pt-4">
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className="flex items-center gap-2 text-[11px] font-semibold text-foreground-subtle
+                     uppercase tracking-widest hover:text-foreground-muted transition-colors"
+        >
+          <Eye size={12} strokeWidth={2} />
+          Community Lyrics
+          {entries.length > 0 && (
+            <span className="ml-0.5 text-[10px] font-normal text-foreground-subtle normal-case tracking-normal">
+              ({entries.length})
+            </span>
+          )}
+          {open ? <ChevronUp size={10} strokeWidth={2} /> : <ChevronDown size={10} strokeWidth={2} />}
+        </button>
+
+        {open && (
+          <div className="mt-3 space-y-2">
+            {isLoading ? (
+              <div className="space-y-2">
+                {[1, 2].map((i) => (
+                  <div key={i} className="h-12 rounded-lg bg-surface-raised animate-pulse" />
+                ))}
+              </div>
+            ) : (
+              entries.map((entry) => {
+                const preview = entry.lyrics.split('\n').find((l) => l.trim()) ?? ''
+                const author = entry.user.name ?? 'Anonym'
+                return (
+                  <div
+                    key={entry.id}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-surface-raised border border-edge
+                               hover:border-foreground-muted/30 transition-colors cursor-pointer group"
+                    onClick={() => setViewing(entry)}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] font-medium text-foreground-muted">{author}</p>
+                      <p className="text-xs text-foreground-subtle truncate mt-0.5 italic">&ldquo;{preview}&rdquo;</p>
+                    </div>
+                    <Eye size={13} strokeWidth={1.75} className="flex-shrink-0 text-foreground-subtle opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                )
+              })
+            )}
+          </div>
+        )}
+      </div>
+
+      {viewing && (
+        <LyricsViewer
+          track={track}
+          artist={artist}
+          artists={artists}
+          imgUrl={imgUrl}
+          lyrics={viewing.lyrics}
+          authorLabel={`von ${viewing.user.name ?? 'Anonym'}`}
+          onClose={() => setViewing(null)}
+        />
+      )}
+    </>
+  )
+}
+
 // ─── Community insights panel ─────────────────────────────────────────────────
 
 function CommunityInsightsPanel({ spotifyId }: { spotifyId: string }) {
@@ -574,6 +676,18 @@ export default function SongDetail() {
 
       {/* Music video */}
       <VideoSection savedLyricId={song.id} videoUrl={song.videoUrl} />
+
+      {/* Community lyrics */}
+      {(song.spotifyId ?? spotifyId) && (
+        <CommunityLyricsPanel
+          spotifyId={(song.spotifyId ?? spotifyId)!}
+          track={song.track}
+          artist={song.artist}
+          artists={song.artists}
+          imgUrl={imgUrl}
+          hasUserLyrics={!!song.lyrics?.trim()}
+        />
+      )}
 
       {/* Community insights */}
       {spotifyId && <CommunityInsightsPanel spotifyId={spotifyId} />}

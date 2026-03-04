@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft, ExternalLink, Trash2, StickyNote, Check,
   Globe, Lock, Users, ChevronDown, ChevronUp, Users2,
+  Clapperboard, Play, Pencil, X,
 } from 'lucide-react'
 import api from '../services/api'
 import type { SavedLyric, Visibility, TrackInsights } from '../types'
@@ -88,6 +89,206 @@ function NoteSection({ savedLyricId, note }: { savedLyricId: string; note?: stri
           )}
         </button>
       )}
+    </div>
+  )
+}
+
+// ─── Video section ────────────────────────────────────────────────────────────
+
+function extractYoutubeId(url: string): string | null {
+  const match = url.match(
+    /(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/,
+  )
+  return match?.[1] ?? null
+}
+
+interface YtMeta { title: string; author_name: string }
+
+function VideoSection({ savedLyricId, videoUrl }: { savedLyricId: string; videoUrl?: string | null }) {
+  const queryClient = useQueryClient()
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState('')
+
+  const savedYtId = extractYoutubeId(videoUrl ?? '')
+
+  const { data: ytMeta } = useQuery<YtMeta>({
+    queryKey: ['yt-oembed', savedYtId],
+    queryFn: () =>
+      fetch(
+        `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${savedYtId}&format=json`,
+      ).then((r) => r.json()),
+    enabled: !!savedYtId,
+    staleTime: Infinity,
+    retry: false,
+  })
+
+  const save = useMutation({
+    mutationFn: (url: string) =>
+      api.patch(`/saved-lyrics/${savedLyricId}/video`, { url }).then((r) => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['saved-lyrics'] })
+      setEditing(false)
+    },
+  })
+
+  const sectionLabel = (
+    <p className="text-[11px] font-semibold text-foreground-subtle uppercase tracking-widest">
+      Musikvideo
+    </p>
+  )
+
+  // ── Edit mode ──
+  if (editing) {
+    return (
+      <div className="space-y-2">
+        {sectionLabel}
+        <div className="space-y-2">
+          <input
+            autoFocus
+            type="url"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && draft.trim()) save.mutate(draft.trim())
+              if (e.key === 'Escape') setEditing(false)
+            }}
+            placeholder="YouTube-Link einfügen…"
+            className="w-full bg-surface-raised border border-edge rounded-xl px-4 py-3 text-sm
+                       focus:outline-none focus:border-foreground-muted/60 transition-colors"
+          />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => draft.trim() && save.mutate(draft.trim())}
+              disabled={!draft.trim() || save.isPending}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent text-black
+                         text-xs font-semibold disabled:opacity-40 hover:opacity-90 transition-opacity"
+            >
+              <Check size={11} strokeWidth={2.5} />
+              {save.isPending ? 'Speichern…' : 'Speichern'}
+            </button>
+            <button
+              onClick={() => setEditing(false)}
+              className="text-xs text-foreground-muted hover:text-foreground transition-colors"
+            >
+              Abbrechen
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Empty state ──
+  if (!videoUrl) {
+    return (
+      <div className="space-y-2">
+        {sectionLabel}
+        <button
+          onClick={() => { setDraft(''); setEditing(true) }}
+          className="w-full text-left rounded-xl border border-dashed border-edge px-4 py-3
+                     hover:border-foreground-muted/40 hover:bg-surface-raised/50 transition-colors"
+        >
+          <div className="flex items-center gap-2 text-foreground-subtle">
+            <Clapperboard size={13} strokeWidth={1.5} />
+            <span className="text-xs">Musikvideo verknüpfen…</span>
+          </div>
+        </button>
+      </div>
+    )
+  }
+
+  // ── YouTube preview ──
+  if (savedYtId) {
+    const thumbUrl = `https://img.youtube.com/vi/${savedYtId}/hqdefault.jpg`
+    const videoLink = `https://www.youtube.com/watch?v=${savedYtId}`
+    return (
+      <div className="space-y-2">
+        {sectionLabel}
+        <div className="rounded-xl overflow-hidden border border-edge bg-surface-raised">
+          <a href={videoLink} target="_blank" rel="noopener noreferrer" className="block relative group">
+            <img
+              src={thumbUrl}
+              alt={ytMeta?.title ?? 'Music video'}
+              className="w-full object-cover aspect-video"
+            />
+            <div className="absolute inset-0 flex items-center justify-center
+                            bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="w-12 h-12 rounded-full bg-black/55 flex items-center justify-center">
+                <Play size={20} className="text-white translate-x-0.5" fill="white" strokeWidth={0} />
+              </div>
+            </div>
+          </a>
+          <div className="px-3 py-2.5 flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              {ytMeta ? (
+                <>
+                  <p className="text-sm font-medium text-foreground leading-tight line-clamp-2">{ytMeta.title}</p>
+                  <p className="text-xs text-foreground-muted mt-0.5">{ytMeta.author_name}</p>
+                </>
+              ) : (
+                <p className="text-xs text-foreground-muted truncate">{videoLink}</p>
+              )}
+            </div>
+            <div className="flex items-center gap-0.5 flex-shrink-0 mt-0.5">
+              <button
+                onClick={() => { setDraft(videoUrl ?? ''); setEditing(true) }}
+                className="w-7 h-7 flex items-center justify-center text-foreground-subtle
+                           hover:text-foreground transition-colors rounded-lg"
+                aria-label="Link ändern"
+              >
+                <Pencil size={11} strokeWidth={1.75} />
+              </button>
+              <button
+                onClick={() => save.mutate('')}
+                disabled={save.isPending}
+                className="w-7 h-7 flex items-center justify-center text-foreground-subtle
+                           hover:text-red-400 transition-colors rounded-lg"
+                aria-label="Video entfernen"
+              >
+                <X size={11} strokeWidth={1.75} />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Generic link ──
+  let hostname = videoUrl
+  try { hostname = new URL(videoUrl).hostname.replace(/^www\./, '') } catch { /* invalid URL */ }
+
+  return (
+    <div className="space-y-2">
+      {sectionLabel}
+      <div className="rounded-xl border border-edge bg-surface-raised px-4 py-3 flex items-center gap-3">
+        <a
+          href={videoUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex-1 min-w-0 flex items-center gap-2 text-foreground-muted hover:text-accent transition-colors"
+        >
+          <ExternalLink size={13} strokeWidth={1.75} className="flex-shrink-0" />
+          <span className="text-sm truncate">{hostname}</span>
+        </a>
+        <div className="flex items-center gap-0.5 flex-shrink-0">
+          <button
+            onClick={() => { setDraft(videoUrl ?? ''); setEditing(true) }}
+            className="w-7 h-7 flex items-center justify-center text-foreground-subtle
+                       hover:text-foreground transition-colors rounded-lg"
+          >
+            <Pencil size={11} strokeWidth={1.75} />
+          </button>
+          <button
+            onClick={() => save.mutate('')}
+            disabled={save.isPending}
+            className="w-7 h-7 flex items-center justify-center text-foreground-subtle
+                       hover:text-red-400 transition-colors rounded-lg"
+          >
+            <X size={11} strokeWidth={1.75} />
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -370,6 +571,9 @@ export default function SongDetail() {
 
       {/* Personal note */}
       <NoteSection savedLyricId={song.id} note={song.note} />
+
+      {/* Music video */}
+      <VideoSection savedLyricId={song.id} videoUrl={song.videoUrl} />
 
       {/* Community insights */}
       {spotifyId && <CommunityInsightsPanel spotifyId={spotifyId} />}

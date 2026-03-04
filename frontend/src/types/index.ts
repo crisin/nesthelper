@@ -87,6 +87,7 @@ export interface SavedLyric {
   artists: string[]
   lyrics: string
   note?: string | null
+  videoUrl?: string | null
   isFavorite?: boolean
   visibility?: Visibility
   fetchStatus?: LyricsFetchStatus

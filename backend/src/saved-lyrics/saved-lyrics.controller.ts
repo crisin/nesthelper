@@ -89,6 +89,15 @@ export class SavedLyricsController {
 
   // ─── Note ─────────────────────────────────────────────────────────────────
 
+  @Patch(':id/video')
+  updateVideoUrl(
+    @Req() req: AuthedRequest,
+    @Param('id') id: string,
+    @Body('url') url: string,
+  ) {
+    return this.service.updateVideoUrl(req.user.id, id, url ?? '');
+  }
+
   @Patch(':id/note')
   upsertNote(
     @Req() req: AuthedRequest,

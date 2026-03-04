@@ -62,6 +62,7 @@ model SavedLyric {
   artist          String
   artists         String[]          @default([])
   note            String?
+  videoUrl        String?
   isFavorite      Boolean           @default(false)
   visibility      Visibility        @default(PRIVATE)
   fetchStatus     LyricsFetchStatus @default(IDLE)

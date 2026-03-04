@@ -180,6 +180,19 @@ export class SavedLyricsService {
 
   // ─── Note ────────────────────────────────────────────────────────────────
 
+  async updateVideoUrl(userId: string, id: string, url: string) {
+    const item = await this.prisma.savedLyric.findFirst({
+      where: { id, userId },
+      select: { id: true },
+    });
+    if (!item) throw new NotFoundException('Saved lyric not found');
+    return this.prisma.savedLyric.update({
+      where: { id },
+      data: { videoUrl: url.trim() || null },
+      select: { id: true, videoUrl: true },
+    });
+  }
+
   async upsertNote(userId: string, id: string, text: string) {
     const item = await this.prisma.savedLyric.findFirst({
       where: { id, userId },

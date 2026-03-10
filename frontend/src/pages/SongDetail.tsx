@@ -12,6 +12,7 @@ import BottomSheet from '../components/BottomSheet'
 import TrackCover from '../components/TrackCover'
 import TagSelector from '../components/TagSelector'
 import LyricsEditor from '../components/LyricsEditor'
+import LyricsViewer from '../components/LyricsViewer'
 
 // ─── Song notes section (public thread, own note editable) ───────────────────
 
@@ -443,6 +444,7 @@ export default function SongDetail() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [viewerOpen, setViewerOpen] = useState(false)
 
   const { data: songs = [], isLoading } = useQuery<SavedLyric[]>({
     queryKey: ['saved-lyrics'],
@@ -575,7 +577,11 @@ export default function SongDetail() {
 
       {/* Lyrics */}
       {spotifyId && (
-        <LyricsEditor spotifyId={spotifyId} fetchStatus={s?.fetchStatus} />
+        <LyricsEditor
+          spotifyId={spotifyId}
+          fetchStatus={s?.fetchStatus}
+          onOpenViewer={() => setViewerOpen(true)}
+        />
       )}
 
       {/* Song notes (public thread) */}
@@ -586,6 +592,18 @@ export default function SongDetail() {
 
       {/* Community insights */}
       {spotifyId && <CommunityInsightsPanel spotifyId={spotifyId} />}
+
+      {/* Lyrics viewer */}
+      {viewerOpen && (
+        <LyricsViewer
+          track={title}
+          artist={artistDisplay}
+          artists={s?.artists}
+          imgUrl={imgUrl}
+          lyrics={s?.lyrics?.rawText ?? ''}
+          onClose={() => setViewerOpen(false)}
+        />
+      )}
 
       {/* Delete confirmation */}
       <BottomSheet open={confirmDelete} onClose={() => setConfirmDelete(false)}>

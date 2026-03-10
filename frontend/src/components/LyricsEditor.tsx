@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Eye, Pencil, History, ChevronDown, ChevronUp, MessageSquarePlus,
   RotateCcw, Check, Music, Headphones, Timer, Loader2, Rewind, X,
+  BookOpen, MessageSquare,
 } from 'lucide-react'
 import api from '../services/api'
 import type { SongLyrics, LineAnnotation, LyricsFetchStatus, SpotifyCurrentlyPlayingResponse } from '../types'
@@ -113,6 +114,7 @@ function AnnotatedLine({
   text,
   annotations,
   currentUserId,
+  showAnnotations,
   timestampMs,
   isActive,
   onSeek,
@@ -122,6 +124,7 @@ function AnnotatedLine({
   text: string
   annotations: LineAnnotation[]
   currentUserId: string
+  showAnnotations: boolean
   timestampMs?: number | null
   isActive?: boolean
   onSeek?: (ms: number) => void
@@ -189,7 +192,7 @@ function AnnotatedLine({
           {text}
         </span>
         {/* Add/edit own annotation */}
-        {!editing && (
+        {showAnnotations && !editing && (
           <button
             onClick={openEditor}
             title={myAnnotation ? 'Edit your annotation' : 'Add annotation'}
@@ -206,7 +209,7 @@ function AnnotatedLine({
       </div>
 
       {/* Other users' annotations (read-only) */}
-      {othersAnnotations.length > 0 && (
+      {showAnnotations && othersAnnotations.length > 0 && (
         <div className="mt-1 space-y-0.5 pl-0">
           {othersAnnotations.map((a) => (
             <div key={a.id} className="flex items-start gap-1.5">
@@ -223,7 +226,7 @@ function AnnotatedLine({
       )}
 
       {/* Own annotation (view) */}
-      {myAnnotation && !editing && (
+      {showAnnotations && myAnnotation && !editing && (
         <p className="mt-0.5 text-[11px] text-accent/80 italic leading-snug">
           {myAnnotation.emoji && <span className="not-italic mr-1">{myAnnotation.emoji}</span>}
           <span className="font-medium not-italic text-[10px] text-accent/60 mr-1">Du:</span>
@@ -279,12 +282,14 @@ function AnnotatedLine({
 function StructuredLyricsView({
   lyrics,
   spotifyId,
+  showAnnotations,
   onEdit,
   activeLineId,
   onSeek,
 }: {
   lyrics: SongLyrics
   spotifyId: string
+  showAnnotations: boolean
   onEdit: () => void
   activeLineId?: string | null
   onSeek?: (ms: number) => void
@@ -315,6 +320,7 @@ function StructuredLyricsView({
           text={line.text}
           annotations={annotations[line.id] ?? []}
           currentUserId={currentUserId}
+          showAnnotations={showAnnotations}
           timestampMs={line.timestampMs}
           isActive={activeLineId === line.id}
           onSeek={onSeek}
@@ -396,14 +402,16 @@ function VersionHistory({
 interface Props {
   spotifyId: string
   fetchStatus?: LyricsFetchStatus
+  onOpenViewer?: () => void
 }
 
-export default function LyricsEditor({ spotifyId, fetchStatus }: Props) {
+export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer }: Props) {
   const queryClient = useQueryClient()
   const [mode, setMode] = useState<'view' | 'edit'>('view')
   const [draft, setDraft] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
   const [karaoke, setKaraoke] = useState(false)
+  const [showAnnotations, setShowAnnotations] = useState(true)
 
   const { data: lyrics = null } = useQuery<SongLyrics | null>({
     queryKey: ['lyrics', spotifyId],
@@ -486,6 +494,33 @@ export default function LyricsEditor({ spotifyId, fetchStatus }: Props) {
         </div>
 
         <div className="flex items-center gap-1.5">
+          {mode === 'view' && lyrics && onOpenViewer && (
+            <button
+              onClick={onOpenViewer}
+              title="Lyrics lesen"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors border border-edge text-foreground-subtle hover:text-foreground-muted"
+            >
+              <BookOpen size={11} strokeWidth={2} />
+              Lesen
+            </button>
+          )}
+
+          {mode === 'view' && lyrics && (lyrics.lines?.length ?? 0) > 0 && (
+            <button
+              onClick={() => setShowAnnotations((v) => !v)}
+              title={showAnnotations ? 'Notizen ausblenden' : 'Notizen einblenden'}
+              className={[
+                'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors border',
+                showAnnotations
+                  ? 'bg-accent/10 border-accent/30 text-accent'
+                  : 'border-edge text-foreground-subtle hover:text-foreground-muted',
+              ].join(' ')}
+            >
+              <MessageSquare size={11} strokeWidth={2} />
+              Notizen
+            </button>
+          )}
+
           {mode === 'view' && hasTimestamps && (
             <button
               onClick={() => setKaraoke((v) => !v)}
@@ -537,6 +572,7 @@ export default function LyricsEditor({ spotifyId, fetchStatus }: Props) {
           <StructuredLyricsView
             lyrics={lyrics}
             spotifyId={spotifyId}
+            showAnnotations={showAnnotations}
             onEdit={() => setMode('edit')}
             activeLineId={activeLineId}
             onSeek={(ms) => seek.mutate(ms)}

@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronDown, ExternalLink, FileText, LayoutGrid, LayoutList, Search, X } from 'lucide-react'
+import { ExternalLink, FileText, LayoutGrid, LayoutList, Search, X } from 'lucide-react'
 import api from '../services/api'
-import type { CommunityLyric, LibraryTrack, SavedLyric } from '../types'
+import type { SavedLyric, Song } from '../types'
 import PullToRefresh from '../components/PullToRefresh'
 import TrackCover from '../components/TrackCover'
-import BottomSheet from '../components/BottomSheet'
 import TrackListItem from '../components/TrackListItem'
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -23,19 +22,13 @@ interface GlobalFeedItem {
   user: { name: string | null }
 }
 
-interface LibraryLyricsResponse {
-  track: LibraryTrack
-  lyrics: CommunityLyric[]
-}
-
-type LibrarySortKey = 'recent' | 'artist' | 'title' | 'lyrics'
+type LibrarySortKey = 'recent' | 'artist' | 'title'
 type LibraryLayout  = 'list' | 'grid'
 
 const LIBRARY_SORTS: { key: LibrarySortKey; label: string }[] = [
   { key: 'recent', label: 'Recent' },
   { key: 'artist', label: 'Artist' },
   { key: 'title',  label: 'Title' },
-  { key: 'lyrics', label: 'Lyrics' },
 ]
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -50,48 +43,10 @@ function timeAgo(dateStr: string) {
   return `${Math.floor(hrs / 24)}d ago`
 }
 
-// ── Single community lyric entry ───────────────────────────────────────────
+// ── Song card — LIST layout ─────────────────────────────────────────────────
 
-function LyricEntry({ lyric }: { lyric: CommunityLyric }) {
-  const [expanded, setExpanded] = useState(false)
-  const isLong = lyric.lyrics.split('\n').length > 6 || lyric.lyrics.length > 300
-
-  return (
-    <li className="px-4 py-3 space-y-2">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-medium text-foreground">
-          {lyric.user.name ?? 'Anonymous'}
-        </span>
-        <span className="text-[11px] text-foreground-subtle tabular-nums">
-          {timeAgo(lyric.createdAt)}
-        </span>
-      </div>
-      <div>
-        <p
-          className={[
-            'text-xs text-foreground-muted whitespace-pre-line leading-relaxed',
-            !expanded && isLong ? 'line-clamp-5' : '',
-          ].join(' ')}
-        >
-          {lyric.lyrics}
-        </p>
-        {isLong && (
-          <button
-            onClick={() => setExpanded((v) => !v)}
-            className="mt-1 text-[11px] text-foreground-subtle hover:text-accent transition-colors"
-          >
-            {expanded ? 'Show less' : 'Show full lyrics'}
-          </button>
-        )}
-      </div>
-    </li>
-  )
-}
-
-// ── Library track card — LIST layout ───────────────────────────────────────
-
-function LibraryCard({
-  track,
+function SongCard({
+  song,
   isSaved,
   onSave,
   isSaving,
@@ -99,7 +54,7 @@ function LibraryCard({
   id,
   highlight = false,
 }: {
-  track: LibraryTrack
+  song: Song
   isSaved: boolean
   onSave: () => void
   isSaving: boolean
@@ -107,47 +62,35 @@ function LibraryCard({
   id?: string
   highlight?: boolean
 }) {
-  const [expanded, setExpanded] = useState(false)
-
-  const { data, isLoading: lyricsLoading } = useQuery<LibraryLyricsResponse>({
-    queryKey: ['library-lyrics', track.id],
-    queryFn: () =>
-      api.get<LibraryLyricsResponse>(`/library/${track.id}/lyrics`).then((r) => r.data),
-    enabled: expanded,
-  })
-
-  const lyrics = data?.lyrics ?? []
-
   return (
     <li id={id}>
       <TrackListItem
-        src={track.imgUrl}
-        track={track.name}
-        artist={track.artists?.join(", ") || track.artist}
+        src={song.imgUrl}
+        track={song.title}
+        artist={song.artists?.join(", ") || song.artist}
         size="md"
         className={highlight ? 'ring-2 ring-accent/50' : ''}
-        onContentClick={() => setExpanded((v) => !v)}
         meta={
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-            {track.lyricsCount > 0 && (
-              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-accent/10 text-accent tabular-nums">
-                {track.lyricsCount} {track.lyricsCount === 1 ? 'lyric' : 'lyrics'}
+            {song.hasLyrics && (
+              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-accent/10 text-accent">
+                lyrics
               </span>
             )}
-            {track.searchCount > 0 && (
+            {song.saveCount != null && song.saveCount > 0 && (
               <span className="text-[11px] text-foreground-subtle tabular-nums">
-                {track.searchCount}× searched
+                {song.saveCount}× saved
               </span>
             )}
             <span className="text-[11px] text-foreground-subtle">
-              {timeAgo(track.lastSeenAt)}
+              {timeAgo(song.updatedAt)}
             </span>
           </div>
         }
         actions={
           <div className="flex items-center gap-0.5 flex-shrink-0">
             <a
-              href={`https://open.spotify.com/track/${track.spotifyId}`}
+              href={`https://open.spotify.com/track/${song.spotifyId}`}
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
@@ -174,104 +117,43 @@ function LibraryCard({
             >
               {isSaved ? '♥' : '♡'}
             </button>
-            <button
-              onClick={() => setExpanded((v) => !v)}
-              className="text-foreground-subtle hover:text-foreground transition-colors p-1"
-              aria-label={expanded ? 'Collapse' : 'Show community lyrics'}
-            >
-              <ChevronDown
-                size={15}
-                strokeWidth={1.75}
-                style={{
-                  transform: expanded ? 'rotate(180deg)' : undefined,
-                  transition: 'transform 0.15s',
-                }}
-              />
-            </button>
           </div>
         }
-        append={expanded && (
-          <div className="border-t border-edge">
-            {lyricsLoading ? (
-              <div className="px-4 py-4 space-y-2">
-                {[1, 2, 3].map((i) => (
-                  <div
-                    key={i}
-                    className={`h-3 rounded-full bg-surface-overlay animate-pulse ${i === 3 ? 'w-1/2' : 'w-3/4'}`}
-                  />
-                ))}
-              </div>
-            ) : lyrics.length === 0 ? (
-              <div className="px-4 py-4 flex items-center justify-between gap-4">
-                <p className="text-xs text-foreground-subtle">
-                  Noch keine Lyrics — speichere diesen Song, um Lyrics hinzuzufügen.
-                </p>
-                <a
-                  href={track.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-xs text-foreground-subtle hover:text-accent transition-colors flex-shrink-0"
-                >
-                  Search online
-                  <ExternalLink size={11} strokeWidth={1.75} />
-                </a>
-              </div>
-            ) : (
-              <ul className="divide-y divide-edge">
-                {lyrics.map((l) => (
-                  <LyricEntry key={l.id} lyric={l} />
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
       />
     </li>
   )
 }
 
-// ── Library track card — GRID layout ───────────────────────────────────────
+// ── Song card — GRID layout ─────────────────────────────────────────────────
 
-function LibraryGridCard({
-  track,
+function SongGridCard({
+  song,
   isSaved,
   onSave,
   isSaving,
   onNavigate,
 }: {
-  track: LibraryTrack
+  song: Song
   isSaved: boolean
   onSave: () => void
   isSaving: boolean
   onNavigate: () => void
 }) {
-  const [lyricsOpen, setLyricsOpen] = useState(false)
-
-  const { data, isLoading: lyricsLoading } = useQuery<LibraryLyricsResponse>({
-    queryKey: ['library-lyrics', track.id],
-    queryFn: () =>
-      api.get<LibraryLyricsResponse>(`/library/${track.id}/lyrics`).then((r) => r.data),
-    enabled: lyricsOpen,
-  })
-
-  const lyrics = data?.lyrics ?? []
-
   return (
     <li className="rounded-xl bg-surface-raised border border-edge overflow-hidden shadow-card group">
       {/* Square cover */}
       <div className="relative aspect-square">
         <TrackCover
-          src={track.imgUrl}
-          track={track.name}
-          artist={track.artists?.join(", ") || track.artist}
+          src={song.imgUrl}
+          track={song.title}
+          artist={song.artists?.join(", ") || song.artist}
           className="w-full h-full"
           iconSize={28}
         />
 
-        {/* Hover overlay — pointer-events-none so clicks reach TrackCover beneath */}
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors duration-150 pointer-events-none" />
 
-        {/* Heart — always visible */}
+        {/* Heart */}
         <button
           onClick={onSave}
           disabled={isSaving}
@@ -285,9 +167,9 @@ function LibraryGridCard({
           {isSaved ? '♥' : '♡'}
         </button>
 
-        {/* Spotify link — appears on hover */}
+        {/* Spotify link */}
         <a
-          href={`https://open.spotify.com/track/${track.spotifyId}`}
+          href={`https://open.spotify.com/track/${song.spotifyId}`}
           target="_blank"
           rel="noopener noreferrer"
           aria-label="Open on Spotify"
@@ -298,35 +180,23 @@ function LibraryGridCard({
           <ExternalLink size={12} strokeWidth={2} />
         </a>
 
-        {/* Stats pill — bottom of cover */}
-        {(track.lyricsCount > 0 || track.searchCount > 0) && (
-          <div className="absolute bottom-2 left-2 flex items-center gap-1.5
-                          opacity-0 group-hover:opacity-100 transition-opacity">
-            {track.lyricsCount > 0 && (
-              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md
-                               bg-black/60 backdrop-blur-sm text-white tabular-nums">
-                {track.lyricsCount} {track.lyricsCount === 1 ? 'lyric' : 'lyrics'}
-              </span>
-            )}
-            {track.searchCount > 0 && (
-              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md
-                               bg-black/60 backdrop-blur-sm text-white tabular-nums">
-                {track.searchCount}×
-              </span>
-            )}
+        {/* Lyrics badge */}
+        {song.hasLyrics && (
+          <div className="absolute bottom-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md
+                             bg-black/60 backdrop-blur-sm text-white">
+              lyrics
+            </span>
           </div>
         )}
       </div>
 
       {/* Footer */}
       <div className="flex items-center">
-        <button
-          className="flex-1 min-w-0 px-2.5 py-2.5 text-left hover:bg-surface-overlay active:bg-surface-overlay transition-colors"
-          onClick={() => setLyricsOpen(true)}
-        >
-          <p className="text-xs font-semibold text-foreground truncate leading-tight">{track.name}</p>
-          <p className="text-[11px] text-foreground-muted truncate mt-0.5">{track.artists?.join(", ") || track.artist}</p>
-        </button>
+        <div className="flex-1 min-w-0 px-2.5 py-2.5">
+          <p className="text-xs font-semibold text-foreground truncate leading-tight">{song.title}</p>
+          <p className="text-[11px] text-foreground-muted truncate mt-0.5">{song.artists?.join(", ") || song.artist}</p>
+        </div>
         <button
           onClick={onNavigate}
           aria-label="Lyrics bearbeiten"
@@ -335,67 +205,6 @@ function LibraryGridCard({
           <FileText size={13} strokeWidth={1.75} />
         </button>
       </div>
-
-      {/* Lyrics sheet */}
-      <BottomSheet open={lyricsOpen} onClose={() => setLyricsOpen(false)}>
-        {/* Sheet header */}
-        <div className="flex items-center gap-3 mb-4">
-          {track.imgUrl && (
-            <img
-              src={track.imgUrl}
-              alt={track.name}
-              className="w-12 h-12 rounded-xl object-cover flex-shrink-0"
-            />
-          )}
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold text-foreground text-sm leading-tight truncate">{track.name}</p>
-            <p className="text-xs text-foreground-muted truncate mt-0.5">{track.artists?.join(", ") || track.artist}</p>
-          </div>
-          <button
-            onClick={onSave}
-            disabled={isSaving}
-            aria-label={isSaved ? 'Remove from favorites' : 'Save to favorites'}
-            className={[
-              'flex-shrink-0 w-9 h-9 flex items-center justify-center text-lg leading-none transition-all disabled:opacity-30',
-              isSaved ? 'text-accent' : 'text-foreground-subtle hover:text-accent',
-            ].join(' ')}
-          >
-            {isSaved ? '♥' : '♡'}
-          </button>
-        </div>
-
-        {/* Community lyrics */}
-        <div className="-mx-5 border-t border-edge">
-          {lyricsLoading ? (
-            <div className="px-5 py-4 space-y-2">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className={`h-3 rounded-full bg-surface-overlay animate-pulse ${i === 3 ? 'w-1/2' : 'w-3/4'}`} />
-              ))}
-            </div>
-          ) : lyrics.length === 0 ? (
-            <div className="px-5 py-4 flex items-center justify-between gap-4">
-              <p className="text-xs text-foreground-subtle">
-                No community lyrics yet.
-              </p>
-              <a
-                href={track.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 text-xs text-foreground-subtle hover:text-accent transition-colors flex-shrink-0"
-              >
-                Search online
-                <ExternalLink size={11} strokeWidth={1.75} />
-              </a>
-            </div>
-          ) : (
-            <ul className="divide-y divide-edge max-h-[45vh] overflow-y-auto">
-              {lyrics.map((l) => (
-                <LyricEntry key={l.id} lyric={l} />
-              ))}
-            </ul>
-          )}
-        </div>
-      </BottomSheet>
     </li>
   )
 }
@@ -431,7 +240,6 @@ export default function Discover() {
   )
   const queryClient = useQueryClient()
 
-  // When arriving with a highlight, scroll to the item then clear
   useEffect(() => {
     if (!highlightSpotifyId) return
     navigate('.', { replace: true, state: null })
@@ -448,9 +256,9 @@ export default function Discover() {
     localStorage.setItem('discoverLayout', next)
   }
 
-  const { data: library = [], isLoading: libraryLoading } = useQuery<LibraryTrack[]>({
-    queryKey: ['library'],
-    queryFn: () => api.get<LibraryTrack[]>('/library').then((r) => r.data),
+  const { data: songs = [], isLoading: songsLoading } = useQuery<Song[]>({
+    queryKey: ['songs'],
+    queryFn: () => api.get<Song[]>('/songs').then((r) => r.data),
   })
 
   const { data: feed = [], isLoading: feedLoading } = useQuery<GlobalFeedItem[]>({
@@ -464,43 +272,43 @@ export default function Discover() {
     queryFn: () => api.get<SavedLyric[]>('/saved-lyrics/favorites').then((r) => r.data),
   })
 
-  const favoritedSpotifyIds = new Set(favorites.map((s) => s.spotifyId).filter(Boolean) as string[])
+  const favoritedSpotifyIds = new Set(
+    favorites.map((s) => s.song?.spotifyId).filter(Boolean) as string[],
+  )
 
   const [libraryQuery, setLibraryQuery] = useState('')
 
-  const sortedLibrary = useMemo(() => {
-    const list = [...library]
+  const sortedSongs = useMemo(() => {
+    const list = [...songs]
     if (librarySort === 'artist') list.sort((a, b) => a.artist.localeCompare(b.artist))
-    else if (librarySort === 'title') list.sort((a, b) => a.name.localeCompare(b.name))
-    else if (librarySort === 'lyrics') list.sort((a, b) => b.lyricsCount - a.lyricsCount)
+    else if (librarySort === 'title') list.sort((a, b) => a.title.localeCompare(b.title))
     return list
-  }, [library, librarySort])
+  }, [songs, librarySort])
 
-  const filteredLibrary = useMemo(() => {
+  const filteredSongs = useMemo(() => {
     const q = libraryQuery.trim().toLowerCase()
-    if (!q) return sortedLibrary
-    return sortedLibrary.filter(
-      (t) =>
-        t.name.toLowerCase().includes(q) ||
-        t.artist.toLowerCase().includes(q) ||
-        t.artists.some((a) => a.toLowerCase().includes(q)),
+    if (!q) return sortedSongs
+    return sortedSongs.filter(
+      (s) =>
+        s.title.toLowerCase().includes(q) ||
+        s.artist.toLowerCase().includes(q) ||
+        s.artists.some((a) => a.toLowerCase().includes(q)),
     )
-  }, [sortedLibrary, libraryQuery])
+  }, [sortedSongs, libraryQuery])
 
-  // Group by artist only when sort=artist and no query active
   const artistGroups = useMemo(() => {
     if (librarySort !== 'artist' || libraryQuery.trim()) return null
-    const groups: { artist: string; tracks: LibraryTrack[] }[] = []
-    for (const track of sortedLibrary) {
+    const groups: { artist: string; songs: Song[] }[] = []
+    for (const song of sortedSongs) {
       const last = groups[groups.length - 1]
-      if (!last || last.artist !== track.artist) {
-        groups.push({ artist: track.artist, tracks: [track] })
+      if (!last || last.artist !== song.artist) {
+        groups.push({ artist: song.artist, songs: [song] })
       } else {
-        last.tracks.push(track)
+        last.songs.push(song)
       }
     }
     return groups
-  }, [sortedLibrary, librarySort, libraryQuery])
+  }, [sortedSongs, librarySort, libraryQuery])
 
   const toggleFavorite = useMutation({
     mutationFn: (spotifyId: string) =>
@@ -512,43 +320,41 @@ export default function Discover() {
 
   const handleRefresh = useCallback(() => {
     if (tab === 'library') {
-      queryClient.invalidateQueries({ queryKey: ['library'] })
+      queryClient.invalidateQueries({ queryKey: ['songs'] })
     } else {
       queryClient.invalidateQueries({ queryKey: ['global-feed'] })
     }
     return Promise.resolve()
   }, [queryClient, tab])
 
-  const isLoading = tab === 'library' ? libraryLoading : feedLoading
+  const isLoading = tab === 'library' ? songsLoading : feedLoading
 
-  // Shared card props builder
-  function cardProps(track: LibraryTrack) {
+  function cardProps(song: Song) {
     return {
-      track,
-      isSaved: favoritedSpotifyIds.has(track.spotifyId),
-      onSave: () => toggleFavorite.mutate(track.spotifyId),
+      song,
+      isSaved: favoritedSpotifyIds.has(song.spotifyId),
+      onSave: () => toggleFavorite.mutate(song.spotifyId),
       isSaving: toggleFavorite.isPending,
-      onNavigate: () => navigate(`/songs/${track.spotifyId}`),
+      onNavigate: () => navigate(`/songs/${song.spotifyId}`),
     }
   }
 
-  // Render a flat or grouped list for the library tab
-  function renderLibraryTracks(tracks: LibraryTrack[]) {
+  function renderLibrarySongs(list: Song[]) {
     if (layout === 'grid') {
       return (
         <ul className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-          {tracks.map((t) => <LibraryGridCard key={t.id} {...cardProps(t)} />)}
+          {list.map((s) => <SongGridCard key={s.id} {...cardProps(s)} />)}
         </ul>
       )
     }
     return (
       <ul className="space-y-2">
-        {tracks.map((t) => (
-          <LibraryCard
-            key={t.id}
-            id={`track-${t.spotifyId}`}
-            highlight={highlightSpotifyId === t.spotifyId}
-            {...cardProps(t)}
+        {list.map((s) => (
+          <SongCard
+            key={s.id}
+            id={`track-${s.spotifyId}`}
+            highlight={highlightSpotifyId === s.spotifyId}
+            {...cardProps(s)}
           />
         ))}
       </ul>
@@ -613,7 +419,7 @@ export default function Discover() {
         )}
 
         {/* Library controls: sort + layout toggle */}
-        {tab === 'library' && library.length > 1 && (
+        {tab === 'library' && songs.length > 1 && (
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1.5 flex-1">
               <span className="text-[11px] text-foreground-subtle font-medium mr-0.5">Sort:</span>
@@ -688,25 +494,25 @@ export default function Discover() {
 
         {/* ── Song Library tab ──────────────────────────────────── */}
         {!isLoading && tab === 'library' && (
-          library.length === 0 ? (
+          songs.length === 0 ? (
             <p className="text-sm text-foreground-subtle py-4">
               No songs yet — search lyrics on the Home page to populate the library.
             </p>
-          ) : filteredLibrary.length === 0 ? (
+          ) : filteredSongs.length === 0 ? (
             <p className="text-sm text-foreground-subtle py-4">
               Keine Treffer für &ldquo;{libraryQuery}&rdquo;.
             </p>
           ) : artistGroups ? (
             <div className="space-y-4">
-              {artistGroups.map(({ artist, tracks }) => (
+              {artistGroups.map(({ artist, songs: group }) => (
                 <div key={artist} className="space-y-2">
                   <ArtistDivider name={artist} />
-                  {renderLibraryTracks(tracks)}
+                  {renderLibrarySongs(group)}
                 </div>
               ))}
             </div>
           ) : (
-            renderLibraryTracks(filteredLibrary)
+            renderLibrarySongs(filteredSongs)
           )
         )}
 
@@ -729,8 +535,8 @@ export default function Discover() {
                       size="md"
                       interactive
                       onContentClick={() => {
-                        const match = library.find(
-                          (t) => t.name === item.track && t.artist === item.artist,
+                        const match = songs.find(
+                          (s) => s.spotifyId === item.spotifyId,
                         )
                         setTab('library')
                         if (match) setHighlightSpotifyId(match.spotifyId)

@@ -1,7 +1,8 @@
 export const LYRICS_FETCH_QUEUE = 'lyrics-fetch';
 
 export interface LyricsFetchJobData {
-  savedLyricId: string;
+  songId: string;
+  spotifyId: string;
   track: string;
   artist: string;
 }

@@ -64,17 +64,17 @@ export default function Favorites() {
     const list = q
       ? songs.filter(
           (s) =>
-            s.track.toLowerCase().includes(q) ||
-            s.artist.toLowerCase().includes(q) ||
-            s.lyrics?.toLowerCase().includes(q) ||
-            s.tags?.some((t) => t.tag.includes(q)),
+            (s.song?.title ?? '').toLowerCase().includes(q) ||
+            (s.song?.artist ?? '').toLowerCase().includes(q) ||
+            s.song?.lyrics?.rawText?.toLowerCase().includes(q) ||
+            s.song?.tags?.some((t) => t.tag.includes(q)),
         )
       : [...songs];
 
     if (sort === "artist")
-      list.sort((a, b) => a.artist.localeCompare(b.artist));
+      list.sort((a, b) => (a.song?.artist ?? '').localeCompare(b.song?.artist ?? ''));
     else if (sort === "title")
-      list.sort((a, b) => a.track.localeCompare(b.track));
+      list.sort((a, b) => (a.song?.title ?? '').localeCompare(b.song?.title ?? ''));
 
     return list;
   }, [songs, query, sort]);
@@ -183,9 +183,8 @@ export default function Favorites() {
           ) : (
             <ul className="space-y-2">
               {displayed.map((song) => {
-                const spotifyId =
-                  song.spotifyId ?? song.searchHistory?.spotifyId;
-                const imgUrl = song.searchHistory?.imgUrl;
+                const spotifyId = song.song?.spotifyId;
+                const imgUrl = song.song?.imgUrl;
 
                 return (
                   <li key={song.id} className="min-w-0">
@@ -197,20 +196,20 @@ export default function Favorites() {
                     >
                       <TrackListItem
                         src={imgUrl}
-                        track={song.track}
-                        artist={song.artists?.join(", ") || song.artist}
+                        track={song.song?.title ?? ''}
+                        artist={song.song?.artists?.join(", ") || song.song?.artist ?? ''}
                         size="md"
-                        onCardClick={() => navigate(`/favorites/${song.id}`)}
+                        onCardClick={() => navigate(`/favorites/${spotifyId ?? song.id}`)}
                         meta={
                           <div className="flex items-center gap-2 pt-0.5">
                             <span
                               className={`text-[10px] font-medium px-1.5 py-0.5 rounded-md ${
-                                song.lyrics
+                                song.song?.lyrics
                                   ? "bg-accent/10 text-accent"
                                   : "bg-surface-overlay text-foreground-subtle"
                               }`}
                             >
-                              {song.lyrics ? "lyrics" : "empty"}
+                              {song.song?.lyrics ? "lyrics" : "empty"}
                             </span>
                             <span className="text-[11px] text-foreground-subtle">
                               {formatAdded(song.createdAt)}
@@ -265,11 +264,11 @@ export default function Favorites() {
 
       {viewingSong != null && (
         <LyricsViewer
-          track={viewingSong.track}
-          artist={viewingSong.artist}
-          artists={viewingSong.artists}
-          imgUrl={viewingSong.searchHistory?.imgUrl}
-          lyrics={viewingSong.lyrics ?? ''}
+          track={viewingSong.song?.title ?? ''}
+          artist={viewingSong.song?.artist ?? ''}
+          artists={viewingSong.song?.artists}
+          imgUrl={viewingSong.song?.imgUrl}
+          lyrics={viewingSong.song?.lyrics?.rawText ?? ''}
           onClose={() => setViewing(null)}
         />
       )}

@@ -16,8 +16,9 @@ const auth_module_1 = require("./auth/auth.module");
 const spotify_module_1 = require("./spotify/spotify.module");
 const search_history_module_1 = require("./search-history/search-history.module");
 const saved_lyrics_module_1 = require("./saved-lyrics/saved-lyrics.module");
-const library_module_1 = require("./library/library.module");
-const lyrics_module_1 = require("./lyrics/lyrics.module");
+const songs_module_1 = require("./songs/songs.module");
+const song_lyrics_module_1 = require("./song-lyrics/song-lyrics.module");
+const song_tags_module_1 = require("./song-tags/song-tags.module");
 const line_annotations_module_1 = require("./line-annotations/line-annotations.module");
 const search_module_1 = require("./search/search.module");
 const collections_module_1 = require("./collections/collections.module");
@@ -46,8 +47,9 @@ exports.AppModule = AppModule = __decorate([
             spotify_module_1.SpotifyModule,
             search_history_module_1.SearchHistoryModule,
             saved_lyrics_module_1.SavedLyricsModule,
-            library_module_1.LibraryModule,
-            lyrics_module_1.LyricsModule,
+            songs_module_1.SongsModule,
+            song_lyrics_module_1.SongLyricsModule,
+            song_tags_module_1.SongTagsModule,
             line_annotations_module_1.LineAnnotationsModule,
             search_module_1.SearchModule,
             collections_module_1.CollectionsModule,

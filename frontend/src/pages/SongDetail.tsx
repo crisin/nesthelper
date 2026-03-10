@@ -3,16 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft, ExternalLink, Trash2, StickyNote, Check,
-  Globe, Lock, Users, ChevronDown, ChevronUp, Users2,
-  Clapperboard, Play, Pencil, X, Eye,
+  ChevronDown, ChevronUp, Users2, Clapperboard, Play, Pencil, X,
 } from 'lucide-react'
 import api from '../services/api'
-import type { SavedLyric, Visibility, TrackInsights, CommunityLyrics } from '../types'
+import type { SavedLyric, TrackInsights } from '../types'
 import BottomSheet from '../components/BottomSheet'
 import TrackCover from '../components/TrackCover'
 import TagSelector from '../components/TagSelector'
 import LyricsEditor from '../components/LyricsEditor'
-import LyricsViewer from '../components/LyricsViewer'
 
 // ─── Note section ─────────────────────────────────────────────────────────────
 
@@ -105,7 +103,7 @@ function extractYoutubeId(url: string): string | null {
 
 interface YtMeta { title: string; author_name: string }
 
-function VideoSection({ savedLyricId, videoUrl }: { savedLyricId: string; videoUrl?: string | null }) {
+function VideoSection({ spotifyId, videoUrl }: { spotifyId: string; videoUrl?: string | null }) {
   const queryClient = useQueryClient()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
@@ -125,7 +123,7 @@ function VideoSection({ savedLyricId, videoUrl }: { savedLyricId: string; videoU
 
   const save = useMutation({
     mutationFn: (url: string) =>
-      api.patch(`/saved-lyrics/${savedLyricId}/video`, { url }).then((r) => r.data),
+      api.patch(`/songs/${spotifyId}/video`, { url }).then((r) => r.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['saved-lyrics'] })
       setEditing(false)
@@ -138,7 +136,6 @@ function VideoSection({ savedLyricId, videoUrl }: { savedLyricId: string; videoU
     </p>
   )
 
-  // ── Edit mode ──
   if (editing) {
     return (
       <div className="space-y-2">
@@ -179,7 +176,6 @@ function VideoSection({ savedLyricId, videoUrl }: { savedLyricId: string; videoU
     )
   }
 
-  // ── Empty state ──
   if (!videoUrl) {
     return (
       <div className="space-y-2">
@@ -198,7 +194,6 @@ function VideoSection({ savedLyricId, videoUrl }: { savedLyricId: string; videoU
     )
   }
 
-  // ── YouTube preview ──
   if (savedYtId) {
     const thumbUrl = `https://img.youtube.com/vi/${savedYtId}/hqdefault.jpg`
     const videoLink = `https://www.youtube.com/watch?v=${savedYtId}`
@@ -207,13 +202,8 @@ function VideoSection({ savedLyricId, videoUrl }: { savedLyricId: string; videoU
         {sectionLabel}
         <div className="rounded-xl overflow-hidden border border-edge bg-surface-raised">
           <a href={videoLink} target="_blank" rel="noopener noreferrer" className="block relative group">
-            <img
-              src={thumbUrl}
-              alt={ytMeta?.title ?? 'Music video'}
-              className="w-full object-cover aspect-video"
-            />
-            <div className="absolute inset-0 flex items-center justify-center
-                            bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
+            <img src={thumbUrl} alt={ytMeta?.title ?? 'Music video'} className="w-full object-cover aspect-video" />
+            <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
               <div className="w-12 h-12 rounded-full bg-black/55 flex items-center justify-center">
                 <Play size={20} className="text-white translate-x-0.5" fill="white" strokeWidth={0} />
               </div>
@@ -233,18 +223,14 @@ function VideoSection({ savedLyricId, videoUrl }: { savedLyricId: string; videoU
             <div className="flex items-center gap-0.5 flex-shrink-0 mt-0.5">
               <button
                 onClick={() => { setDraft(videoUrl ?? ''); setEditing(true) }}
-                className="w-7 h-7 flex items-center justify-center text-foreground-subtle
-                           hover:text-foreground transition-colors rounded-lg"
-                aria-label="Link ändern"
+                className="w-7 h-7 flex items-center justify-center text-foreground-subtle hover:text-foreground transition-colors rounded-lg"
               >
                 <Pencil size={11} strokeWidth={1.75} />
               </button>
               <button
                 onClick={() => save.mutate('')}
                 disabled={save.isPending}
-                className="w-7 h-7 flex items-center justify-center text-foreground-subtle
-                           hover:text-red-400 transition-colors rounded-lg"
-                aria-label="Video entfernen"
+                className="w-7 h-7 flex items-center justify-center text-foreground-subtle hover:text-red-400 transition-colors rounded-lg"
               >
                 <X size={11} strokeWidth={1.75} />
               </button>
@@ -255,7 +241,6 @@ function VideoSection({ savedLyricId, videoUrl }: { savedLyricId: string; videoU
     )
   }
 
-  // ── Generic link ──
   let hostname = videoUrl
   try { hostname = new URL(videoUrl).hostname.replace(/^www\./, '') } catch { /* invalid URL */ }
 
@@ -275,160 +260,20 @@ function VideoSection({ savedLyricId, videoUrl }: { savedLyricId: string; videoU
         <div className="flex items-center gap-0.5 flex-shrink-0">
           <button
             onClick={() => { setDraft(videoUrl ?? ''); setEditing(true) }}
-            className="w-7 h-7 flex items-center justify-center text-foreground-subtle
-                       hover:text-foreground transition-colors rounded-lg"
+            className="w-7 h-7 flex items-center justify-center text-foreground-subtle hover:text-foreground transition-colors rounded-lg"
           >
             <Pencil size={11} strokeWidth={1.75} />
           </button>
           <button
             onClick={() => save.mutate('')}
             disabled={save.isPending}
-            className="w-7 h-7 flex items-center justify-center text-foreground-subtle
-                       hover:text-red-400 transition-colors rounded-lg"
+            className="w-7 h-7 flex items-center justify-center text-foreground-subtle hover:text-red-400 transition-colors rounded-lg"
           >
             <X size={11} strokeWidth={1.75} />
           </button>
         </div>
       </div>
     </div>
-  )
-}
-
-// ─── Visibility toggle ────────────────────────────────────────────────────────
-
-const VISIBILITY_CONFIG: Record<Visibility, { Icon: typeof Globe; label: string; next: Visibility }> = {
-  PRIVATE:  { Icon: Lock,   label: 'Privat',         next: 'PUBLIC' },
-  FRIENDS:  { Icon: Users,  label: 'Freunde',        next: 'PRIVATE' },
-  PUBLIC:   { Icon: Globe,  label: 'Öffentlich',     next: 'PRIVATE' },
-}
-
-function VisibilityToggle({ savedLyricId, visibility }: { savedLyricId: string; visibility?: Visibility }) {
-  const queryClient = useQueryClient()
-  const current: Visibility = visibility ?? 'PRIVATE'
-  const { Icon, label, next } = VISIBILITY_CONFIG[current]
-
-  const mutation = useMutation({
-    mutationFn: (v: Visibility) =>
-      api.patch(`/saved-lyrics/${savedLyricId}/visibility`, { visibility: v }).then((r) => r.data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['saved-lyrics'] }),
-  })
-
-  return (
-    <button
-      onClick={() => mutation.mutate(next)}
-      disabled={mutation.isPending}
-      title={`Sichtbarkeit: ${label} – klicken zum Ändern`}
-      className={[
-        'flex items-center gap-1 text-xs transition-colors disabled:opacity-40',
-        current === 'PUBLIC'
-          ? 'text-accent hover:text-accent/70'
-          : 'text-foreground-subtle hover:text-foreground-muted',
-      ].join(' ')}
-    >
-      <Icon size={12} strokeWidth={1.75} />
-      {label}
-    </button>
-  )
-}
-
-// ─── Community lyrics panel ───────────────────────────────────────────────────
-
-function CommunityLyricsPanel({
-  spotifyId,
-  track,
-  artist,
-  artists,
-  imgUrl,
-  hasUserLyrics,
-}: {
-  spotifyId: string
-  track: string
-  artist: string
-  artists?: string[]
-  imgUrl?: string | null
-  hasUserLyrics: boolean
-}) {
-  const [open, setOpen] = useState(!hasUserLyrics)
-  const [viewing, setViewing] = useState<CommunityLyrics | null>(null)
-
-  const { data: entries = [], isLoading } = useQuery<CommunityLyrics[]>({
-    queryKey: ['community-lyrics', spotifyId],
-    queryFn: () =>
-      api.get<CommunityLyrics[]>(`/saved-lyrics/public-lyrics/${spotifyId}`).then((r) => r.data),
-    staleTime: 5 * 60_000,
-  })
-
-  // Auto-open the first entry when user has no lyrics and results arrive
-  const [autoOpened, setAutoOpened] = useState(false)
-  if (!hasUserLyrics && !autoOpened && entries.length > 0) {
-    setViewing(entries[0])
-    setAutoOpened(true)
-  }
-
-  if (!isLoading && entries.length === 0) return null
-
-  return (
-    <>
-      <div className="border-t border-edge pt-4">
-        <button
-          onClick={() => setOpen((v) => !v)}
-          className="flex items-center gap-2 text-[11px] font-semibold text-foreground-subtle
-                     uppercase tracking-widest hover:text-foreground-muted transition-colors"
-        >
-          <Eye size={12} strokeWidth={2} />
-          Community Lyrics
-          {entries.length > 0 && (
-            <span className="ml-0.5 text-[10px] font-normal text-foreground-subtle normal-case tracking-normal">
-              ({entries.length})
-            </span>
-          )}
-          {open ? <ChevronUp size={10} strokeWidth={2} /> : <ChevronDown size={10} strokeWidth={2} />}
-        </button>
-
-        {open && (
-          <div className="mt-3 space-y-2">
-            {isLoading ? (
-              <div className="space-y-2">
-                {[1, 2].map((i) => (
-                  <div key={i} className="h-12 rounded-lg bg-surface-raised animate-pulse" />
-                ))}
-              </div>
-            ) : (
-              entries.map((entry) => {
-                const preview = entry.lyrics.split('\n').find((l) => l.trim()) ?? ''
-                const author = entry.user.name ?? 'Anonym'
-                return (
-                  <div
-                    key={entry.id}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-surface-raised border border-edge
-                               hover:border-foreground-muted/30 transition-colors cursor-pointer group"
-                    onClick={() => setViewing(entry)}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[11px] font-medium text-foreground-muted">{author}</p>
-                      <p className="text-xs text-foreground-subtle truncate mt-0.5 italic">&ldquo;{preview}&rdquo;</p>
-                    </div>
-                    <Eye size={13} strokeWidth={1.75} className="flex-shrink-0 text-foreground-subtle opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </div>
-                )
-              })
-            )}
-          </div>
-        )}
-      </div>
-
-      {viewing && (
-        <LyricsViewer
-          track={track}
-          artist={artist}
-          artists={artists}
-          imgUrl={imgUrl}
-          lyrics={viewing.lyrics}
-          authorLabel={`von ${viewing.user.name ?? 'Anonym'}`}
-          onClose={() => setViewing(null)}
-        />
-      )}
-    </>
   )
 }
 
@@ -440,7 +285,7 @@ function CommunityInsightsPanel({ spotifyId }: { spotifyId: string }) {
   const { data: insights, isLoading } = useQuery<TrackInsights>({
     queryKey: ['insights', spotifyId],
     queryFn: () =>
-      api.get<TrackInsights>(`/library/by-spotify/${spotifyId}/insights`).then((r) => r.data),
+      api.get<TrackInsights>(`/songs/${spotifyId}/insights`).then((r) => r.data),
     enabled: open,
     staleTime: 5 * 60_000,
   })
@@ -454,11 +299,7 @@ function CommunityInsightsPanel({ spotifyId }: { spotifyId: string }) {
       >
         <Users2 size={12} strokeWidth={2} />
         Community
-        {open ? (
-          <ChevronUp size={10} strokeWidth={2} />
-        ) : (
-          <ChevronDown size={10} strokeWidth={2} />
-        )}
+        {open ? <ChevronUp size={10} strokeWidth={2} /> : <ChevronDown size={10} strokeWidth={2} />}
       </button>
 
       {open && (
@@ -470,19 +311,14 @@ function CommunityInsightsPanel({ spotifyId }: { spotifyId: string }) {
               ))}
             </div>
           ) : !insights || insights.saveCount === 0 ? (
-            <p className="text-xs text-foreground-subtle">
-              Noch keine öffentlichen Einträge für diesen Song.
-            </p>
+            <p className="text-xs text-foreground-subtle">Noch keine öffentlichen Einträge für diesen Song.</p>
           ) : (
             <>
-              {/* Save count */}
               <p className="text-xs text-foreground-muted">
                 <span className="font-semibold text-foreground">{insights.saveCount}</span>{' '}
                 {insights.saveCount === 1 ? 'Person hat' : 'Personen haben'} diesen Song gespeichert
-                {insights.contributorCount > 1 && ` (${insights.contributorCount} Contributors)`}
               </p>
 
-              {/* Most annotated line */}
               {insights.mostAnnotatedLines.length > 0 && (
                 <div>
                   <p className="text-[10px] font-semibold text-foreground-subtle uppercase tracking-widest mb-1.5">
@@ -500,11 +336,10 @@ function CommunityInsightsPanel({ spotifyId }: { spotifyId: string }) {
                 </div>
               )}
 
-              {/* Tag cloud */}
               {insights.tagDistribution.length > 0 && (
                 <div>
                   <p className="text-[10px] font-semibold text-foreground-subtle uppercase tracking-widest mb-1.5">
-                    Community Tags
+                    Tags
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {insights.tagDistribution.map(({ tag, count }) => (
@@ -542,11 +377,9 @@ export default function SongDetail() {
   })
 
   const songFromList = songs.find((s) => s.id === id)
-    ?? songs.find((s) => s.spotifyId === id)
-    ?? songs.find((s) => s.searchHistory?.spotifyId === id)
+    ?? songs.find((s) => s.song?.spotifyId === id)
 
-  // Fallback: when not found in list (e.g. navigating from Discover before auto-upsert ran),
-  // call the ensure endpoint which finds or creates a SavedLyric for the spotifyId.
+  // Fallback: ensure a bookmark exists for this spotifyId
   const { data: ensuredSong, isLoading: isEnsuring } = useQuery<SavedLyric>({
     queryKey: ['saved-lyrics-by-spotify', id],
     queryFn: () => api.get<SavedLyric>(`/saved-lyrics/by-spotify/${id}`).then((r) => r.data),
@@ -559,7 +392,7 @@ export default function SongDetail() {
   const isSongLoading = isLoading || (!songFromList && isEnsuring)
 
   const remove = useMutation({
-    mutationFn: (songId: string) => api.delete(`/saved-lyrics/${songId}`),
+    mutationFn: (bookmarkId: string) => api.delete(`/saved-lyrics/${bookmarkId}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['saved-lyrics'] })
       navigate('/favorites')
@@ -597,10 +430,12 @@ export default function SongDetail() {
     )
   }
 
-  const imgUrl = song.searchHistory?.imgUrl
-  const searchUrl = song.searchHistory?.url
-  const spotifyId = song.searchHistory?.spotifyId
-  const tags = song.tags ?? []
+  const s = song.song
+  const title = s?.title ?? '—'
+  const artistDisplay = s?.artists?.join(', ') || s?.artist || '—'
+  const spotifyId = s?.spotifyId
+  const imgUrl = s?.imgUrl
+  const tags = s?.tags ?? []
 
   return (
     <div className="px-4 sm:px-8 py-8 max-w-5xl mx-auto space-y-6 overflow-hidden">
@@ -617,8 +452,8 @@ export default function SongDetail() {
       <div className="flex items-start gap-4">
         <TrackCover
           src={imgUrl}
-          track={song.track}
-          artist={song.artists?.join(", ") || song.artist}
+          track={title}
+          artist={artistDisplay}
           className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl flex-shrink-0"
           iconSize={24}
         />
@@ -626,12 +461,12 @@ export default function SongDetail() {
         <div className="min-w-0 flex-1 space-y-2">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <h1 className="text-lg font-semibold text-foreground leading-tight">{song.track}</h1>
-              <p className="text-sm text-foreground-muted mt-0.5">{song.artists?.join(", ") || song.artist}</p>
+              <h1 className="text-lg font-semibold text-foreground leading-tight">{title}</h1>
+              <p className="text-sm text-foreground-muted mt-0.5">{artistDisplay}</p>
               <div className="flex items-center gap-3 mt-1.5">
-                {searchUrl && (
+                {s?.spotifyUrl && (
                   <a
-                    href={searchUrl}
+                    href={s.spotifyUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 text-xs text-foreground-subtle hover:text-accent transition-colors"
@@ -641,7 +476,7 @@ export default function SongDetail() {
                   </a>
                 )}
                 <a
-                  href={`https://www.google.com/search?q=${encodeURIComponent(`${song.track} ${song.artists?.join(", ") || song.artist} lyrics`)}`}
+                  href={`https://www.google.com/search?q=${encodeURIComponent(`${title} ${artistDisplay} lyrics`)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 text-xs text-foreground-subtle hover:text-accent transition-colors"
@@ -651,43 +486,30 @@ export default function SongDetail() {
                 </a>
               </div>
             </div>
-            <div className="flex items-center gap-3 flex-shrink-0 mt-1">
-              <VisibilityToggle savedLyricId={song.id} visibility={song.visibility} />
-              <button
-                onClick={() => setConfirmDelete(true)}
-                className="flex items-center gap-1 text-xs text-foreground-subtle hover:text-red-400 transition-colors"
-              >
-                <Trash2 size={12} strokeWidth={1.75} />
-                Löschen
-              </button>
-            </div>
+            <button
+              onClick={() => setConfirmDelete(true)}
+              className="flex items-center gap-1 text-xs text-foreground-subtle hover:text-red-400 transition-colors flex-shrink-0 mt-1"
+            >
+              <Trash2 size={12} strokeWidth={1.75} />
+              Löschen
+            </button>
           </div>
 
           {/* Tags */}
-          <TagSelector savedLyricId={song.id} tags={tags} />
+          {spotifyId && <TagSelector spotifyId={spotifyId} tags={tags} />}
         </div>
       </div>
 
       {/* Lyrics */}
-      <LyricsEditor savedLyricId={song.id} legacyLyrics={song.lyrics ?? ''} fetchStatus={song.fetchStatus} />
+      {spotifyId && (
+        <LyricsEditor spotifyId={spotifyId} fetchStatus={s?.fetchStatus} />
+      )}
 
       {/* Personal note */}
       <NoteSection savedLyricId={song.id} note={song.note} />
 
       {/* Music video */}
-      <VideoSection savedLyricId={song.id} videoUrl={song.videoUrl} />
-
-      {/* Community lyrics */}
-      {(song.spotifyId ?? spotifyId) && (
-        <CommunityLyricsPanel
-          spotifyId={(song.spotifyId ?? spotifyId)!}
-          track={song.track}
-          artist={song.artist}
-          artists={song.artists}
-          imgUrl={imgUrl}
-          hasUserLyrics={!!song.lyrics?.trim()}
-        />
-      )}
+      {spotifyId && <VideoSection spotifyId={spotifyId} videoUrl={s?.videoUrl} />}
 
       {/* Community insights */}
       {spotifyId && <CommunityInsightsPanel spotifyId={spotifyId} />}
@@ -698,8 +520,8 @@ export default function SongDetail() {
           <div>
             <h3 className="text-base font-semibold text-foreground">Song löschen</h3>
             <p className="text-sm text-foreground-muted mt-1">
-              Bist du sicher, dass du <strong>{song.track}</strong> löschen willst? Dies kann nicht
-              rückgängig gemacht werden.
+              Bist du sicher, dass du <strong>{title}</strong> löschen willst?
+              Dein Lesezeichen wird entfernt.
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2">
@@ -709,7 +531,7 @@ export default function SongDetail() {
               className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-red-500 text-white text-sm font-semibold
                          disabled:opacity-50 hover:bg-red-600 transition-colors"
             >
-              {remove.isPending ? 'Removing…' : 'Yes, remove'}
+              {remove.isPending ? 'Entfernen…' : 'Ja, entfernen'}
             </button>
             <button
               onClick={() => setConfirmDelete(false)}

@@ -52,32 +52,24 @@ let SearchHistoryService = class SearchHistoryService {
                     ...(dto.imgUrl ? { imgUrl: dto.imgUrl } : {}),
                 },
             });
-            await tx.libraryTrack.upsert({
+            const song = await tx.song.upsert({
                 where: { spotifyId },
+                create: {
+                    spotifyId,
+                    title: dto.track,
+                    artist,
+                    artists,
+                    spotifyUrl: dto.url,
+                    imgUrl: dto.imgUrl ?? null,
+                },
                 update: {
-                    url: dto.url,
                     ...(dto.imgUrl ? { imgUrl: dto.imgUrl } : {}),
                 },
-                create: {
-                    spotifyId,
-                    name: dto.track,
-                    artist,
-                    artists,
-                    url: dto.url,
-                    imgUrl: dto.imgUrl,
-                },
+                select: { id: true },
             });
             await tx.savedLyric.upsert({
-                where: { userId_spotifyId: { userId, spotifyId } },
-                create: {
-                    userId,
-                    spotifyId,
-                    track: dto.track,
-                    artist,
-                    artists,
-                    lyrics: '',
-                    searchHistoryId: history.id,
-                },
+                where: { userId_songId: { userId, songId: song.id } },
+                create: { userId, songId: song.id },
                 update: {},
             });
             return history;

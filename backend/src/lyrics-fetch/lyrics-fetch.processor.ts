@@ -14,65 +14,81 @@ export class LyricsFetchProcessor extends WorkerHost {
   }
 
   async process(job: Job<LyricsFetchJobData>): Promise<void> {
-    const { savedLyricId, track, artist } = job.data;
+    const { songId, spotifyId, track, artist } = job.data;
     this.logger.log(
-      `Fetching lyrics for "${track}" by "${artist}" (${savedLyricId})`,
+      `Fetching lyrics for "${track}" by "${artist}" (${spotifyId})`,
     );
 
     try {
-      const lyrics = await this.fetchFromLyricsOvh(track, artist);
+      const rawText = await this.fetchFromLyricsOvh(track, artist);
 
-      if (!lyrics) {
+      if (!rawText) {
         this.logger.warn(`No lyrics found for "${track}" by "${artist}"`);
-        await this.setStatus(savedLyricId, LyricsFetchStatus.FAILED);
+        await this.setStatus(songId, LyricsFetchStatus.FAILED);
         return;
       }
 
-      const lines = lyrics.split('\n');
+      const lines = rawText.split('\n');
 
       await this.prisma.$transaction(async (tx) => {
-        const created = await tx.lyrics.create({
-          data: {
-            savedLyricId,
-            rawText: lyrics,
-            lines: {
-              create: lines.map((text, i) => ({ lineNumber: i + 1, text })),
-            },
-          },
+        const existing = await tx.songLyrics.findUnique({
+          where: { songId },
         });
-        this.logger.log(
-          `Created Lyrics record ${created.id} with ${lines.length} lines`,
-        );
 
-        // Keep legacy lyrics field in sync
-        await tx.savedLyric.update({
-          where: { id: savedLyricId },
-          data: { lyrics, fetchStatus: LyricsFetchStatus.DONE },
+        if (existing) {
+          await tx.lyricsLine.deleteMany({
+            where: { songLyricsId: existing.id },
+          });
+          await tx.songLyrics.update({
+            where: { id: existing.id },
+            data: {
+              rawText,
+              version: { increment: 1 },
+              lines: {
+                create: lines.map((text, i) => ({ lineNumber: i + 1, text })),
+              },
+            },
+          });
+        } else {
+          await tx.songLyrics.create({
+            data: {
+              songId,
+              rawText,
+              lines: {
+                create: lines.map((text, i) => ({ lineNumber: i + 1, text })),
+              },
+            },
+          });
+        }
+
+        await tx.song.update({
+          where: { id: songId },
+          data: { fetchStatus: LyricsFetchStatus.DONE },
         });
       });
+
+      this.logger.log(
+        `Stored lyrics for song ${spotifyId} (${lines.length} lines)`,
+      );
     } catch (err) {
       this.logger.error(
-        `Lyrics fetch failed for ${savedLyricId}: ${(err as Error).message}`,
+        `Lyrics fetch failed for ${spotifyId}: ${(err as Error).message}`,
       );
-      await this.setStatus(savedLyricId, LyricsFetchStatus.FAILED);
+      await this.setStatus(songId, LyricsFetchStatus.FAILED);
       throw err; // rethrow so BullMQ can retry
     }
   }
 
   private async setStatus(
-    savedLyricId: string,
+    songId: string,
     status: LyricsFetchStatus,
   ): Promise<void> {
-    await this.prisma.savedLyric.update({
-      where: { id: savedLyricId },
+    await this.prisma.song.update({
+      where: { id: songId },
       data: { fetchStatus: status },
     });
   }
 
-  /**
-   * Fetches lyrics from lyrics.ovh (free, no API key needed).
-   * Returns null if the request fails or returns no lyrics.
-   */
   private async fetchFromLyricsOvh(
     track: string,
     artist: string,
@@ -86,7 +102,6 @@ export class LyricsFetchProcessor extends WorkerHost {
       const data = (await res.json()) as { lyrics?: string; error?: string };
       if (data.error || !data.lyrics) return null;
 
-      // lyrics.ovh sometimes prepends a redundant "Paroles de la chanson …\n\n"
       const cleaned = data.lyrics
         .replace(/^Paroles de la chanson.*?\n\n/s, '')
         .trim();

@@ -1,8 +1,4 @@
-import { CreateSavedLyricDto } from './dto/create-saved-lyric.dto';
-import { UpdateSavedLyricDto } from './dto/update-saved-lyric.dto';
-import { AddTagDto } from './dto/add-tag.dto';
 import { UpsertNoteDto } from './dto/upsert-note.dto';
-import { UpdateVisibilityDto } from './dto/update-visibility.dto';
 import { SavedLyricsService } from './saved-lyrics.service';
 type AuthedRequest = {
     user: {
@@ -12,19 +8,58 @@ type AuthedRequest = {
 export declare class SavedLyricsController {
     private readonly service;
     constructor(service: SavedLyricsService);
-    getAll(req: AuthedRequest): import("@prisma/client").Prisma.PrismaPromise<({
-        searchHistory: {
-            url: string;
-            spotifyId: string;
-            imgUrl: string | null;
-        } | null;
-        tags: {
+    getAll(req: AuthedRequest): Promise<({
+        song: ({
+            lyrics: ({
+                lines: {
+                    id: string;
+                    createdAt: Date;
+                    updatedAt: Date;
+                    lineNumber: number;
+                    text: string;
+                    timestampMs: number | null;
+                    songLyricsId: string | null;
+                    lyricsId: string | null;
+                }[];
+                versions: {
+                    id: string;
+                    createdAt: Date;
+                    rawText: string;
+                    version: number;
+                    songLyricsId: string | null;
+                    lyricsId: string | null;
+                }[];
+            } & {
+                id: string;
+                createdAt: Date;
+                songId: string;
+                rawText: string;
+                version: number;
+                updatedAt: Date;
+                lastEditedBy: string | null;
+            }) | null;
+            tags: {
+                id: string;
+                createdAt: Date;
+                songId: string | null;
+                savedLyricId: string | null;
+                tag: string;
+                type: import("@prisma/client").$Enums.TagType;
+                addedBy: string | null;
+            }[];
+        } & {
             id: string;
-            createdAt: Date;
-            savedLyricId: string;
-            tag: string;
-            type: import("@prisma/client").$Enums.TagType;
-        }[];
+            spotifyId: string;
+            artist: string;
+            artists: string[];
+            videoUrl: string | null;
+            fetchStatus: import("@prisma/client").$Enums.LyricsFetchStatus;
+            updatedAt: Date;
+            imgUrl: string | null;
+            title: string;
+            spotifyUrl: string | null;
+            firstSeenAt: Date;
+        }) | null;
     } & {
         id: string;
         userId: string;
@@ -35,24 +70,65 @@ export declare class SavedLyricsController {
         artist: string;
         artists: string[];
         note: string | null;
+        videoUrl: string | null;
         isFavorite: boolean;
         visibility: import("@prisma/client").$Enums.Visibility;
         fetchStatus: import("@prisma/client").$Enums.LyricsFetchStatus;
         createdAt: Date;
+        songId: string | null;
     })[]>;
-    getFavorites(req: AuthedRequest): import("@prisma/client").Prisma.PrismaPromise<({
-        searchHistory: {
-            url: string;
-            spotifyId: string;
-            imgUrl: string | null;
-        } | null;
-        tags: {
+    getFavorites(req: AuthedRequest): Promise<({
+        song: ({
+            lyrics: ({
+                lines: {
+                    id: string;
+                    createdAt: Date;
+                    updatedAt: Date;
+                    lineNumber: number;
+                    text: string;
+                    timestampMs: number | null;
+                    songLyricsId: string | null;
+                    lyricsId: string | null;
+                }[];
+                versions: {
+                    id: string;
+                    createdAt: Date;
+                    rawText: string;
+                    version: number;
+                    songLyricsId: string | null;
+                    lyricsId: string | null;
+                }[];
+            } & {
+                id: string;
+                createdAt: Date;
+                songId: string;
+                rawText: string;
+                version: number;
+                updatedAt: Date;
+                lastEditedBy: string | null;
+            }) | null;
+            tags: {
+                id: string;
+                createdAt: Date;
+                songId: string | null;
+                savedLyricId: string | null;
+                tag: string;
+                type: import("@prisma/client").$Enums.TagType;
+                addedBy: string | null;
+            }[];
+        } & {
             id: string;
-            createdAt: Date;
-            savedLyricId: string;
-            tag: string;
-            type: import("@prisma/client").$Enums.TagType;
-        }[];
+            spotifyId: string;
+            artist: string;
+            artists: string[];
+            videoUrl: string | null;
+            fetchStatus: import("@prisma/client").$Enums.LyricsFetchStatus;
+            updatedAt: Date;
+            imgUrl: string | null;
+            title: string;
+            spotifyUrl: string | null;
+            firstSeenAt: Date;
+        }) | null;
     } & {
         id: string;
         userId: string;
@@ -63,34 +139,65 @@ export declare class SavedLyricsController {
         artist: string;
         artists: string[];
         note: string | null;
+        videoUrl: string | null;
         isFavorite: boolean;
         visibility: import("@prisma/client").$Enums.Visibility;
         fetchStatus: import("@prisma/client").$Enums.LyricsFetchStatus;
         createdAt: Date;
+        songId: string | null;
     })[]>;
-    addFavorite(req: AuthedRequest, spotifyId: string): Promise<{
-        id: string;
-        spotifyId: string | null;
-        isFavorite: boolean;
-    }>;
-    removeFavorite(req: AuthedRequest, spotifyId: string): Promise<{
-        id: string;
-        spotifyId: string | null;
-        isFavorite: boolean;
-    }>;
-    create(req: AuthedRequest, dto: CreateSavedLyricDto): Promise<{
-        searchHistory: {
-            url: string;
-            spotifyId: string;
-            imgUrl: string | null;
-        } | null;
-        tags: {
+    ensureBySpotify(req: AuthedRequest, spotifyId: string): Promise<{
+        song: ({
+            lyrics: ({
+                lines: {
+                    id: string;
+                    createdAt: Date;
+                    updatedAt: Date;
+                    lineNumber: number;
+                    text: string;
+                    timestampMs: number | null;
+                    songLyricsId: string | null;
+                    lyricsId: string | null;
+                }[];
+                versions: {
+                    id: string;
+                    createdAt: Date;
+                    rawText: string;
+                    version: number;
+                    songLyricsId: string | null;
+                    lyricsId: string | null;
+                }[];
+            } & {
+                id: string;
+                createdAt: Date;
+                songId: string;
+                rawText: string;
+                version: number;
+                updatedAt: Date;
+                lastEditedBy: string | null;
+            }) | null;
+            tags: {
+                id: string;
+                createdAt: Date;
+                songId: string | null;
+                savedLyricId: string | null;
+                tag: string;
+                type: import("@prisma/client").$Enums.TagType;
+                addedBy: string | null;
+            }[];
+        } & {
             id: string;
-            createdAt: Date;
-            savedLyricId: string;
-            tag: string;
-            type: import("@prisma/client").$Enums.TagType;
-        }[];
+            spotifyId: string;
+            artist: string;
+            artists: string[];
+            videoUrl: string | null;
+            fetchStatus: import("@prisma/client").$Enums.LyricsFetchStatus;
+            updatedAt: Date;
+            imgUrl: string | null;
+            title: string;
+            spotifyUrl: string | null;
+            firstSeenAt: Date;
+        }) | null;
     } & {
         id: string;
         userId: string;
@@ -101,12 +208,14 @@ export declare class SavedLyricsController {
         artist: string;
         artists: string[];
         note: string | null;
+        videoUrl: string | null;
         isFavorite: boolean;
         visibility: import("@prisma/client").$Enums.Visibility;
         fetchStatus: import("@prisma/client").$Enums.LyricsFetchStatus;
         createdAt: Date;
+        songId: string | null;
     }>;
-    updateLyrics(req: AuthedRequest, id: string, dto: UpdateSavedLyricDto): Promise<{
+    addFavorite(req: AuthedRequest, spotifyId: string): Promise<Pick<{
         id: string;
         userId: string;
         searchHistoryId: string | null;
@@ -116,34 +225,116 @@ export declare class SavedLyricsController {
         artist: string;
         artists: string[];
         note: string | null;
+        videoUrl: string | null;
         isFavorite: boolean;
         visibility: import("@prisma/client").$Enums.Visibility;
         fetchStatus: import("@prisma/client").$Enums.LyricsFetchStatus;
         createdAt: Date;
+        songId: string | null;
+    }, "id" | "isFavorite">>;
+    removeFavorite(req: AuthedRequest, spotifyId: string): Promise<Pick<{
+        id: string;
+        userId: string;
+        searchHistoryId: string | null;
+        spotifyId: string | null;
+        lyrics: string;
+        track: string;
+        artist: string;
+        artists: string[];
+        note: string | null;
+        videoUrl: string | null;
+        isFavorite: boolean;
+        visibility: import("@prisma/client").$Enums.Visibility;
+        fetchStatus: import("@prisma/client").$Enums.LyricsFetchStatus;
+        createdAt: Date;
+        songId: string | null;
+    }, "id" | "isFavorite">>;
+    getOne(req: AuthedRequest, id: string): Promise<{
+        song: ({
+            lyrics: ({
+                lines: {
+                    id: string;
+                    createdAt: Date;
+                    updatedAt: Date;
+                    lineNumber: number;
+                    text: string;
+                    timestampMs: number | null;
+                    songLyricsId: string | null;
+                    lyricsId: string | null;
+                }[];
+                versions: {
+                    id: string;
+                    createdAt: Date;
+                    rawText: string;
+                    version: number;
+                    songLyricsId: string | null;
+                    lyricsId: string | null;
+                }[];
+            } & {
+                id: string;
+                createdAt: Date;
+                songId: string;
+                rawText: string;
+                version: number;
+                updatedAt: Date;
+                lastEditedBy: string | null;
+            }) | null;
+            tags: {
+                id: string;
+                createdAt: Date;
+                songId: string | null;
+                savedLyricId: string | null;
+                tag: string;
+                type: import("@prisma/client").$Enums.TagType;
+                addedBy: string | null;
+            }[];
+        } & {
+            id: string;
+            spotifyId: string;
+            artist: string;
+            artists: string[];
+            videoUrl: string | null;
+            fetchStatus: import("@prisma/client").$Enums.LyricsFetchStatus;
+            updatedAt: Date;
+            imgUrl: string | null;
+            title: string;
+            spotifyUrl: string | null;
+            firstSeenAt: Date;
+        }) | null;
+    } & {
+        id: string;
+        userId: string;
+        searchHistoryId: string | null;
+        spotifyId: string | null;
+        lyrics: string;
+        track: string;
+        artist: string;
+        artists: string[];
+        note: string | null;
+        videoUrl: string | null;
+        isFavorite: boolean;
+        visibility: import("@prisma/client").$Enums.Visibility;
+        fetchStatus: import("@prisma/client").$Enums.LyricsFetchStatus;
+        createdAt: Date;
+        songId: string | null;
     }>;
     remove(req: AuthedRequest, id: string): Promise<void>;
-    upsertNote(req: AuthedRequest, id: string, dto: UpsertNoteDto): Promise<{
+    upsertNote(req: AuthedRequest, id: string, dto: UpsertNoteDto): Promise<Pick<{
         id: string;
+        userId: string;
+        searchHistoryId: string | null;
+        spotifyId: string | null;
+        lyrics: string;
+        track: string;
+        artist: string;
+        artists: string[];
         note: string | null;
-    }>;
-    getTags(req: AuthedRequest, id: string): Promise<{
-        id: string;
-        createdAt: Date;
-        savedLyricId: string;
-        tag: string;
-        type: import("@prisma/client").$Enums.TagType;
-    }[]>;
-    addTag(req: AuthedRequest, id: string, dto: AddTagDto): Promise<{
-        id: string;
-        createdAt: Date;
-        savedLyricId: string;
-        tag: string;
-        type: import("@prisma/client").$Enums.TagType;
-    }>;
-    removeTag(req: AuthedRequest, id: string, tag: string): Promise<void>;
-    updateVisibility(req: AuthedRequest, id: string, dto: UpdateVisibilityDto): Promise<{
-        id: string;
+        videoUrl: string | null;
+        isFavorite: boolean;
         visibility: import("@prisma/client").$Enums.Visibility;
-    }>;
+        fetchStatus: import("@prisma/client").$Enums.LyricsFetchStatus;
+        createdAt: Date;
+        songId: string | null;
+    }, "id" | "note">>;
 }
 export {};

@@ -52,14 +52,50 @@ model SpotifyToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+// ─── NEW: Shared canonical entity per spotifyId ───────────────────────────────
+
+model Song {
+  id          String            @id @default(cuid())
+  spotifyId   String            @unique
+  title       String
+  artist      String
+  artists     String[]          @default([])
+  imgUrl      String?
+  spotifyUrl  String?
+  videoUrl    String?
+  fetchStatus LyricsFetchStatus @default(IDLE)
+  firstSeenAt DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  lyrics  SongLyrics?
+  tags    SongTag[]
+  savedBy SavedLyric[]
+}
+
+// ─── NEW: Shared lyrics document per Song ─────────────────────────────────────
+
+model SongLyrics {
+  id           String   @id @default(cuid())
+  songId       String   @unique
+  rawText      String   @default("")
+  version      Int      @default(1)
+  lastEditedBy String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  song     Song            @relation(fields: [songId], references: [id], onDelete: Cascade)
+  lines    LyricsLine[]
+  versions LyricsVersion[]
+}
+
 model SavedLyric {
   id              String            @id @default(cuid())
   userId          String
   searchHistoryId String?
   spotifyId       String?
-  lyrics          String
-  track           String
-  artist          String
+  lyrics          String            @default("")
+  track           String            @default("")
+  artist          String            @default("")
   artists         String[]          @default([])
   note            String?
   videoUrl        String?
@@ -68,14 +104,19 @@ model SavedLyric {
   fetchStatus     LyricsFetchStatus @default(IDLE)
   createdAt       DateTime          @default(now())
 
+  // NEW: reference to shared Song
+  songId String?
+
   user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   searchHistory    SearchHistory?    @relation(fields: [searchHistoryId], references: [id])
+  song             Song?             @relation(fields: [songId], references: [id])
   lyricsStructured Lyrics?
   listeningContext ListeningContext?
   tags             SongTag[]
   collectionItems  CollectionItem[]
 
   @@unique([userId, spotifyId])
+  @@unique([userId, songId])
 }
 
 model SearchHistory {
@@ -122,30 +163,38 @@ model Lyrics {
 
 model LyricsLine {
   id          String   @id @default(cuid())
-  lyricsId    String
+  lyricsId    String?
   lineNumber  Int
   text        String
   timestampMs Int?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  lyrics          Lyrics          @relation(fields: [lyricsId], references: [id], onDelete: Cascade)
+  // NEW: reference to SongLyrics (populated by migration script)
+  songLyricsId String?
+
+  lyrics          Lyrics?          @relation(fields: [lyricsId], references: [id], onDelete: Cascade)
+  songLyrics      SongLyrics?      @relation(fields: [songLyricsId], references: [id], onDelete: Cascade)
   annotations     LineAnnotation[]
   collectionItems CollectionItem[]
 
   @@index([lyricsId, lineNumber])
+  @@index([songLyricsId, lineNumber])
 }
 
 model LyricsVersion {
-  id        String   @id @default(cuid())
-  lyricsId  String
-  version   Int
-  rawText   String
-  createdAt DateTime @default(now())
+  id           String   @id @default(cuid())
+  lyricsId     String?
+  songLyricsId String?
+  version      Int
+  rawText      String
+  createdAt    DateTime @default(now())
 
-  lyrics Lyrics @relation(fields: [lyricsId], references: [id], onDelete: Cascade)
+  lyrics     Lyrics?     @relation(fields: [lyricsId], references: [id], onDelete: Cascade)
+  songLyrics SongLyrics? @relation(fields: [songLyricsId], references: [id], onDelete: Cascade)
 
   @@index([lyricsId, version])
+  @@index([songLyricsId, version])
 }
 
 // ─── Phase 1: Personal Meaning Layer ─────────────────────────────────────────
@@ -168,14 +217,20 @@ model LineAnnotation {
 
 model SongTag {
   id           String   @id @default(cuid())
-  savedLyricId String
+  savedLyricId String?
   tag          String
   type         TagType  @default(CONTEXT)
   createdAt    DateTime @default(now())
 
-  savedLyric SavedLyric @relation(fields: [savedLyricId], references: [id], onDelete: Cascade)
+  // NEW: shared song reference (populated by migration script)
+  songId  String?
+  addedBy String?
+
+  savedLyric SavedLyric? @relation(fields: [savedLyricId], references: [id], onDelete: Cascade)
+  song       Song?        @relation(fields: [songId], references: [id], onDelete: Cascade)
 
   @@unique([savedLyricId, tag])
+  @@unique([songId, tag])
   @@index([tag])
 }
 

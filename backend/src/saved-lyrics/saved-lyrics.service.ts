@@ -1,172 +1,106 @@
-import { Injectable, NotFoundException, Optional } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
-import { TagType } from '@prisma/client';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { SavedLyric, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateSavedLyricDto } from './dto/create-saved-lyric.dto';
-import { UpdateSavedLyricDto } from './dto/update-saved-lyric.dto';
-import { AddTagDto } from './dto/add-tag.dto';
-import { LYRICS_FETCH_QUEUE } from '../lyrics-fetch/lyrics-fetch.queue';
+
+const BOOKMARK_INCLUDE = {
+  song: {
+    include: {
+      lyrics: {
+        include: {
+          lines: { orderBy: { lineNumber: 'asc' as const } },
+          versions: { orderBy: { version: 'desc' as const }, take: 20 },
+        },
+      },
+      tags: { orderBy: { createdAt: 'asc' as const } },
+    },
+  },
+} satisfies Prisma.SavedLyricInclude;
+
+export type BookmarkWithSong = Prisma.SavedLyricGetPayload<{
+  include: typeof BOOKMARK_INCLUDE;
+}>;
 
 @Injectable()
 export class SavedLyricsService {
-  constructor(
-    private readonly prisma: PrismaService,
-    @Optional()
-    @InjectQueue(LYRICS_FETCH_QUEUE)
-    private readonly lyricsQueue: Queue | null,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  getAll(userId: string) {
+  getAll(userId: string): Promise<BookmarkWithSong[]> {
     return this.prisma.savedLyric.findMany({
       where: { userId },
-      include: {
-        searchHistory: { select: { imgUrl: true, url: true, spotifyId: true } },
-        tags: { orderBy: { createdAt: 'asc' } },
-      },
+      include: BOOKMARK_INCLUDE,
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  getFavorites(userId: string) {
+  getFavorites(userId: string): Promise<BookmarkWithSong[]> {
     return this.prisma.savedLyric.findMany({
       where: { userId, isFavorite: true },
-      include: {
-        searchHistory: { select: { imgUrl: true, url: true, spotifyId: true } },
-        tags: { orderBy: { createdAt: 'asc' } },
-      },
+      include: BOOKMARK_INCLUDE,
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  async setFavorite(userId: string, spotifyId: string, isFavorite: boolean) {
-    return this.prisma.savedLyric.update({
-      where: { userId_spotifyId: { userId, spotifyId } },
-      data: { isFavorite },
-      select: { id: true, spotifyId: true, isFavorite: true },
-    });
-  }
-
-  async ensureBySpotifyId(userId: string, spotifyId: string) {
-    const include = {
-      searchHistory: { select: { imgUrl: true, url: true, spotifyId: true } },
-      tags: { orderBy: { createdAt: 'asc' as const } },
-    };
-
-    const existing = await this.prisma.savedLyric.findUnique({
-      where: { userId_spotifyId: { userId, spotifyId } },
-      include,
-    });
-    if (existing) return existing;
-
-    const [libraryTrack, searchHistory] = await Promise.all([
-      this.prisma.libraryTrack.findUnique({ where: { spotifyId } }),
-      this.prisma.searchHistory.findFirst({
-        where: { userId, spotifyId },
-        orderBy: { createdAt: 'desc' },
-      }),
-    ]);
-
-    if (!libraryTrack && !searchHistory) {
-      throw new NotFoundException('Track not found');
-    }
-
-    const trackName = (libraryTrack?.name ?? searchHistory?.track) as string;
-    const rawArtists = libraryTrack?.artists?.length
-      ? libraryTrack.artists
-      : searchHistory?.artists?.length
-        ? searchHistory.artists
-        : [libraryTrack?.artist ?? searchHistory?.artist ?? ''];
-    const artist = rawArtists[0] ?? '';
-
-    return this.prisma.savedLyric.create({
-      data: {
-        userId,
-        spotifyId,
-        track: trackName,
-        artist,
-        artists: rawArtists,
-        lyrics: '',
-        ...(searchHistory ? { searchHistoryId: searchHistory.id } : {}),
-      },
-      include,
-    });
-  }
-
-  async create(userId: string, dto: CreateSavedLyricDto) {
-    const artists = dto.artists?.length
-      ? dto.artists
-      : dto.artist
-        ? [dto.artist]
-        : [];
-    const artist = artists[0] ?? '';
-    const hasLyrics = !!dto.lyrics?.trim();
-
-    const saved = await this.prisma.savedLyric.create({
-      data: {
-        userId,
-        track: dto.track,
-        artist,
-        artists,
-        lyrics: dto.lyrics ?? '',
-        fetchStatus: hasLyrics
-          ? 'DONE'
-          : this.lyricsQueue
-            ? 'FETCHING'
-            : 'IDLE',
-        ...(dto.searchHistoryId
-          ? { searchHistoryId: dto.searchHistoryId }
-          : {}),
-      },
-      include: {
-        searchHistory: { select: { imgUrl: true, url: true, spotifyId: true } },
-        tags: true,
-      },
-    });
-
-    // Capture listening context (hour + day of week)
-    const now = new Date();
-    await this.prisma.listeningContext
-      .create({
-        data: {
-          savedLyricId: saved.id,
-          hour: now.getHours(),
-          dayOfWeek: now.getDay(),
-        },
-      })
-      .catch(() => {
-        /* non-critical, ignore errors */
-      });
-
-    // Enqueue lyrics fetch if no lyrics provided and queue is available
-    if (!hasLyrics && this.lyricsQueue) {
-      await this.lyricsQueue.add(
-        'fetch',
-        {
-          savedLyricId: saved.id,
-          track: dto.track,
-          artist, // primary artist for lyrics.ovh
-        },
-        {
-          attempts: 3,
-          backoff: { type: 'exponential', delay: 5000 },
-          removeOnComplete: true,
-          removeOnFail: false,
-        },
-      );
-    }
-
-    return saved;
-  }
-
-  async updateLyrics(userId: string, id: string, dto: UpdateSavedLyricDto) {
+  async getOne(userId: string, id: string): Promise<BookmarkWithSong> {
     const item = await this.prisma.savedLyric.findFirst({
       where: { id, userId },
+      include: BOOKMARK_INCLUDE,
     });
-    if (!item) throw new NotFoundException('Saved lyric not found');
+    if (!item) throw new NotFoundException('SavedLyric not found');
+    return item;
+  }
+
+  async ensureBySpotifyId(
+    userId: string,
+    spotifyId: string,
+  ): Promise<BookmarkWithSong> {
+    const song = await this.prisma.song.findUnique({
+      where: { spotifyId },
+      select: { id: true },
+    });
+    if (!song) throw new NotFoundException('Song not found');
+
+    return this.prisma.savedLyric.upsert({
+      where: { userId_songId: { userId, songId: song.id } },
+      create: { userId, songId: song.id },
+      update: {},
+      include: BOOKMARK_INCLUDE,
+    });
+  }
+
+  async setFavorite(
+    userId: string,
+    spotifyId: string,
+    isFavorite: boolean,
+  ): Promise<Pick<SavedLyric, 'id' | 'isFavorite'>> {
+    const song = await this.prisma.song.findUnique({
+      where: { spotifyId },
+      select: { id: true },
+    });
+    if (!song) throw new NotFoundException('Song not found');
+
+    return this.prisma.savedLyric.upsert({
+      where: { userId_songId: { userId, songId: song.id } },
+      create: { userId, songId: song.id, isFavorite },
+      update: { isFavorite },
+      select: { id: true, isFavorite: true },
+    });
+  }
+
+  async upsertNote(
+    userId: string,
+    id: string,
+    text: string,
+  ): Promise<Pick<SavedLyric, 'id' | 'note'>> {
+    const item = await this.prisma.savedLyric.findFirst({
+      where: { id, userId },
+      select: { id: true },
+    });
+    if (!item) throw new NotFoundException('SavedLyric not found');
+
     return this.prisma.savedLyric.update({
       where: { id },
-      data: { lyrics: dto.lyrics },
+      data: { note: text || null },
+      select: { id: true, note: true },
     });
   }
 
@@ -174,118 +108,7 @@ export class SavedLyricsService {
     const item = await this.prisma.savedLyric.findFirst({
       where: { id, userId },
     });
-    if (!item) throw new NotFoundException('Saved lyric not found');
+    if (!item) throw new NotFoundException('SavedLyric not found');
     await this.prisma.savedLyric.delete({ where: { id } });
-  }
-
-  // ─── Note ────────────────────────────────────────────────────────────────
-
-  async updateVideoUrl(userId: string, id: string, url: string) {
-    const item = await this.prisma.savedLyric.findFirst({
-      where: { id, userId },
-      select: { id: true },
-    });
-    if (!item) throw new NotFoundException('Saved lyric not found');
-    return this.prisma.savedLyric.update({
-      where: { id },
-      data: { videoUrl: url.trim() || null },
-      select: { id: true, videoUrl: true },
-    });
-  }
-
-  async upsertNote(userId: string, id: string, text: string) {
-    const item = await this.prisma.savedLyric.findFirst({
-      where: { id, userId },
-      select: { id: true },
-    });
-    if (!item) throw new NotFoundException('Saved lyric not found');
-    return this.prisma.savedLyric.update({
-      where: { id },
-      data: { note: text },
-      select: { id: true, note: true },
-    });
-  }
-
-  // ─── Tags ─────────────────────────────────────────────────────────────────
-
-  async addTag(userId: string, id: string, dto: AddTagDto) {
-    const item = await this.prisma.savedLyric.findFirst({
-      where: { id, userId },
-      select: { id: true },
-    });
-    if (!item) throw new NotFoundException('Saved lyric not found');
-
-    const normalised = dto.tag.trim().toLowerCase();
-    return this.prisma.songTag.upsert({
-      where: { savedLyricId_tag: { savedLyricId: id, tag: normalised } },
-      create: {
-        savedLyricId: id,
-        tag: normalised,
-        type: dto.type ?? TagType.CONTEXT,
-      },
-      update: {},
-    });
-  }
-
-  async removeTag(userId: string, id: string, tag: string) {
-    const item = await this.prisma.savedLyric.findFirst({
-      where: { id, userId },
-      select: { id: true },
-    });
-    if (!item) throw new NotFoundException('Saved lyric not found');
-    await this.prisma.songTag.deleteMany({
-      where: { savedLyricId: id, tag: tag.toLowerCase() },
-    });
-  }
-
-  async getTags(userId: string, id: string) {
-    const item = await this.prisma.savedLyric.findFirst({
-      where: { id, userId },
-      select: { id: true },
-    });
-    if (!item) throw new NotFoundException('Saved lyric not found');
-    return this.prisma.songTag.findMany({
-      where: { savedLyricId: id },
-      orderBy: { createdAt: 'asc' },
-    });
-  }
-
-  // ─── Public lyrics for a track ────────────────────────────────────────────
-
-  getPublicLyricsForTrack(userId: string, spotifyId: string) {
-    return this.prisma.savedLyric.findMany({
-      where: {
-        spotifyId,
-        visibility: 'PUBLIC',
-        userId: { not: userId },
-        lyrics: { not: '' },
-      },
-      select: {
-        id: true,
-        lyrics: true,
-        user: { select: { name: true } },
-        createdAt: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-  }
-
-  // ─── Visibility ───────────────────────────────────────────────────────────
-
-  async updateVisibility(
-    userId: string,
-    id: string,
-    visibility: 'PRIVATE' | 'FRIENDS' | 'PUBLIC',
-  ) {
-    const item = await this.prisma.savedLyric.findFirst({
-      where: { id, userId },
-      select: { id: true },
-    });
-    if (!item) throw new NotFoundException('Saved lyric not found');
-    return this.prisma.savedLyric.update({
-      where: { id },
-      data: { visibility },
-      select: { id: true, visibility: true },
-    });
   }
 }

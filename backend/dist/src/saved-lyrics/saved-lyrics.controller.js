@@ -15,11 +15,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.SavedLyricsController = void 0;
 const common_1 = require("@nestjs/common");
 const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
-const create_saved_lyric_dto_1 = require("./dto/create-saved-lyric.dto");
-const update_saved_lyric_dto_1 = require("./dto/update-saved-lyric.dto");
-const add_tag_dto_1 = require("./dto/add-tag.dto");
 const upsert_note_dto_1 = require("./dto/upsert-note.dto");
-const update_visibility_dto_1 = require("./dto/update-visibility.dto");
 const saved_lyrics_service_1 = require("./saved-lyrics.service");
 let SavedLyricsController = class SavedLyricsController {
     service;
@@ -32,35 +28,23 @@ let SavedLyricsController = class SavedLyricsController {
     getFavorites(req) {
         return this.service.getFavorites(req.user.id);
     }
+    ensureBySpotify(req, spotifyId) {
+        return this.service.ensureBySpotifyId(req.user.id, spotifyId);
+    }
     addFavorite(req, spotifyId) {
         return this.service.setFavorite(req.user.id, spotifyId, true);
     }
     removeFavorite(req, spotifyId) {
         return this.service.setFavorite(req.user.id, spotifyId, false);
     }
-    create(req, dto) {
-        return this.service.create(req.user.id, dto);
-    }
-    updateLyrics(req, id, dto) {
-        return this.service.updateLyrics(req.user.id, id, dto);
+    getOne(req, id) {
+        return this.service.getOne(req.user.id, id);
     }
     remove(req, id) {
         return this.service.remove(req.user.id, id);
     }
     upsertNote(req, id, dto) {
         return this.service.upsertNote(req.user.id, id, dto.text);
-    }
-    getTags(req, id) {
-        return this.service.getTags(req.user.id, id);
-    }
-    addTag(req, id, dto) {
-        return this.service.addTag(req.user.id, id, dto);
-    }
-    removeTag(req, id, tag) {
-        return this.service.removeTag(req.user.id, id, tag);
-    }
-    updateVisibility(req, id, dto) {
-        return this.service.updateVisibility(req.user.id, id, dto.visibility);
     }
 };
 exports.SavedLyricsController = SavedLyricsController;
@@ -78,6 +62,14 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], SavedLyricsController.prototype, "getFavorites", null);
+__decorate([
+    (0, common_1.Get)('by-spotify/:spotifyId'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('spotifyId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], SavedLyricsController.prototype, "ensureBySpotify", null);
 __decorate([
     (0, common_1.Post)('favorite/:spotifyId'),
     (0, common_1.HttpCode)(common_1.HttpStatus.NO_CONTENT),
@@ -97,22 +89,13 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], SavedLyricsController.prototype, "removeFavorite", null);
 __decorate([
-    (0, common_1.Post)(),
-    __param(0, (0, common_1.Req)()),
-    __param(1, (0, common_1.Body)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, create_saved_lyric_dto_1.CreateSavedLyricDto]),
-    __metadata("design:returntype", void 0)
-], SavedLyricsController.prototype, "create", null);
-__decorate([
-    (0, common_1.Patch)(':id'),
+    (0, common_1.Get)(':id'),
     __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Param)('id')),
-    __param(2, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, update_saved_lyric_dto_1.UpdateSavedLyricDto]),
+    __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", void 0)
-], SavedLyricsController.prototype, "updateLyrics", null);
+], SavedLyricsController.prototype, "getOne", null);
 __decorate([
     (0, common_1.Delete)(':id'),
     (0, common_1.HttpCode)(common_1.HttpStatus.NO_CONTENT),
@@ -131,42 +114,6 @@ __decorate([
     __metadata("design:paramtypes", [Object, String, upsert_note_dto_1.UpsertNoteDto]),
     __metadata("design:returntype", void 0)
 ], SavedLyricsController.prototype, "upsertNote", null);
-__decorate([
-    (0, common_1.Get)(':id/tags'),
-    __param(0, (0, common_1.Req)()),
-    __param(1, (0, common_1.Param)('id')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String]),
-    __metadata("design:returntype", void 0)
-], SavedLyricsController.prototype, "getTags", null);
-__decorate([
-    (0, common_1.Post)(':id/tags'),
-    __param(0, (0, common_1.Req)()),
-    __param(1, (0, common_1.Param)('id')),
-    __param(2, (0, common_1.Body)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, add_tag_dto_1.AddTagDto]),
-    __metadata("design:returntype", void 0)
-], SavedLyricsController.prototype, "addTag", null);
-__decorate([
-    (0, common_1.Delete)(':id/tags/:tag'),
-    (0, common_1.HttpCode)(common_1.HttpStatus.NO_CONTENT),
-    __param(0, (0, common_1.Req)()),
-    __param(1, (0, common_1.Param)('id')),
-    __param(2, (0, common_1.Param)('tag')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, String]),
-    __metadata("design:returntype", void 0)
-], SavedLyricsController.prototype, "removeTag", null);
-__decorate([
-    (0, common_1.Patch)(':id/visibility'),
-    __param(0, (0, common_1.Req)()),
-    __param(1, (0, common_1.Param)('id')),
-    __param(2, (0, common_1.Body)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, update_visibility_dto_1.UpdateVisibilityDto]),
-    __metadata("design:returntype", void 0)
-], SavedLyricsController.prototype, "updateVisibility", null);
 exports.SavedLyricsController = SavedLyricsController = __decorate([
     (0, common_1.Controller)('saved-lyrics'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),

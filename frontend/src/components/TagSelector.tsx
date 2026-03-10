@@ -10,11 +10,11 @@ const PRESET_TAGS = [
 ]
 
 interface Props {
-  savedLyricId: string
+  spotifyId: string
   tags: SongTag[]
 }
 
-export default function TagSelector({ savedLyricId, tags }: Props) {
+export default function TagSelector({ spotifyId, tags }: Props) {
   const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
   const [input, setInput] = useState('')
@@ -28,13 +28,13 @@ export default function TagSelector({ savedLyricId, tags }: Props) {
 
   const addTag = useMutation({
     mutationFn: (tag: string) =>
-      api.post(`/saved-lyrics/${savedLyricId}/tags`, { tag }).then((r) => r.data),
+      api.post(`/songs/${spotifyId}/tags`, { tag }).then((r) => r.data),
     onSuccess: invalidate,
   })
 
   const removeTag = useMutation({
     mutationFn: (tag: string) =>
-      api.delete(`/saved-lyrics/${savedLyricId}/tags/${encodeURIComponent(tag)}`),
+      api.delete(`/songs/${spotifyId}/tags/${encodeURIComponent(tag)}`),
     onSuccess: invalidate,
   })
 

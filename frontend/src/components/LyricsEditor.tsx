@@ -5,7 +5,7 @@ import {
   RotateCcw, Check, Music, Headphones, Timer, Loader2, Rewind,
 } from 'lucide-react'
 import api from '../services/api'
-import type { StructuredLyrics, LineAnnotation, LyricsFetchStatus, SpotifyCurrentlyPlayingResponse } from '../types'
+import type { SongLyrics, LineAnnotation, LyricsFetchStatus, SpotifyCurrentlyPlayingResponse } from '../types'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -49,9 +49,9 @@ function FetchingLyricsSkeleton() {
   )
 }
 
-// ─── Plain-text stanza fallback (legacy display) ──────────────────────────────
+// ─── Empty / plain-text view ──────────────────────────────────────────────────
 
-function PlainLyricsView({
+function LyricsView({
   lyrics,
   onEdit,
   fetchStatus,
@@ -108,7 +108,7 @@ function PlainLyricsView({
 
 function AnnotatedLine({
   lineId,
-  lyricsId,
+  songLyricsId,
   text,
   annotations,
   timestampMs,
@@ -116,7 +116,7 @@ function AnnotatedLine({
   onSeek,
 }: {
   lineId: string
-  lyricsId: string
+  songLyricsId: string
   text: string
   annotations: LineAnnotation[]
   timestampMs?: number | null
@@ -135,7 +135,7 @@ function AnnotatedLine({
         ? api.patch(`/line-annotations/${myAnnotation.id}`, { text: draft }).then((r) => r.data)
         : api.post(`/line-annotations/${lineId}`, { text: draft }).then((r) => r.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['line-annotations', lyricsId] })
+      queryClient.invalidateQueries({ queryKey: ['line-annotations', songLyricsId] })
       setOpen(false)
     },
   })
@@ -143,7 +143,7 @@ function AnnotatedLine({
   const deleteMutation = useMutation({
     mutationFn: () => api.delete(`/line-annotations/${myAnnotation!.id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['line-annotations', lyricsId] })
+      queryClient.invalidateQueries({ queryKey: ['line-annotations', songLyricsId] })
       setOpen(false)
     },
   })
@@ -153,9 +153,7 @@ function AnnotatedLine({
     setOpen((v) => !v)
   }
 
-  if (!text.trim()) {
-    return <div className="h-4" />
-  }
+  if (!text.trim()) return <div className="h-4" />
 
   return (
     <div
@@ -165,7 +163,6 @@ function AnnotatedLine({
       ].join(' ')}
     >
       <div className="flex items-start gap-2">
-        {/* Seek button — visible on hover, always visible when active */}
         {timestampMs != null && onSeek && (
           <button
             onClick={() => onSeek(timestampMs)}
@@ -247,20 +244,20 @@ function AnnotatedLine({
 // ─── Structured view (line-by-line with annotations + karaoke support) ────────
 
 function StructuredLyricsView({
-  structured,
+  lyrics,
   onEdit,
   activeLineId,
   onSeek,
 }: {
-  structured: StructuredLyrics
+  lyrics: SongLyrics
   onEdit: () => void
   activeLineId?: string | null
   onSeek?: (ms: number) => void
 }) {
   const { data: annotations = {} } = useQuery<Record<string, LineAnnotation[]>>({
-    queryKey: ['line-annotations', structured.id],
+    queryKey: ['line-annotations', lyrics.id],
     queryFn: async () => {
-      const lineIds = (structured.lines ?? []).map((l) => l.id)
+      const lineIds = (lyrics.lines ?? []).map((l) => l.id)
       const results = await Promise.all(
         lineIds.map((id) =>
           api.get<LineAnnotation[]>(`/line-annotations?lineId=${id}`).then((r) => ({
@@ -271,21 +268,21 @@ function StructuredLyricsView({
       )
       return Object.fromEntries(results.map((r) => [r.id, r.data]))
     },
-    enabled: (structured.lines?.length ?? 0) > 0,
+    enabled: (lyrics.lines?.length ?? 0) > 0,
     staleTime: 30_000,
   })
 
-  if (!structured.lines?.length) {
-    return <PlainLyricsView lyrics="" onEdit={onEdit} />
+  if (!lyrics.lines?.length) {
+    return <LyricsView lyrics="" onEdit={onEdit} />
   }
 
   return (
     <div className="rounded-xl bg-surface-raised border border-edge px-5 sm:px-7 py-6 space-y-0.5">
-      {(structured.lines ?? []).map((line) => (
+      {(lyrics.lines ?? []).map((line) => (
         <AnnotatedLine
           key={line.id}
           lineId={line.id}
-          lyricsId={structured.id}
+          songLyricsId={lyrics.id}
           text={line.text}
           annotations={annotations[line.id] ?? []}
           timestampMs={line.timestampMs}
@@ -300,26 +297,25 @@ function StructuredLyricsView({
 // ─── Version history panel ────────────────────────────────────────────────────
 
 function VersionHistory({
-  structured,
-  savedLyricId,
+  lyrics,
+  spotifyId,
 }: {
-  structured: StructuredLyrics
-  savedLyricId: string
+  lyrics: SongLyrics
+  spotifyId: string
 }) {
   const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
 
   const restore = useMutation({
     mutationFn: (version: number) =>
-      api.post(`/lyrics/${savedLyricId}/restore/${version}`).then((r) => r.data),
+      api.post(`/songs/${spotifyId}/lyrics/restore/${version}`).then((r) => r.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['lyrics', savedLyricId] })
-      queryClient.invalidateQueries({ queryKey: ['saved-lyrics'] })
+      queryClient.invalidateQueries({ queryKey: ['lyrics', spotifyId] })
       setOpen(false)
     },
   })
 
-  if (structured.versions.length === 0) return null
+  if (lyrics.versions.length === 0) return null
 
   return (
     <div className="border-t border-edge pt-3 mt-2">
@@ -329,17 +325,13 @@ function VersionHistory({
                    hover:text-foreground-muted transition-colors"
       >
         <History size={11} strokeWidth={1.75} />
-        {structured.versions.length} frühere{structured.versions.length === 1 ? '' : 'n'} Version
-        {open ? (
-          <ChevronUp size={10} strokeWidth={2} />
-        ) : (
-          <ChevronDown size={10} strokeWidth={2} />
-        )}
+        {lyrics.versions.length} frühere{lyrics.versions.length === 1 ? '' : 'n'} Version
+        {open ? <ChevronUp size={10} strokeWidth={2} /> : <ChevronDown size={10} strokeWidth={2} />}
       </button>
 
       {open && (
         <ul className="mt-2 space-y-1">
-          {structured.versions.map((v) => (
+          {lyrics.versions.map((v) => (
             <li
               key={v.id}
               className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg
@@ -372,31 +364,29 @@ function VersionHistory({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 interface Props {
-  savedLyricId: string
-  legacyLyrics: string
+  spotifyId: string
   fetchStatus?: LyricsFetchStatus
 }
 
-export default function LyricsEditor({ savedLyricId, legacyLyrics, fetchStatus }: Props) {
+export default function LyricsEditor({ spotifyId, fetchStatus }: Props) {
   const queryClient = useQueryClient()
   const [mode, setMode] = useState<'view' | 'edit'>('view')
   const [draft, setDraft] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
   const [karaoke, setKaraoke] = useState(false)
 
-  // Poll lyrics endpoint while auto-fetch is in progress
-  const { data: structured = null } = useQuery<StructuredLyrics | null>({
-    queryKey: ['lyrics', savedLyricId],
+  const { data: lyrics = null } = useQuery<SongLyrics | null>({
+    queryKey: ['lyrics', spotifyId],
     queryFn: () =>
-      api.get<StructuredLyrics | null>(`/lyrics/${savedLyricId}`).then((r) => r.data),
+      api.get<SongLyrics | null>(`/songs/${spotifyId}/lyrics`).then((r) => r.data),
     staleTime: 60_000,
     refetchInterval: fetchStatus === 'FETCHING' ? 5_000 : false,
   })
 
-  // Poll Spotify current track every second while karaoke mode is active
   const { data: currentTrack } = useQuery<SpotifyCurrentlyPlayingResponse | null>({
     queryKey: ['spotify-current-track'],
-    queryFn: () => api.get<SpotifyCurrentlyPlayingResponse>('/spotify/current-track').then((r) => r.data),
+    queryFn: () =>
+      api.get<SpotifyCurrentlyPlayingResponse>('/spotify/current-track').then((r) => r.data),
     enabled: karaoke || mode === 'edit',
     refetchInterval: 1_000,
     staleTime: 0,
@@ -404,10 +394,9 @@ export default function LyricsEditor({ savedLyricId, legacyLyrics, fetchStatus }
 
   const progressMs = currentTrack?.progress_ms ?? 0
 
-  // Determine which line should be highlighted based on playback position
   const activeLineId = useMemo(() => {
-    if (!karaoke || !structured) return null
-    const timedLines = (structured.lines ?? []).filter((l) => l.timestampMs != null)
+    if (!karaoke || !lyrics) return null
+    const timedLines = (lyrics.lines ?? []).filter((l) => l.timestampMs != null)
     if (timedLines.length === 0) return null
     let active = timedLines[0]
     for (const line of timedLines) {
@@ -415,25 +404,24 @@ export default function LyricsEditor({ savedLyricId, legacyLyrics, fetchStatus }
       else break
     }
     return active.id
-  }, [karaoke, progressMs, structured])
+  }, [karaoke, progressMs, lyrics])
 
   const seek = useMutation({
     mutationFn: (positionMs: number) =>
       api.post(`/spotify/seek?positionMs=${positionMs}`),
   })
 
-  const hasTimestamps = structured?.lines?.some((l) => l.timestampMs != null) ?? false
-
-  const currentText =
-    draft !== null ? draft : structured?.rawText ?? legacyLyrics ?? ''
-  const isDirty = draft !== null && draft !== (structured?.rawText ?? legacyLyrics ?? '')
+  const hasTimestamps = lyrics?.lines?.some((l) => l.timestampMs != null) ?? false
+  const currentText = draft !== null ? draft : lyrics?.rawText ?? ''
+  const isDirty = draft !== null && draft !== (lyrics?.rawText ?? '')
 
   const save = useMutation({
     mutationFn: (rawText: string) =>
-      api.put(`/lyrics/${savedLyricId}`, { rawText }).then((r) => r.data),
-    onSuccess: (data) => {
-      queryClient.setQueryData(['lyrics', savedLyricId], data)
-      queryClient.invalidateQueries({ queryKey: ['saved-lyrics'] })
+      api
+        .put(`/songs/${spotifyId}/lyrics`, { rawText, version: lyrics?.version })
+        .then((r) => r.data),
+    onSuccess: (data: SongLyrics) => {
+      queryClient.setQueryData(['lyrics', spotifyId], data)
       setDraft(null)
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
@@ -449,17 +437,17 @@ export default function LyricsEditor({ savedLyricId, legacyLyrics, fetchStatus }
           <p className="text-[11px] font-semibold text-foreground-subtle uppercase tracking-widest">
             Lyrics
           </p>
-          {structured && (
+          {lyrics && (
             <span className="text-[10px] text-foreground-subtle font-mono">
-              v{structured.version}
+              v{lyrics.version}
             </span>
           )}
-          {structured && (
+          {lyrics && (
             <span className="text-[10px] text-foreground-subtle">
-              · {timeAgo(structured.updatedAt)}
+              · {timeAgo(lyrics.updatedAt)}
             </span>
           )}
-          {fetchStatus === 'FETCHING' && !structured && (
+          {fetchStatus === 'FETCHING' && !lyrics && (
             <span className="flex items-center gap-1 text-[10px] text-foreground-subtle">
               <Loader2 size={9} className="animate-spin" />
               Lädt…
@@ -468,7 +456,6 @@ export default function LyricsEditor({ savedLyricId, legacyLyrics, fetchStatus }
         </div>
 
         <div className="flex items-center gap-1.5">
-          {/* Karaoke toggle — only shown when structured lyrics with timestamps exist */}
           {mode === 'view' && hasTimestamps && (
             <button
               onClick={() => setKaraoke((v) => !v)}
@@ -485,7 +472,6 @@ export default function LyricsEditor({ savedLyricId, legacyLyrics, fetchStatus }
             </button>
           )}
 
-          {/* View / Edit toggle */}
           <div className="flex items-center rounded-lg border border-edge bg-surface-raised p-0.5 gap-0.5">
             <button
               onClick={() => setMode('view')}
@@ -517,16 +503,16 @@ export default function LyricsEditor({ savedLyricId, legacyLyrics, fetchStatus }
 
       {/* Content */}
       {mode === 'view' ? (
-        structured ? (
+        lyrics ? (
           <StructuredLyricsView
-            structured={structured}
+            lyrics={lyrics}
             onEdit={() => setMode('edit')}
             activeLineId={activeLineId}
             onSeek={(ms) => seek.mutate(ms)}
           />
         ) : (
-          <PlainLyricsView
-            lyrics={legacyLyrics}
+          <LyricsView
+            lyrics=""
             onEdit={() => setMode('edit')}
             fetchStatus={fetchStatus}
           />
@@ -578,9 +564,8 @@ export default function LyricsEditor({ savedLyricId, legacyLyrics, fetchStatus }
         </>
       )}
 
-      {/* Version history (only in view mode when structured lyrics exist) */}
-      {mode === 'view' && structured && (
-        <VersionHistory structured={structured} savedLyricId={savedLyricId} />
+      {mode === 'view' && lyrics && (
+        <VersionHistory lyrics={lyrics} spotifyId={spotifyId} />
       )}
     </div>
   )

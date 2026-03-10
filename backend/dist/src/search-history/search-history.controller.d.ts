@@ -8,7 +8,7 @@ type AuthedRequest = {
 export declare class SearchHistoryController {
     private readonly service;
     constructor(service: SearchHistoryService);
-    getAll(req: AuthedRequest): import("@prisma/client").Prisma.PrismaPromise<{
+    getAll(req: AuthedRequest): Promise<{
         url: string;
         id: string;
         userId: string;
@@ -19,7 +19,7 @@ export declare class SearchHistoryController {
         createdAt: Date;
         imgUrl: string | null;
     }[]>;
-    getGlobal(): import("@prisma/client").Prisma.PrismaPromise<({
+    getGlobal(): Promise<({
         user: {
             name: string | null;
         };

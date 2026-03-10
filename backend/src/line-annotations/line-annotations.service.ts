@@ -52,7 +52,7 @@ export class LineAnnotationsService {
         lyrics: { select: { savedLyric: { select: { userId: true } } } },
       },
     });
-    if (!line || line.lyrics.savedLyric.userId !== userId) {
+    if (!line || line.lyrics?.savedLyric?.userId !== userId) {
       throw new NotFoundException('Line not found');
     }
   }

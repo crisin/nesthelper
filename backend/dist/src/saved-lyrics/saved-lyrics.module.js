@@ -9,7 +9,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.SavedLyricsModule = void 0;
 const common_1 = require("@nestjs/common");
 const auth_module_1 = require("../auth/auth.module");
-const lyrics_fetch_module_1 = require("../lyrics-fetch/lyrics-fetch.module");
+const prisma_module_1 = require("../prisma/prisma.module");
 const saved_lyrics_controller_1 = require("./saved-lyrics.controller");
 const saved_lyrics_service_1 = require("./saved-lyrics.service");
 let SavedLyricsModule = class SavedLyricsModule {
@@ -17,9 +17,10 @@ let SavedLyricsModule = class SavedLyricsModule {
 exports.SavedLyricsModule = SavedLyricsModule;
 exports.SavedLyricsModule = SavedLyricsModule = __decorate([
     (0, common_1.Module)({
-        imports: [auth_module_1.AuthModule, lyrics_fetch_module_1.LyricsFetchModule],
-        providers: [saved_lyrics_service_1.SavedLyricsService],
+        imports: [prisma_module_1.PrismaModule, auth_module_1.AuthModule],
         controllers: [saved_lyrics_controller_1.SavedLyricsController],
+        providers: [saved_lyrics_service_1.SavedLyricsService],
+        exports: [saved_lyrics_service_1.SavedLyricsService],
     })
 ], SavedLyricsModule);
 //# sourceMappingURL=saved-lyrics.module.js.map

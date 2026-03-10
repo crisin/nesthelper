@@ -32,21 +32,15 @@ export interface SearchHistoryItem {
   createdAt: string
 }
 
+// ─── Shared song entity ────────────────────────────────────────────────────────
+
 export interface SongTag {
   id: string
+  songId: string | null
   tag: string
   type: 'CONTEXT' | 'MOOD'
+  addedBy: string | null
   createdAt: string
-}
-
-export interface LineAnnotation {
-  id: string
-  lineId: string
-  userId: string
-  text: string
-  emoji?: string | null
-  createdAt: string
-  updatedAt: string
 }
 
 export interface LyricsLine {
@@ -64,58 +58,60 @@ export interface LyricsVersion {
   createdAt: string
 }
 
-export interface StructuredLyrics {
+export interface SongLyrics {
   id: string
-  savedLyricId: string
+  songId: string
   rawText: string
   version: number
+  lastEditedBy: string | null
   createdAt: string
   updatedAt: string
   lines: LyricsLine[]
   versions: LyricsVersion[]
 }
 
-export type Visibility = 'PRIVATE' | 'FRIENDS' | 'PUBLIC'
-
 export type LyricsFetchStatus = 'IDLE' | 'FETCHING' | 'DONE' | 'FAILED'
+
+export interface Song {
+  id: string
+  spotifyId: string
+  title: string
+  artist: string
+  artists: string[]
+  imgUrl?: string | null
+  spotifyUrl?: string | null
+  videoUrl?: string | null
+  fetchStatus: LyricsFetchStatus
+  firstSeenAt: string
+  updatedAt: string
+  lyrics?: SongLyrics | null
+  tags?: SongTag[]
+  hasLyrics?: boolean
+  saveCount?: number
+}
+
+// ─── Personal bookmark ────────────────────────────────────────────────────────
 
 export interface SavedLyric {
   id: string
-  spotifyId?: string | null
-  track: string
-  artist: string
-  artists: string[]
-  lyrics: string
+  userId: string
+  songId: string | null
   note?: string | null
-  videoUrl?: string | null
   isFavorite?: boolean
-  visibility?: Visibility
-  fetchStatus?: LyricsFetchStatus
-  searchHistoryId?: string
-  searchHistory?: { imgUrl?: string; url?: string; spotifyId?: string } | null
-  tags?: SongTag[]
   createdAt: string
+  song?: Song | null
 }
 
-export interface LibraryTrack {
-  id: string
-  spotifyId: string
-  name: string
-  artist: string
-  artists: string[]
-  imgUrl?: string
-  url: string
-  lyricsCount: number
-  searchCount: number
-  firstSeenAt: string
-  lastSeenAt: string
-}
+// ─── Line annotations ──────────────────────────────────────────────────────────
 
-export interface CommunityLyric {
+export interface LineAnnotation {
   id: string
-  lyrics: string
+  lineId: string
+  userId: string
+  text: string
+  emoji?: string | null
   createdAt: string
-  user: { name: string | null }
+  updatedAt: string
 }
 
 // ─── Phase 2: Collections ─────────────────────────────────────────────────────
@@ -127,11 +123,9 @@ export interface CollectionItem {
   lineId?: string | null
   position: number
   addedAt: string
-  savedLyric?: (SavedLyric & {
-    searchHistory?: { imgUrl?: string; url?: string; spotifyId?: string } | null
-  }) | null
+  savedLyric?: (SavedLyric & { song?: Song | null }) | null
   line?: (LyricsLine & {
-    lyrics?: { savedLyric: Pick<SavedLyric, 'id' | 'track' | 'artist' | 'artists'> } | null
+    songLyrics?: { song: Pick<Song, 'id' | 'title' | 'artist' | 'artists'> } | null
   }) | null
 }
 
@@ -148,11 +142,10 @@ export interface Collection {
   user?: { name: string | null }
 }
 
-// ─── Phase 2: Community Insights ─────────────────────────────────────────────
+// ─── Song insights ─────────────────────────────────────────────────────────────
 
 export interface TrackInsights {
   saveCount: number
-  contributorCount: number
   tagDistribution: { tag: string; count: number }[]
   mostAnnotatedLines: { text: string; lineNumber: number; count: number }[]
 }
@@ -171,10 +164,10 @@ export interface TimelineSong {
   track: string
   artist: string
   artists: string[]
-  lyrics?: string
+  lyrics?: string | null
   createdAt: string
   tags: { tag: string }[]
-  searchHistory?: { imgUrl?: string; spotifyId?: string } | null
+  searchHistory?: { imgUrl?: string | null; spotifyId?: string } | null
 }
 
 export interface TimelineMonth {
@@ -191,13 +184,6 @@ export interface DigestContent {
   topWord: string | null
   topArtist: string | null
   communityInsight: string | null
-}
-
-export interface CommunityLyrics {
-  id: string
-  lyrics: string
-  user: { name: string | null }
-  createdAt: string
 }
 
 export interface Digest {

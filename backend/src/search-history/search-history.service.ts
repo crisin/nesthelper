@@ -1,20 +1,24 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { SearchHistory } from '@prisma/client';
+import { Prisma, SearchHistory } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSearchHistoryDto } from './dto/create-search-history.dto';
+
+type SearchHistoryWithUser = Prisma.SearchHistoryGetPayload<{
+  include: { user: { select: { name: true } } };
+}>;
 
 @Injectable()
 export class SearchHistoryService {
   constructor(private readonly prisma: PrismaService) {}
 
-  getAll(userId: string) {
+  getAll(userId: string): Promise<SearchHistory[]> {
     return this.prisma.searchHistory.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  getGlobal() {
+  getGlobal(): Promise<SearchHistoryWithUser[]> {
     return this.prisma.searchHistory.findMany({
       orderBy: { createdAt: 'desc' },
       take: 100,
@@ -49,35 +53,28 @@ export class SearchHistoryService {
         },
       });
 
-      await tx.libraryTrack.upsert({
+      // Upsert shared Song record
+      const song = await tx.song.upsert({
         where: { spotifyId },
+        create: {
+          spotifyId,
+          title: dto.track,
+          artist,
+          artists,
+          spotifyUrl: dto.url,
+          imgUrl: dto.imgUrl ?? null,
+        },
         update: {
-          url: dto.url,
           ...(dto.imgUrl ? { imgUrl: dto.imgUrl } : {}),
         },
-        create: {
-          spotifyId,
-          name: dto.track,
-          artist,
-          artists,
-          url: dto.url,
-          imgUrl: dto.imgUrl,
-        },
+        select: { id: true },
       });
 
-      // Auto-create a SavedLyric for this track — this is the record the user can favorite
+      // Auto-create a bookmark for this user (idempotent)
       await tx.savedLyric.upsert({
-        where: { userId_spotifyId: { userId, spotifyId } },
-        create: {
-          userId,
-          spotifyId,
-          track: dto.track,
-          artist,
-          artists,
-          lyrics: '',
-          searchHistoryId: history.id,
-        },
-        update: {}, // never overwrite existing lyrics/notes/favorites
+        where: { userId_songId: { userId, songId: song.id } },
+        create: { userId, songId: song.id },
+        update: {},
       });
 
       return history;

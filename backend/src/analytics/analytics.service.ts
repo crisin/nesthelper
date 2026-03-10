@@ -95,7 +95,6 @@ const STOPWORDS = new Set([
   'than',
   'then',
   'now',
-  'its',
   'dont',
   'cant',
   'wont',
@@ -108,13 +107,37 @@ const STOPWORDS = new Set([
   'see',
 ]);
 
+type RawSave = {
+  id: string;
+  createdAt: Date;
+  song: {
+    title: string;
+    artist: string;
+    artists: string[];
+    imgUrl: string | null;
+    spotifyId: string;
+    lyrics: { rawText: string } | null;
+    tags: { tag: string }[];
+  };
+};
+
+type NewDb = {
+  songLyrics: { findMany(args: unknown): Promise<{ rawText: string }[]> };
+  song: { findMany(args: unknown): Promise<{ artist: string }[]> };
+};
+
 @Injectable()
 export class AnalyticsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  // Typed accessor for new Prisma models (pre-migration workaround — resolves after npx prisma generate)
+  private get newDb(): NewDb {
+    return this.prisma as unknown as NewDb;
+  }
+
   async getTopWords(userId: string) {
-    const lyrics = await this.prisma.lyrics.findMany({
-      where: { savedLyric: { userId } },
+    const lyrics = await this.newDb.songLyrics.findMany({
+      where: { song: { savedBy: { some: { userId } } } },
       select: { rawText: true },
     });
     return this.countWords(lyrics.map((l) => l.rawText));
@@ -123,7 +146,11 @@ export class AnalyticsService {
   async getEmotions(userId: string) {
     const rows = await this.prisma.songTag.groupBy({
       by: ['tag'],
-      where: { savedLyric: { userId }, type: 'MOOD' },
+      where: {
+        song: { savedBy: { some: { userId } } },
+        type: 'MOOD',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any,
       _count: { id: true },
       orderBy: { _count: { id: 'desc' } },
       take: 20,
@@ -132,20 +159,30 @@ export class AnalyticsService {
   }
 
   async getArtists(userId: string) {
-    const rows = await this.prisma.savedLyric.groupBy({
-      by: ['artist'],
+    const saves = await this.prisma.savedLyric.findMany({
       where: { userId },
-      _count: { id: true },
-      orderBy: { _count: { id: 'desc' } },
-      take: 20,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      select: { song: { select: { artist: true } } } as any,
     });
-    return rows.map((r) => ({ artist: r.artist, count: r._count.id }));
+    const freq = new Map<string, number>();
+    for (const s of saves as unknown as { song: { artist: string } }[]) {
+      const artist = s.song?.artist;
+      if (artist) freq.set(artist, (freq.get(artist) ?? 0) + 1);
+    }
+    return [...freq.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 20)
+      .map(([artist, count]) => ({ artist, count }));
   }
 
   async getThemes(userId: string) {
     const rows = await this.prisma.songTag.groupBy({
       by: ['tag'],
-      where: { savedLyric: { userId }, type: 'CONTEXT' },
+      where: {
+        song: { savedBy: { some: { userId } } },
+        type: 'CONTEXT',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any,
       _count: { id: true },
       orderBy: { _count: { id: 'desc' } },
       take: 15,
@@ -157,30 +194,32 @@ export class AnalyticsService {
     const start = new Date(year, 0, 1);
     const end = new Date(year + 1, 0, 1);
 
-    const songs = await this.prisma.savedLyric.findMany({
+    const saves = await this.prisma.savedLyric.findMany({
       where: { userId, createdAt: { gte: start, lt: end } },
       select: {
         id: true,
-        track: true,
-        artist: true,
-        artists: true,
-        lyrics: true,
         createdAt: true,
-        tags: {
-          where: { type: 'MOOD' },
-          select: { tag: true },
+        song: {
+          select: {
+            title: true,
+            artist: true,
+            artists: true,
+            imgUrl: true,
+            spotifyId: true,
+            lyrics: { select: { rawText: true } },
+            tags: { where: { type: 'MOOD' }, select: { tag: true } },
+          },
         },
-        searchHistory: { select: { imgUrl: true, spotifyId: true } },
-      },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- pre-migration workaround
+      } as any,
       orderBy: { createdAt: 'asc' },
     });
 
-    // Group by month (0–11)
-    const monthMap = new Map<number, typeof songs>();
-    for (const song of songs) {
-      const m = new Date(song.createdAt).getMonth();
+    const monthMap = new Map<number, RawSave[]>();
+    for (const save of saves as unknown as RawSave[]) {
+      const m = new Date(save.createdAt).getMonth();
       if (!monthMap.has(m)) monthMap.set(m, []);
-      monthMap.get(m)!.push(song);
+      monthMap.get(m)!.push(save);
     }
 
     const MONTH_NAMES = [
@@ -200,25 +239,38 @@ export class AnalyticsService {
 
     return [...monthMap.entries()]
       .sort(([a], [b]) => a - b)
-      .map(([m, monthSongs]) => {
+      .map(([m, monthSaves]) => {
         const freq = new Map<string, number>();
-        for (const song of monthSongs) {
-          for (const { tag } of song.tags) {
+        for (const save of monthSaves) {
+          for (const { tag } of save.song.tags) {
             freq.set(tag, (freq.get(tag) ?? 0) + 1);
           }
         }
         const dominantMood =
           [...freq.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
-        return { month: MONTH_NAMES[m], year, dominantMood, songs: monthSongs };
+
+        const songs = monthSaves.map((save) => ({
+          id: save.id,
+          track: save.song.title,
+          artist: save.song.artist,
+          artists: save.song.artists,
+          lyrics: save.song.lyrics?.rawText ?? null,
+          searchHistory: {
+            imgUrl: save.song.imgUrl,
+            spotifyId: save.song.spotifyId,
+          },
+          tags: save.song.tags,
+          createdAt: save.createdAt,
+        }));
+
+        return { month: MONTH_NAMES[m], year, dominantMood, songs };
       });
   }
 
   // ── Global (cross-user) ────────────────────────────────────────────────────
 
   async getGlobalTopWords() {
-    // Only PUBLIC songs to respect privacy
-    const lyrics = await this.prisma.lyrics.findMany({
-      where: { savedLyric: { visibility: 'PUBLIC' } },
+    const lyrics = await this.newDb.songLyrics.findMany({
       select: { rawText: true },
     });
     return this.countWords(lyrics.map((l) => l.rawText));
@@ -236,14 +288,18 @@ export class AnalyticsService {
   }
 
   async getGlobalArtists() {
-    const rows = await this.prisma.savedLyric.groupBy({
-      by: ['artist'],
+    const songs = await this.newDb.song.findMany({
       where: { artist: { not: '' } },
-      _count: { id: true },
-      orderBy: { _count: { id: 'desc' } },
-      take: 20,
+      select: { artist: true },
     });
-    return rows.map((r) => ({ artist: r.artist, count: r._count.id }));
+    const freq = new Map<string, number>();
+    for (const s of songs) {
+      freq.set(s.artist, (freq.get(s.artist) ?? 0) + 1);
+    }
+    return [...freq.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 20)
+      .map(([artist, count]) => ({ artist, count }));
   }
 
   async getGlobalThemes() {
@@ -268,8 +324,8 @@ export class AnalyticsService {
     for (const rawText of rawTexts) {
       const words = rawText
         .toLowerCase()
-        .replace(/['\u2018\u2019\u02bc]/g, '') // remove apostrophes (don't → dont)
-        .replace(/[^\p{L}\p{N}\s]/gu, ' ') // keep Unicode letters + digits
+        .replace(/['\u2018\u2019\u02bc]/g, '')
+        .replace(/[^\p{L}\p{N}\s]/gu, ' ')
         .split(/\s+/)
         .filter((w) => w.length > 2 && !STOPWORDS.has(w));
       for (const word of words) {

@@ -1,9 +1,14 @@
 import { Injectable } from '@nestjs/common';
+import { IsOptional, IsString } from 'class-validator';
 import { LineAnnotation, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 export class UpsertAnnotationDto {
+  @IsString()
   text!: string;
+
+  @IsOptional()
+  @IsString()
   emoji?: string;
 }
 

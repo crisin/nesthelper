@@ -36,6 +36,7 @@ model User {
   savedLyrics      SavedLyric[]
   searchHistory    SearchHistory[]
   lineAnnotations  LineAnnotation[]
+  songNotes        SongNote[]
   collections      Collection[]
   digests          Digest[]
 }
@@ -69,6 +70,7 @@ model Song {
 
   lyrics  SongLyrics?
   tags    SongTag[]
+  notes   SongNote[]
   savedBy SavedLyric[]
 }
 
@@ -211,8 +213,8 @@ model LineAnnotation {
   line LyricsLine @relation(fields: [lineId], references: [id], onDelete: Cascade)
   user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, lineId])
   @@index([lineId])
-  @@index([userId])
 }
 
 model SongTag {
@@ -232,6 +234,23 @@ model SongTag {
   @@unique([savedLyricId, tag])
   @@unique([songId, tag])
   @@index([tag])
+}
+
+// ─── Shared song commentary ─────────────────────────────────────────────────
+
+model SongNote {
+  id        String   @id @default(cuid())
+  songId    String
+  userId    String
+  text      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  song Song @relation(fields: [songId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, songId])
+  @@index([songId])
 }
 
 // ─── Phase 3: Listening Context ──────────────────────────────────────────────

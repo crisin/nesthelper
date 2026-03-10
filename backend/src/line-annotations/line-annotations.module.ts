@@ -1,11 +1,10 @@
 import { Module } from '@nestjs/common';
-import { AuthModule } from '../auth/auth.module';
-import { LineAnnotationsController } from './line-annotations.controller';
+import { PrismaModule } from '../prisma/prisma.module';
 import { LineAnnotationsService } from './line-annotations.service';
 
 @Module({
-  imports: [AuthModule],
+  imports: [PrismaModule],
   providers: [LineAnnotationsService],
-  controllers: [LineAnnotationsController],
+  exports: [LineAnnotationsService],
 })
 export class LineAnnotationsModule {}

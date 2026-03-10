@@ -19,7 +19,7 @@ const saved_lyrics_module_1 = require("./saved-lyrics/saved-lyrics.module");
 const songs_module_1 = require("./songs/songs.module");
 const song_lyrics_module_1 = require("./song-lyrics/song-lyrics.module");
 const song_tags_module_1 = require("./song-tags/song-tags.module");
-const line_annotations_module_1 = require("./line-annotations/line-annotations.module");
+const song_notes_module_1 = require("./song-notes/song-notes.module");
 const search_module_1 = require("./search/search.module");
 const collections_module_1 = require("./collections/collections.module");
 const lyrics_fetch_module_1 = require("./lyrics-fetch/lyrics-fetch.module");
@@ -50,7 +50,7 @@ exports.AppModule = AppModule = __decorate([
             songs_module_1.SongsModule,
             song_lyrics_module_1.SongLyricsModule,
             song_tags_module_1.SongTagsModule,
-            line_annotations_module_1.LineAnnotationsModule,
+            song_notes_module_1.SongNotesModule,
             search_module_1.SearchModule,
             collections_module_1.CollectionsModule,
             lyrics_fetch_module_1.LyricsFetchModule,

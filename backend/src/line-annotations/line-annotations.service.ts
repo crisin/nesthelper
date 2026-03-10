@@ -1,59 +1,71 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { LineAnnotation, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateLineAnnotationDto } from './dto/create-line-annotation.dto';
+
+export class UpsertAnnotationDto {
+  text!: string;
+  emoji?: string;
+}
+
+const ANNOTATION_INCLUDE = {
+  user: { select: { id: true, name: true } },
+} satisfies Prisma.LineAnnotationInclude;
+
+export type AnnotationWithUser = Prisma.LineAnnotationGetPayload<{
+  include: typeof ANNOTATION_INCLUDE;
+}>;
 
 @Injectable()
 export class LineAnnotationsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getForLine(userId: string, lineId: string) {
-    // Verify the line belongs to this user's song
-    await this.assertLineOwnership(userId, lineId);
-    return this.prisma.lineAnnotation.findMany({
-      where: { lineId, userId },
+  /** All annotations for all lines of a song, keyed by lineId. */
+  async getForSong(
+    spotifyId: string,
+  ): Promise<Record<string, AnnotationWithUser[]>> {
+    const song = await this.prisma.song.findUnique({
+      where: { spotifyId },
+      select: { lyrics: { select: { id: true } } },
+    });
+    if (!song?.lyrics) return {};
+
+    const annotations = await this.prisma.lineAnnotation.findMany({
+      where: { line: { songLyricsId: song.lyrics.id } },
+      include: ANNOTATION_INCLUDE,
       orderBy: { createdAt: 'asc' },
     });
-  }
 
-  async create(userId: string, lineId: string, dto: CreateLineAnnotationDto) {
-    await this.assertLineOwnership(userId, lineId);
-    return this.prisma.lineAnnotation.create({
-      data: { lineId, userId, text: dto.text, emoji: dto.emoji },
-    });
-  }
-
-  async update(
-    userId: string,
-    annotationId: string,
-    dto: CreateLineAnnotationDto,
-  ) {
-    const annotation = await this.prisma.lineAnnotation.findFirst({
-      where: { id: annotationId, userId },
-    });
-    if (!annotation) throw new NotFoundException('Annotation not found');
-    return this.prisma.lineAnnotation.update({
-      where: { id: annotationId },
-      data: { text: dto.text, emoji: dto.emoji },
-    });
-  }
-
-  async remove(userId: string, annotationId: string): Promise<void> {
-    const annotation = await this.prisma.lineAnnotation.findFirst({
-      where: { id: annotationId, userId },
-    });
-    if (!annotation) throw new NotFoundException('Annotation not found');
-    await this.prisma.lineAnnotation.delete({ where: { id: annotationId } });
-  }
-
-  private async assertLineOwnership(userId: string, lineId: string) {
-    const line = await this.prisma.lyricsLine.findFirst({
-      where: { id: lineId },
-      include: {
-        lyrics: { select: { savedLyric: { select: { userId: true } } } },
-      },
-    });
-    if (!line || line.lyrics?.savedLyric?.userId !== userId) {
-      throw new NotFoundException('Line not found');
+    const result: Record<string, AnnotationWithUser[]> = {};
+    for (const a of annotations) {
+      (result[a.lineId] ??= []).push(a);
     }
+    return result;
+  }
+
+  /** Create-or-update the current user's annotation on a line. */
+  async upsert(
+    userId: string,
+    lineId: string,
+    dto: UpsertAnnotationDto,
+  ): Promise<AnnotationWithUser> {
+    return this.prisma.lineAnnotation.upsert({
+      where: { userId_lineId: { userId, lineId } },
+      create: { lineId, userId, text: dto.text, emoji: dto.emoji ?? null },
+      update: { text: dto.text, emoji: dto.emoji ?? null },
+      include: ANNOTATION_INCLUDE,
+    });
+  }
+
+  /** Delete the current user's annotation for a specific line. */
+  async removeByLine(userId: string, lineId: string): Promise<void> {
+    await this.prisma.lineAnnotation.deleteMany({ where: { userId, lineId } });
+  }
+
+  // Legacy — no longer called after route migration
+  async getForLine(_userId: string, lineId: string): Promise<LineAnnotation[]> {
+    return this.prisma.lineAnnotation.findMany({
+      where: { lineId },
+      orderBy: { createdAt: 'asc' },
+    });
   }
 }

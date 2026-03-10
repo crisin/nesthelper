@@ -10,7 +10,7 @@ import { SavedLyricsModule } from './saved-lyrics/saved-lyrics.module';
 import { SongsModule } from './songs/songs.module';
 import { SongLyricsModule } from './song-lyrics/song-lyrics.module';
 import { SongTagsModule } from './song-tags/song-tags.module';
-import { LineAnnotationsModule } from './line-annotations/line-annotations.module';
+import { SongNotesModule } from './song-notes/song-notes.module';
 import { SearchModule } from './search/search.module';
 import { CollectionsModule } from './collections/collections.module';
 import { LyricsFetchModule } from './lyrics-fetch/lyrics-fetch.module';
@@ -38,7 +38,7 @@ import { DigestModule } from './digest/digest.module';
     SongsModule,
     SongLyricsModule,
     SongTagsModule,
-    LineAnnotationsModule,
+    SongNotesModule,
     SearchModule,
     CollectionsModule,
     LyricsFetchModule,

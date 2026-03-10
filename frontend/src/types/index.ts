@@ -108,8 +108,19 @@ export interface LineAnnotation {
   id: string
   lineId: string
   userId: string
+  user: { id: string; name: string | null }
   text: string
   emoji?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface SongNote {
+  id: string
+  songId: string
+  userId: string
+  user: { id: string; name: string | null }
+  text: string
   createdAt: string
   updatedAt: string
 }

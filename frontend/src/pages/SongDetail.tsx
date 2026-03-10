@@ -6,48 +6,99 @@ import {
   ChevronDown, ChevronUp, Users2, Clapperboard, Play, Pencil, X,
 } from 'lucide-react'
 import api from '../services/api'
-import type { SavedLyric, TrackInsights } from '../types'
+import type { SavedLyric, SongNote, TrackInsights } from '../types'
+import { useAuthStore } from '../stores/authStore'
 import BottomSheet from '../components/BottomSheet'
 import TrackCover from '../components/TrackCover'
 import TagSelector from '../components/TagSelector'
 import LyricsEditor from '../components/LyricsEditor'
 
-// ─── Note section ─────────────────────────────────────────────────────────────
+// ─── Song notes section (public thread, own note editable) ───────────────────
 
-function NoteSection({ savedLyricId, note }: { savedLyricId: string; note?: string | null }) {
+function timeAgo(dateStr: string) {
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const m = Math.floor(diff / 60_000)
+  if (m < 1) return 'gerade eben'
+  if (m < 60) return `vor ${m} Min.`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `vor ${h} Std.`
+  return `vor ${Math.floor(h / 24)} Tagen`
+}
+
+function SongNotesSection({ spotifyId }: { spotifyId: string }) {
   const queryClient = useQueryClient()
-  const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState(note ?? '')
-  const [saved, setSaved] = useState(false)
+  const currentUserId = useAuthStore((s) => s.user?.id ?? '')
+  const [editingId, setEditingId] = useState<'own' | null>(null)
+  const [draft, setDraft] = useState('')
+
+  const { data: notes = [] } = useQuery<SongNote[]>({
+    queryKey: ['song-notes', spotifyId],
+    queryFn: () => api.get<SongNote[]>(`/songs/${spotifyId}/notes`).then((r) => r.data),
+    staleTime: 30_000,
+  })
+
+  const myNote = notes.find((n) => n.userId === currentUserId) ?? null
+  const othersNotes = notes.filter((n) => n.userId !== currentUserId)
 
   const save = useMutation({
     mutationFn: (text: string) =>
-      api.patch(`/saved-lyrics/${savedLyricId}/note`, { text }).then((r) => r.data),
+      api.put(`/songs/${spotifyId}/notes`, { text }).then((r) => r.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['saved-lyrics'] })
-      setEditing(false)
-      setSaved(true)
-      setTimeout(() => setSaved(false), 2000)
+      queryClient.invalidateQueries({ queryKey: ['song-notes', spotifyId] })
+      setEditingId(null)
     },
   })
 
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2">
-        <p className="text-[11px] font-semibold text-foreground-subtle uppercase tracking-widest">
-          Meine Notiz
-        </p>
-        {saved && <span className="text-[10px] text-accent">Gespeichert</span>}
-      </div>
+  const remove = useMutation({
+    mutationFn: () => api.delete(`/songs/${spotifyId}/notes`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['song-notes', spotifyId] })
+      setEditingId(null)
+    },
+  })
 
-      {editing ? (
+  function openEditor() {
+    setDraft(myNote?.text ?? '')
+    setEditingId('own')
+  }
+
+  const hasAnyNotes = notes.length > 0
+
+  return (
+    <div className="space-y-3">
+      <p className="text-[11px] font-semibold text-foreground-subtle uppercase tracking-widest">
+        Notizen
+      </p>
+
+      {/* Others' notes (read-only) */}
+      {othersNotes.length > 0 && (
+        <div className="space-y-2">
+          {othersNotes.map((n) => (
+            <div
+              key={n.id}
+              className="rounded-xl border border-edge bg-surface-raised px-4 py-3 space-y-1"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-medium text-foreground-muted">
+                  {n.user.name ?? 'Anonym'}
+                </span>
+                <span className="text-[10px] text-foreground-subtle">{timeAgo(n.updatedAt)}</span>
+              </div>
+              <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{n.text}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Own note */}
+      {editingId === 'own' ? (
         <div className="space-y-2">
           <textarea
             autoFocus
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Escape') { setEditing(false); setDraft(note ?? '') }
+              if (e.key === 'Escape') setEditingId(null)
             }}
             placeholder="Was bedeutet dieser Song für dich?"
             rows={3}
@@ -56,8 +107,8 @@ function NoteSection({ savedLyricId, note }: { savedLyricId: string; note?: stri
           />
           <div className="flex items-center gap-2">
             <button
-              onClick={() => save.mutate(draft)}
-              disabled={save.isPending}
+              onClick={() => draft.trim() && save.mutate(draft.trim())}
+              disabled={!draft.trim() || save.isPending}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent text-black
                          text-xs font-semibold disabled:opacity-40 hover:opacity-90 transition-opacity"
             >
@@ -65,27 +116,49 @@ function NoteSection({ savedLyricId, note }: { savedLyricId: string; note?: stri
               {save.isPending ? 'Speichern…' : 'Speichern'}
             </button>
             <button
-              onClick={() => { setEditing(false); setDraft(note ?? '') }}
+              onClick={() => setEditingId(null)}
               className="text-xs text-foreground-muted hover:text-foreground transition-colors"
             >
               Abbrechen
             </button>
+            {myNote && (
+              <button
+                onClick={() => remove.mutate()}
+                disabled={remove.isPending}
+                className="ml-auto text-xs text-foreground-subtle hover:text-red-400 transition-colors"
+              >
+                Löschen
+              </button>
+            )}
           </div>
+        </div>
+      ) : myNote ? (
+        <div className="rounded-xl border border-edge bg-surface-raised px-4 py-3 space-y-1 group relative">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-medium text-accent/80">Du</span>
+            <span className="text-[10px] text-foreground-subtle">{timeAgo(myNote.updatedAt)}</span>
+            <button
+              onClick={openEditor}
+              className="ml-auto opacity-0 group-hover:opacity-100 text-foreground-subtle hover:text-foreground
+                         transition-all p-0.5 rounded"
+            >
+              <Pencil size={11} strokeWidth={1.75} />
+            </button>
+          </div>
+          <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{myNote.text}</p>
         </div>
       ) : (
         <button
-          onClick={() => { setDraft(note ?? ''); setEditing(true) }}
+          onClick={openEditor}
           className="w-full text-left rounded-xl border border-dashed border-edge px-4 py-3
                      hover:border-foreground-muted/40 hover:bg-surface-raised/50 transition-colors"
         >
-          {note ? (
-            <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{note}</p>
-          ) : (
-            <div className="flex items-center gap-2 text-foreground-subtle">
-              <StickyNote size={13} strokeWidth={1.5} />
-              <span className="text-xs">Notiz hinzufügen…</span>
-            </div>
-          )}
+          <div className="flex items-center gap-2 text-foreground-subtle">
+            <StickyNote size={13} strokeWidth={1.5} />
+            <span className="text-xs">
+              {hasAnyNotes ? 'Eigene Notiz hinzufügen…' : 'Notiz hinzufügen…'}
+            </span>
+          </div>
         </button>
       )}
     </div>
@@ -505,8 +578,8 @@ export default function SongDetail() {
         <LyricsEditor spotifyId={spotifyId} fetchStatus={s?.fetchStatus} />
       )}
 
-      {/* Personal note */}
-      <NoteSection savedLyricId={song.id} note={song.note} />
+      {/* Song notes (public thread) */}
+      {spotifyId && <SongNotesSection spotifyId={spotifyId} />}
 
       {/* Music video */}
       {spotifyId && <VideoSection spotifyId={spotifyId} videoUrl={s?.videoUrl} />}

@@ -2,10 +2,11 @@ import { useState, useMemo } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Eye, Pencil, History, ChevronDown, ChevronUp, MessageSquarePlus,
-  RotateCcw, Check, Music, Headphones, Timer, Loader2, Rewind,
+  RotateCcw, Check, Music, Headphones, Timer, Loader2, Rewind, X,
 } from 'lucide-react'
 import api from '../services/api'
 import type { SongLyrics, LineAnnotation, LyricsFetchStatus, SpotifyCurrentlyPlayingResponse } from '../types'
+import { useAuthStore } from '../stores/authStore'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -104,53 +105,54 @@ function LyricsView({
   )
 }
 
-// ─── Structured line with annotation + seek ───────────────────────────────────
+// ─── Structured line with annotations ────────────────────────────────────────
 
 function AnnotatedLine({
   lineId,
-  songLyricsId,
+  spotifyId,
   text,
   annotations,
+  currentUserId,
   timestampMs,
   isActive,
   onSeek,
 }: {
   lineId: string
-  songLyricsId: string
+  spotifyId: string
   text: string
   annotations: LineAnnotation[]
+  currentUserId: string
   timestampMs?: number | null
   isActive?: boolean
   onSeek?: (ms: number) => void
 }) {
   const queryClient = useQueryClient()
-  const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
 
-  const myAnnotation = annotations[0] ?? null
+  const myAnnotation = annotations.find((a) => a.userId === currentUserId) ?? null
+  const othersAnnotations = annotations.filter((a) => a.userId !== currentUserId)
 
   const saveMutation = useMutation({
     mutationFn: () =>
-      myAnnotation
-        ? api.patch(`/line-annotations/${myAnnotation.id}`, { text: draft }).then((r) => r.data)
-        : api.post(`/line-annotations/${lineId}`, { text: draft }).then((r) => r.data),
+      api.put(`/songs/${spotifyId}/annotations/${lineId}`, { text: draft }).then((r) => r.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['line-annotations', songLyricsId] })
-      setOpen(false)
+      queryClient.invalidateQueries({ queryKey: ['annotations', spotifyId] })
+      setEditing(false)
     },
   })
 
   const deleteMutation = useMutation({
-    mutationFn: () => api.delete(`/line-annotations/${myAnnotation!.id}`),
+    mutationFn: () => api.delete(`/songs/${spotifyId}/annotations/${lineId}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['line-annotations', songLyricsId] })
-      setOpen(false)
+      queryClient.invalidateQueries({ queryKey: ['annotations', spotifyId] })
+      setEditing(false)
     },
   })
 
-  function handleOpen() {
+  function openEditor() {
     setDraft(myAnnotation?.text ?? '')
-    setOpen((v) => !v)
+    setEditing(true)
   }
 
   if (!text.trim()) return <div className="h-4" />
@@ -162,6 +164,7 @@ function AnnotatedLine({
         isActive ? 'bg-accent/10' : 'hover:bg-surface-overlay/50',
       ].join(' ')}
     >
+      {/* Line text row */}
       <div className="flex items-start gap-2">
         {timestampMs != null && onSeek && (
           <button
@@ -185,36 +188,59 @@ function AnnotatedLine({
         >
           {text}
         </span>
-        <button
-          onClick={handleOpen}
-          title={myAnnotation ? 'Edit annotation' : 'Add annotation'}
-          className={[
-            'flex-shrink-0 mt-1.5 p-0.5 rounded transition-colors',
-            myAnnotation
-              ? 'text-accent/70 hover:text-accent'
-              : 'text-foreground-subtle opacity-0 group-hover:opacity-100 hover:text-foreground-muted',
-          ].join(' ')}
-        >
-          <MessageSquarePlus size={12} strokeWidth={1.75} />
-        </button>
+        {/* Add/edit own annotation */}
+        {!editing && (
+          <button
+            onClick={openEditor}
+            title={myAnnotation ? 'Edit your annotation' : 'Add annotation'}
+            className={[
+              'flex-shrink-0 mt-1.5 p-0.5 rounded transition-colors',
+              myAnnotation
+                ? 'text-accent/70 hover:text-accent'
+                : 'text-foreground-subtle opacity-0 group-hover:opacity-100 hover:text-foreground-muted',
+            ].join(' ')}
+          >
+            <MessageSquarePlus size={12} strokeWidth={1.75} />
+          </button>
+        )}
       </div>
 
-      {myAnnotation && !open && (
-        <p className="ml-0 mt-0.5 text-[11px] text-accent/70 italic leading-snug">
+      {/* Other users' annotations (read-only) */}
+      {othersAnnotations.length > 0 && (
+        <div className="mt-1 space-y-0.5 pl-0">
+          {othersAnnotations.map((a) => (
+            <div key={a.id} className="flex items-start gap-1.5">
+              <span className="text-[10px] text-foreground-subtle mt-0.5 flex-shrink-0 font-medium">
+                {a.user.name ?? 'Anonym'}
+              </span>
+              <p className="text-[11px] text-foreground-muted italic leading-snug">
+                {a.emoji && <span className="not-italic mr-1">{a.emoji}</span>}
+                {a.text}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Own annotation (view) */}
+      {myAnnotation && !editing && (
+        <p className="mt-0.5 text-[11px] text-accent/80 italic leading-snug">
           {myAnnotation.emoji && <span className="not-italic mr-1">{myAnnotation.emoji}</span>}
+          <span className="font-medium not-italic text-[10px] text-accent/60 mr-1">Du:</span>
           {myAnnotation.text}
         </p>
       )}
 
-      {open && (
-        <div className="mt-1.5 ml-0 flex items-start gap-2">
+      {/* Own annotation editor */}
+      {editing && (
+        <div className="mt-1.5 flex items-start gap-2">
           <input
             autoFocus
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') { e.preventDefault(); saveMutation.mutate() }
-              if (e.key === 'Escape') setOpen(false)
+              if (e.key === 'Enter') { e.preventDefault(); if (draft.trim()) saveMutation.mutate() }
+              if (e.key === 'Escape') setEditing(false)
             }}
             placeholder="Was bedeutet diese Zeile für dich?"
             className="flex-1 text-xs bg-surface border border-edge rounded-lg px-2.5 py-1.5
@@ -227,12 +253,19 @@ function AnnotatedLine({
           >
             <Check size={11} strokeWidth={2.5} />
           </button>
+          <button
+            onClick={() => setEditing(false)}
+            className="p-1.5 rounded-lg text-foreground-subtle hover:text-foreground transition-colors"
+          >
+            <X size={11} strokeWidth={2} />
+          </button>
           {myAnnotation && (
             <button
               onClick={() => deleteMutation.mutate()}
-              className="text-[10px] text-foreground-subtle hover:text-red-400 transition-colors px-1"
+              disabled={deleteMutation.isPending}
+              className="text-[10px] text-foreground-subtle hover:text-red-400 transition-colors px-1 self-center"
             >
-              Remove
+              Löschen
             </button>
           )}
         </div>
@@ -245,29 +278,25 @@ function AnnotatedLine({
 
 function StructuredLyricsView({
   lyrics,
+  spotifyId,
   onEdit,
   activeLineId,
   onSeek,
 }: {
   lyrics: SongLyrics
+  spotifyId: string
   onEdit: () => void
   activeLineId?: string | null
   onSeek?: (ms: number) => void
 }) {
+  const currentUserId = useAuthStore((s) => s.user?.id ?? '')
+
   const { data: annotations = {} } = useQuery<Record<string, LineAnnotation[]>>({
-    queryKey: ['line-annotations', lyrics.id],
-    queryFn: async () => {
-      const lineIds = (lyrics.lines ?? []).map((l) => l.id)
-      const results = await Promise.all(
-        lineIds.map((id) =>
-          api.get<LineAnnotation[]>(`/line-annotations?lineId=${id}`).then((r) => ({
-            id,
-            data: r.data,
-          })),
-        ),
-      )
-      return Object.fromEntries(results.map((r) => [r.id, r.data]))
-    },
+    queryKey: ['annotations', spotifyId],
+    queryFn: () =>
+      api
+        .get<Record<string, LineAnnotation[]>>(`/songs/${spotifyId}/annotations`)
+        .then((r) => r.data),
     enabled: (lyrics.lines?.length ?? 0) > 0,
     staleTime: 30_000,
   })
@@ -282,9 +311,10 @@ function StructuredLyricsView({
         <AnnotatedLine
           key={line.id}
           lineId={line.id}
-          songLyricsId={lyrics.id}
+          spotifyId={spotifyId}
           text={line.text}
           annotations={annotations[line.id] ?? []}
+          currentUserId={currentUserId}
           timestampMs={line.timestampMs}
           isActive={activeLineId === line.id}
           onSeek={onSeek}
@@ -506,6 +536,7 @@ export default function LyricsEditor({ spotifyId, fetchStatus }: Props) {
         lyrics ? (
           <StructuredLyricsView
             lyrics={lyrics}
+            spotifyId={spotifyId}
             onEdit={() => setMode('edit')}
             activeLineId={activeLineId}
             onSeek={(ms) => seek.mutate(ms)}

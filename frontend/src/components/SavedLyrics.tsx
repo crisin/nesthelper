@@ -12,13 +12,14 @@ interface LyricsCardProps {
 
 function LyricsCard({ item, onRemove, isRemoving }: LyricsCardProps) {
   const [expanded, setExpanded] = useState(false)
-  const [draft, setDraft]       = useState(item.lyrics)
+  const rawText = item.song?.lyrics?.rawText ?? ''
+  const [draft, setDraft]       = useState(rawText)
   const [confirmed, setConfirmed] = useState(false)
   const queryClient = useQueryClient()
 
   const updateLyrics = useMutation({
     mutationFn: (lyrics: string) =>
-      api.patch(`/saved-lyrics/${item.id}`, { lyrics }).then((r) => r.data),
+      api.put(`/songs/${item.song?.spotifyId}/lyrics`, { rawText: lyrics }).then((r) => r.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['saved-lyrics'] })
       setConfirmed(true)
@@ -26,9 +27,9 @@ function LyricsCard({ item, onRemove, isRemoving }: LyricsCardProps) {
     },
   })
 
-  const isDirty   = draft !== item.lyrics
-  const imgUrl    = item.searchHistory?.imgUrl
-  const searchUrl = item.searchHistory?.url
+  const isDirty   = draft !== rawText
+  const imgUrl    = item.song?.imgUrl
+  const searchUrl = item.song?.spotifyUrl ?? undefined
 
   return (
     <li className="rounded-xl bg-surface-raised border border-edge overflow-hidden shadow-card">
@@ -37,7 +38,7 @@ function LyricsCard({ item, onRemove, isRemoving }: LyricsCardProps) {
         {imgUrl ? (
           <img
             src={imgUrl}
-            alt={item.track}
+            alt={item.song?.title ?? ''}
             className="w-9 h-9 rounded-lg object-cover flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
             onClick={() => searchUrl && window.open(searchUrl, '_blank', 'noopener,noreferrer')}
           />
@@ -48,18 +49,18 @@ function LyricsCard({ item, onRemove, isRemoving }: LyricsCardProps) {
         )}
 
         <button className="flex-1 text-left min-w-0" onClick={() => setExpanded((v) => !v)}>
-          <p className="font-medium text-foreground text-sm truncate">{item.track}</p>
-          <p className="text-xs text-foreground-muted truncate">{item.artist}</p>
+          <p className="font-medium text-foreground text-sm truncate">{item.song?.title ?? ''}</p>
+          <p className="text-xs text-foreground-muted truncate">{item.song?.artist ?? ''}</p>
         </button>
 
         <div className="flex items-center gap-2 flex-shrink-0">
           {/* Lyrics badge */}
           <span className={`text-[11px] font-medium px-1.5 py-0.5 rounded-md ${
-            item.lyrics
+            rawText
               ? 'bg-accent/10 text-accent'
               : 'bg-surface-overlay text-foreground-subtle'
           }`}>
-            {item.lyrics ? 'lyrics' : 'empty'}
+            {rawText ? 'lyrics' : 'empty'}
           </span>
 
           {/* Expand */}
@@ -109,7 +110,7 @@ function LyricsCard({ item, onRemove, isRemoving }: LyricsCardProps) {
             {confirmed && <span className="text-xs text-accent">Saved!</span>}
             {isDirty && !updateLyrics.isPending && (
               <button
-                onClick={() => setDraft(item.lyrics)}
+                onClick={() => setDraft(rawText)}
                 className="text-xs text-foreground-muted hover:text-foreground transition-colors"
               >
                 Discard

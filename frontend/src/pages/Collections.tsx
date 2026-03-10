@@ -24,9 +24,9 @@ function CollectionCard({
     .filter((item) => item.savedLyric)
     .slice(0, 4)
     .map((item) => ({
-      src: item.savedLyric?.searchHistory?.imgUrl,
-      track: item.savedLyric?.track ?? '',
-      artist: item.savedLyric?.artist ?? '',
+      src: item.savedLyric?.song?.imgUrl,
+      track: item.savedLyric?.song?.title ?? '',
+      artist: item.savedLyric?.song?.artist ?? '',
     }))
 
   const itemCount = collection._count?.items ?? collection.items?.length ?? 0
@@ -134,9 +134,9 @@ function PublicCollectionCard({ collection }: { collection: Collection }) {
     .filter((item) => item.savedLyric)
     .slice(0, 4)
     .map((item) => ({
-      src: item.savedLyric?.searchHistory?.imgUrl,
-      track: item.savedLyric?.track ?? '',
-      artist: item.savedLyric?.artist ?? '',
+      src: item.savedLyric?.song?.imgUrl,
+      track: item.savedLyric?.song?.title ?? '',
+      artist: item.savedLyric?.song?.artist ?? '',
     }))
 
   const itemCount = collection._count?.items ?? 0

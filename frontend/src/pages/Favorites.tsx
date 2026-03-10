@@ -197,7 +197,7 @@ export default function Favorites() {
                       <TrackListItem
                         src={imgUrl}
                         track={song.song?.title ?? ''}
-                        artist={song.song?.artists?.join(", ") || song.song?.artist ?? ''}
+                        artist={(song.song?.artists?.join(", ") || song.song?.artist) ?? ''}
                         size="md"
                         onCardClick={() => navigate(`/favorites/${spotifyId ?? song.id}`)}
                         meta={

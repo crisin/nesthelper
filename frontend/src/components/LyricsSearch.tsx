@@ -41,7 +41,7 @@ export default function LyricsSearch() {
 
   // Track which spotifyIds are favorited
   const favoritedSpotifyIds = new Set(
-    favorites.map((s) => s.spotifyId).filter(Boolean),
+    favorites.map((s) => s.song?.spotifyId).filter(Boolean),
   );
 
   const saveFavorite = useMutation({

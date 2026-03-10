@@ -124,8 +124,8 @@ function AddSongSheet({
     (s) =>
       !existingIds.has(s.id) &&
       (q === '' ||
-        s.track.toLowerCase().includes(q.toLowerCase()) ||
-        s.artist.toLowerCase().includes(q.toLowerCase())),
+        (s.song?.title ?? '').toLowerCase().includes(q.toLowerCase()) ||
+        (s.song?.artist ?? '').toLowerCase().includes(q.toLowerCase())),
   )
 
   return (
@@ -163,15 +163,15 @@ function AddSongSheet({
                              hover:bg-surface-raised transition-colors disabled:opacity-40"
                 >
                   <TrackCover
-                    src={s.searchHistory?.imgUrl}
-                    track={s.track}
-                    artist={s.artists?.join(", ") || s.artist}
+                    src={s.song?.imgUrl}
+                    track={s.song?.title ?? ''}
+                    artist={(s.song?.artists?.join(", ") || s.song?.artist) ?? ''}
                     className="w-9 h-9 rounded-lg flex-shrink-0"
                     iconSize={14}
                   />
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{s.track}</p>
-                    <p className="text-xs text-foreground-muted truncate">{s.artists?.join(", ") || s.artist}</p>
+                    <p className="text-sm font-medium text-foreground truncate">{s.song?.title ?? ''}</p>
+                    <p className="text-xs text-foreground-muted truncate">{(s.song?.artists?.join(", ") || s.song?.artist) ?? ''}</p>
                   </div>
                 </button>
               </li>
@@ -217,18 +217,18 @@ function ItemRow({
       <li className="flex items-center gap-3 px-4 py-3 rounded-xl bg-surface-raised border border-edge
                      hover:border-foreground-muted/30 transition-colors group">
         <TrackCover
-          src={song.searchHistory?.imgUrl}
-          track={song.track}
-          artist={song.artists?.join(", ") || song.artist}
+          src={song.song?.imgUrl}
+          track={song.song?.title ?? ''}
+          artist={(song.song?.artists?.join(", ") || song.song?.artist) ?? ''}
           className="w-10 h-10 rounded-lg flex-shrink-0"
           iconSize={16}
         />
         <button
           className="flex-1 min-w-0 text-left"
-          onClick={() => navigate(`/favorites/${song.id}`)}
+          onClick={() => navigate(`/songs/${song.song?.spotifyId ?? song.id}`)}
         >
-          <p className="text-sm font-medium text-foreground truncate">{song.track}</p>
-          <p className="text-xs text-foreground-muted truncate">{song.artists?.join(", ") || song.artist}</p>
+          <p className="text-sm font-medium text-foreground truncate">{song.song?.title ?? ''}</p>
+          <p className="text-xs text-foreground-muted truncate">{(song.song?.artists?.join(", ") || song.song?.artist) ?? ''}</p>
         </button>
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
           <button
@@ -262,7 +262,7 @@ function ItemRow({
 
   if (item.line) {
     const line = item.line
-    const parent = line.lyrics?.savedLyric
+    const parent = line.songLyrics?.song
     return (
       <li className="flex items-start gap-3 px-4 py-3 rounded-xl bg-surface-raised border border-edge
                      hover:border-foreground-muted/30 transition-colors group">
@@ -271,7 +271,7 @@ function ItemRow({
           <p className="text-sm text-foreground leading-relaxed italic">&ldquo;{line.text}&rdquo;</p>
           {parent && (
             <p className="text-xs text-foreground-subtle mt-0.5">
-              {parent.track} · {parent.artists?.join(", ") || parent.artist}
+              {parent.title} · {(parent.artists?.join(", ") || parent.artist) ?? ""}
             </p>
           )}
         </div>

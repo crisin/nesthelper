@@ -1,11 +1,212 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ExternalLink, LogOut, Moon, Sun } from "lucide-react";
+import { ExternalLink, LogOut, Moon, Sun, Eye, EyeOff, Check, Sparkles } from "lucide-react";
 import api from "../services/api";
 import { useAuthStore } from "../stores/authStore";
 import UsernameEdit from "../components/UsernameEdit";
 import { useTheme } from "../hooks/useTheme";
+
+// ─── Password strength ────────────────────────────────────────────────────────
+
+const CRITERIA = [
+  { key: "length",   label: "6+ Zeichen",         test: (p: string) => p.length >= 6 },
+  { key: "upper",    label: "Großbuchstabe",       test: (p: string) => /[A-Z]/.test(p) },
+  { key: "lower",    label: "Kleinbuchstabe",      test: (p: string) => /[a-z]/.test(p) },
+  { key: "digit",    label: "Zahl",                test: (p: string) => /\d/.test(p) },
+  { key: "special",  label: "Sonderzeichen ✦",     test: (p: string) => /[^A-Za-z0-9]/.test(p) },
+  { key: "long",     label: "12+ Zeichen",         test: (p: string) => p.length >= 12 },
+]
+
+const STRENGTH_LABELS = ["", "Sehr schwach", "Schwach", "Okay", "Gut", "Stark", "Sehr stark"]
+const STRENGTH_COLORS = ["#3f3f46", "#ef4444", "#f97316", "#eab308", "#84cc16", "#22c55e", "#22c55e"]
+
+function ChangePassword() {
+  const [current,  setCurrent]  = useState("")
+  const [next,     setNext]     = useState("")
+  const [confirm,  setConfirm]  = useState("")
+  const [showCur,  setShowCur]  = useState(false)
+  const [showNext, setShowNext] = useState(false)
+  const [done,     setDone]     = useState(false)
+  const [serverErr, setServerErr] = useState("")
+
+  const met       = CRITERIA.map((c) => c.test(next))
+  const score     = met.filter(Boolean).length
+  const canSubmit = met[0] && next === confirm && current.length > 0
+  const mismatch  = confirm.length > 0 && next !== confirm
+
+  const change = useMutation({
+    mutationFn: () =>
+      api.patch("/auth/password", { currentPassword: current, newPassword: next }),
+    onSuccess: () => {
+      setDone(true)
+      setCurrent(""); setNext(""); setConfirm("")
+      setServerErr("")
+      setTimeout(() => setDone(false), 3500)
+    },
+    onError: (err: { response?: { data?: { message?: string } } }) => {
+      setServerErr(err.response?.data?.message ?? "Fehler beim Ändern des Passworts")
+    },
+  })
+
+  return (
+    <div className="rounded-xl bg-surface-raised border border-edge overflow-hidden">
+      {/* Header */}
+      <div className="px-4 py-3 border-b border-edge flex items-center justify-between">
+        <p className="text-xs font-semibold text-foreground-subtle uppercase tracking-widest">
+          Passwort ändern
+        </p>
+        {done && (
+          <span className="flex items-center gap-1.5 text-xs font-medium text-accent">
+            <Check size={11} strokeWidth={2.5} />
+            Gespeichert!
+          </span>
+        )}
+      </div>
+
+      <div className="px-4 py-4 space-y-4">
+        {/* Current password */}
+        <div className="space-y-1.5">
+          <label className="text-[11px] text-foreground-subtle">Aktuelles Passwort</label>
+          <div className="relative">
+            <input
+              type={showCur ? "text" : "password"}
+              value={current}
+              onChange={(e) => { setCurrent(e.target.value); setServerErr("") }}
+              placeholder="••••••••"
+              className="w-full bg-surface border border-edge rounded-lg px-3 py-2 pr-9 text-sm
+                         focus:outline-none focus:border-foreground-muted/50 transition-colors
+                         placeholder:text-foreground-subtle"
+            />
+            <button
+              type="button"
+              onClick={() => setShowCur((v) => !v)}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-foreground-subtle hover:text-foreground-muted transition-colors"
+            >
+              {showCur ? <EyeOff size={13} strokeWidth={1.75} /> : <Eye size={13} strokeWidth={1.75} />}
+            </button>
+          </div>
+          {serverErr && (
+            <p className="text-[11px] text-red-400">{serverErr}</p>
+          )}
+        </div>
+
+        {/* New password */}
+        <div className="space-y-1.5">
+          <label className="text-[11px] text-foreground-subtle">Neues Passwort</label>
+          <div className="relative">
+            <input
+              type={showNext ? "text" : "password"}
+              value={next}
+              onChange={(e) => setNext(e.target.value)}
+              placeholder="••••••••"
+              className="w-full bg-surface border border-edge rounded-lg px-3 py-2 pr-9 text-sm
+                         focus:outline-none focus:border-foreground-muted/50 transition-colors
+                         placeholder:text-foreground-subtle"
+            />
+            <button
+              type="button"
+              onClick={() => setShowNext((v) => !v)}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-foreground-subtle hover:text-foreground-muted transition-colors"
+            >
+              {showNext ? <EyeOff size={13} strokeWidth={1.75} /> : <Eye size={13} strokeWidth={1.75} />}
+            </button>
+          </div>
+
+          {/* Strength bar */}
+          {next.length > 0 && (
+            <div className="space-y-1.5">
+              <div className="flex gap-1">
+                {CRITERIA.map((_, i) => (
+                  <div
+                    key={i}
+                    className="flex-1 h-1 rounded-full transition-all duration-300"
+                    style={{
+                      background: i < score ? STRENGTH_COLORS[score] : "var(--color-surface-overlay)",
+                    }}
+                  />
+                ))}
+              </div>
+              <p className="text-[10px] font-medium transition-colors" style={{ color: STRENGTH_COLORS[score] }}>
+                {STRENGTH_LABELS[score]}
+              </p>
+            </div>
+          )}
+
+          {/* Criteria chips */}
+          {next.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 pt-0.5">
+              {CRITERIA.map((c, i) => (
+                <span
+                  key={c.key}
+                  className={[
+                    "flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium transition-all duration-200 border",
+                    met[i]
+                      ? "bg-accent/10 border-accent/30 text-accent"
+                      : "bg-transparent border-edge text-foreground-subtle opacity-50",
+                  ].join(" ")}
+                >
+                  {met[i] && <Check size={8} strokeWidth={3} />}
+                  {c.key === "special" && !met[i] && <Sparkles size={8} strokeWidth={1.75} />}
+                  {c.label}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Confirm password */}
+        <div className="space-y-1.5">
+          <label className="text-[11px] text-foreground-subtle">Passwort bestätigen</label>
+          <div className="relative">
+            <input
+              type="password"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              placeholder="••••••••"
+              className={[
+                "w-full bg-surface border rounded-lg px-3 py-2 pr-9 text-sm",
+                "focus:outline-none transition-colors placeholder:text-foreground-subtle",
+                confirm.length === 0
+                  ? "border-edge"
+                  : mismatch
+                    ? "border-red-500/50 focus:border-red-500/70"
+                    : "border-accent/40 focus:border-accent/60",
+              ].join(" ")}
+            />
+            {confirm.length > 0 && !mismatch && (
+              <Check
+                size={13}
+                strokeWidth={2.5}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-accent"
+              />
+            )}
+          </div>
+          {mismatch && (
+            <p className="text-[11px] text-red-400">Passwörter stimmen nicht überein</p>
+          )}
+        </div>
+
+        {/* Hint */}
+        <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-surface border border-edge">
+          <Sparkles size={12} className="text-foreground-subtle flex-shrink-0 mt-0.5" strokeWidth={1.75} />
+          <p className="text-[11px] text-foreground-subtle leading-relaxed">
+            Sonderzeichen wie <span className="font-mono text-foreground-muted">!@#$%^&*</span> machen dein Passwort deutlich sicherer.
+          </p>
+        </div>
+
+        <button
+          onClick={() => change.mutate()}
+          disabled={!canSubmit || change.isPending}
+          className="w-full py-2 rounded-lg bg-accent text-black text-sm font-semibold
+                     hover:opacity-90 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed"
+        >
+          {change.isPending ? "Wird geändert…" : "Passwort ändern"}
+        </button>
+      </div>
+    </div>
+  )
+}
 
 interface SpotifyStatus {
   connected: boolean;
@@ -82,6 +283,11 @@ export default function Settings() {
             <UsernameEdit />
           </div>
         </div>
+      </section>
+
+      {/* Password section */}
+      <section className="space-y-3">
+        <ChangePassword />
       </section>
 
       {/* Spotify section */}

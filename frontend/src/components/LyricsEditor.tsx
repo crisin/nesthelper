@@ -28,6 +28,20 @@ function formatMs(ms: number) {
   return `${min}:${sec.toString().padStart(2, '0')}`
 }
 
+function msToInput(ms: number | null | undefined): string {
+  if (ms == null) return ''
+  const totalSec = Math.floor(ms / 1000)
+  const min = Math.floor(totalSec / 60)
+  const sec = totalSec % 60
+  return `${min}:${sec.toString().padStart(2, '0')}`
+}
+
+function inputToMs(val: string): number | null {
+  const match = val.match(/^(\d+):([0-5]\d)$/)
+  if (!match) return null
+  return (parseInt(match[1], 10) * 60 + parseInt(match[2], 10)) * 1000
+}
+
 // ─── Fetch-status skeleton ─────────────────────────────────────────────────────
 
 function FetchingLyricsSkeleton() {
@@ -115,6 +129,7 @@ function AnnotatedLine({
   annotations,
   currentUserId,
   showAnnotations,
+  showTimestamps,
   timestampMs,
   isActive,
   onSeek,
@@ -125,6 +140,7 @@ function AnnotatedLine({
   annotations: LineAnnotation[]
   currentUserId: string
   showAnnotations: boolean
+  showTimestamps?: boolean
   timestampMs?: number | null
   isActive?: boolean
   onSeek?: (ms: number) => void
@@ -132,6 +148,8 @@ function AnnotatedLine({
   const queryClient = useQueryClient()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
+  const [tsEditing, setTsEditing] = useState(false)
+  const [tsInput, setTsInput] = useState('')
 
   const myAnnotation = annotations.find((a) => a.userId === currentUserId) ?? null
   const othersAnnotations = annotations.filter((a) => a.userId !== currentUserId)
@@ -153,6 +171,35 @@ function AnnotatedLine({
     },
   })
 
+  const saveTs = useMutation({
+    mutationFn: (ms: number | null) =>
+      api
+        .patch(`/songs/${spotifyId}/lyrics/timestamps`, {
+          lines: [{ id: lineId, timestampMs: ms }],
+        })
+        .then((r) => r.data),
+    onSuccess: (data: SongLyrics) => {
+      queryClient.setQueryData(['lyrics', spotifyId], data)
+      setTsEditing(false)
+    },
+  })
+
+  function handleTsSave() {
+    if (tsInput === '') { saveTs.mutate(null); return }
+    const ms = inputToMs(tsInput)
+    if (ms !== null) saveTs.mutate(ms)
+    else setTsEditing(false)
+  }
+
+  function handleTsCapture(e: React.MouseEvent) {
+    // mousedown: prevent blur from firing before we read the cache
+    e.preventDefault()
+    const track = queryClient.getQueryData<SpotifyCurrentlyPlayingResponse | null>(['spotify-current-track'])
+    const ms = track?.progress_ms ?? 0
+    setTsInput(msToInput(ms))
+    saveTs.mutate(ms)
+  }
+
   function openEditor() {
     setDraft(myAnnotation?.text ?? '')
     setEditing(true)
@@ -169,6 +216,48 @@ function AnnotatedLine({
     >
       {/* Line text row */}
       <div className="flex items-start gap-2">
+        {/* Inline timestamp cell */}
+        {showTimestamps && (
+          <div className="flex-shrink-0 mt-[9px]">
+            {tsEditing ? (
+              <div className="flex items-center gap-1">
+                <input
+                  autoFocus
+                  value={tsInput}
+                  onChange={(e) => setTsInput(e.target.value)}
+                  onBlur={handleTsSave}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') { e.preventDefault(); handleTsSave() }
+                    if (e.key === 'Escape') setTsEditing(false)
+                  }}
+                  placeholder="0:00"
+                  className="w-11 text-center text-[11px] tabular-nums bg-surface border border-accent/50
+                             rounded px-1 py-0.5 focus:outline-none focus:border-accent"
+                />
+                <button
+                  onMouseDown={handleTsCapture}
+                  title="Aktuelle Spotify-Position"
+                  className="text-foreground-subtle hover:text-accent transition-colors"
+                >
+                  <Timer size={10} strokeWidth={1.75} />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => { setTsInput(msToInput(timestampMs)); setTsEditing(true) }}
+                title="Timestamp bearbeiten"
+                className="text-[11px] tabular-nums text-foreground-subtle hover:text-foreground-muted
+                           transition-colors min-w-[40px] text-right block"
+              >
+                {timestampMs != null
+                  ? msToInput(timestampMs)
+                  : <span className="text-foreground-subtle/25 select-none">·</span>}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Seek button (karaoke) */}
         {timestampMs != null && onSeek && (
           <button
             onClick={() => onSeek(timestampMs)}
@@ -183,6 +272,7 @@ function AnnotatedLine({
             <Timer size={10} strokeWidth={1.75} />
           </button>
         )}
+
         <span
           className={[
             'flex-1 text-[15px] leading-[1.85] tracking-[0.008em] transition-colors',
@@ -191,6 +281,7 @@ function AnnotatedLine({
         >
           {text}
         </span>
+
         {/* Add/edit own annotation */}
         {showAnnotations && !editing && (
           <button
@@ -277,12 +368,22 @@ function AnnotatedLine({
   )
 }
 
-// ─── Structured view (line-by-line with annotations + karaoke support) ────────
+// ─── Structured view (line-by-line with annotations + karaoke + timestamps) ──
+
+const SHIFT_STEPS = [
+  { label: '−1s',    delta: -1000 },
+  { label: '−0.5s',  delta: -500  },
+  { label: '+0.5s',  delta:  500  },
+  { label: '+1s',    delta:  1000 },
+]
 
 function StructuredLyricsView({
   lyrics,
   spotifyId,
   showAnnotations,
+  showTimestamps,
+  shiftTimestamps,
+  shiftPending,
   onEdit,
   activeLineId,
   onSeek,
@@ -290,6 +391,9 @@ function StructuredLyricsView({
   lyrics: SongLyrics
   spotifyId: string
   showAnnotations: boolean
+  showTimestamps?: boolean
+  shiftTimestamps?: (delta: number) => void
+  shiftPending?: boolean
   onEdit: () => void
   activeLineId?: string | null
   onSeek?: (ms: number) => void
@@ -310,22 +414,46 @@ function StructuredLyricsView({
     return <LyricsView lyrics="" onEdit={onEdit} />
   }
 
+  const hasAnyTimestamp = lyrics.lines.some((l) => l.timestampMs != null)
+
   return (
-    <div className="rounded-xl bg-surface-raised border border-edge px-5 sm:px-7 py-6 space-y-0.5">
-      {(lyrics.lines ?? []).map((line) => (
-        <AnnotatedLine
-          key={line.id}
-          lineId={line.id}
-          spotifyId={spotifyId}
-          text={line.text}
-          annotations={annotations[line.id] ?? []}
-          currentUserId={currentUserId}
-          showAnnotations={showAnnotations}
-          timestampMs={line.timestampMs}
-          isActive={activeLineId === line.id}
-          onSeek={onSeek}
-        />
-      ))}
+    <div className="rounded-xl bg-surface-raised border border-edge overflow-hidden">
+      {/* Lag compensation strip — visible only when sync panel is open and there are timestamps */}
+      {showTimestamps && hasAnyTimestamp && shiftTimestamps && (
+        <div className="px-4 py-2 border-b border-edge flex items-center gap-1.5">
+          <span className="text-[10px] text-foreground-subtle mr-1 select-none">Versatz</span>
+          {SHIFT_STEPS.map(({ label, delta }) => (
+            <button
+              key={delta}
+              onClick={() => shiftTimestamps(delta)}
+              disabled={shiftPending}
+              className="px-2 py-0.5 rounded border border-edge text-[11px] tabular-nums
+                         text-foreground-subtle hover:text-foreground hover:border-foreground-muted/40
+                         transition-colors disabled:opacity-40"
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="px-5 sm:px-7 py-6 space-y-0.5">
+        {(lyrics.lines ?? []).map((line) => (
+          <AnnotatedLine
+            key={line.id}
+            lineId={line.id}
+            spotifyId={spotifyId}
+            text={line.text}
+            annotations={annotations[line.id] ?? []}
+            currentUserId={currentUserId}
+            showAnnotations={showAnnotations}
+            showTimestamps={showTimestamps}
+            timestampMs={line.timestampMs}
+            isActive={activeLineId === line.id}
+            onSeek={onSeek}
+          />
+        ))}
+      </div>
     </div>
   )
 }
@@ -397,118 +525,6 @@ function VersionHistory({
   )
 }
 
-// ─── Timestamp editing panel ─────────────────────────────────────────────────
-
-function TimestampPanel({ lyrics, spotifyId }: { lyrics: SongLyrics; spotifyId: string }) {
-  const queryClient = useQueryClient()
-  const [pending, setPending] = useState<Record<string, string>>({})
-
-  const { data: currentTrack } = useQuery<SpotifyCurrentlyPlayingResponse | null>({
-    queryKey: ['spotify-current-track'],
-    queryFn: () =>
-      api.get<SpotifyCurrentlyPlayingResponse>('/spotify/current-track').then((r) => r.data),
-    refetchInterval: 1_000,
-    staleTime: 0,
-  })
-
-  const progressMs = currentTrack?.progress_ms ?? 0
-
-  const save = useMutation({
-    mutationFn: (lines: { id: string; timestampMs: number | null }[]) =>
-      api.patch(`/songs/${spotifyId}/lyrics/timestamps`, { lines }).then((r) => r.data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['lyrics', spotifyId] }),
-  })
-
-  function msToInput(ms: number | null | undefined): string {
-    if (ms == null) return ''
-    const totalSec = Math.floor(ms / 1000)
-    const min = Math.floor(totalSec / 60)
-    const sec = totalSec % 60
-    return `${min}:${sec.toString().padStart(2, '0')}`
-  }
-
-  function inputToMs(val: string): number | null {
-    const match = val.match(/^(\d+):([0-5]\d)$/)
-    if (!match) return null
-    return (parseInt(match[1], 10) * 60 + parseInt(match[2], 10)) * 1000
-  }
-
-  function handleCapture(lineId: string) {
-    const val = msToInput(progressMs)
-    setPending((p) => ({ ...p, [lineId]: val }))
-    save.mutate([{ id: lineId, timestampMs: progressMs }])
-  }
-
-  function handleClear(lineId: string) {
-    setPending((p) => { const n = { ...p }; delete n[lineId]; return n })
-    save.mutate([{ id: lineId, timestampMs: null }])
-  }
-
-  function handleInputBlur(lineId: string, val: string) {
-    if (val === '') {
-      save.mutate([{ id: lineId, timestampMs: null }])
-      return
-    }
-    const ms = inputToMs(val)
-    if (ms !== null) save.mutate([{ id: lineId, timestampMs: ms }])
-  }
-
-  const lines = lyrics.lines.filter((l) => l.text.trim())
-
-  return (
-    <div className="rounded-xl bg-surface-raised border border-edge overflow-hidden">
-      <div className="px-4 py-2 border-b border-edge flex items-center justify-between">
-        <p className="text-[10px] font-semibold text-foreground-subtle uppercase tracking-widest">
-          Timestamps
-        </p>
-        {currentTrack?.is_playing && (
-          <p className="text-[10px] text-foreground-subtle tabular-nums">
-            {msToInput(progressMs)}
-          </p>
-        )}
-      </div>
-      <div className="divide-y divide-edge max-h-80 overflow-y-auto">
-        {lines.map((line) => {
-          const displayVal = pending[line.id] ?? msToInput(line.timestampMs)
-          const hasTs = line.timestampMs != null || !!displayVal
-          return (
-            <div key={line.id} className="flex items-center gap-3 px-4 py-2">
-              <span className="flex-1 text-sm text-foreground truncate">{line.text}</span>
-              <div className="flex items-center gap-1.5 flex-shrink-0">
-                <input
-                  type="text"
-                  value={displayVal}
-                  onChange={(e) => setPending((p) => ({ ...p, [line.id]: e.target.value }))}
-                  onBlur={(e) => handleInputBlur(line.id, e.target.value)}
-                  placeholder="—:——"
-                  className="w-14 text-center text-xs bg-surface border border-edge rounded-lg px-2 py-1
-                             focus:outline-none focus:border-accent/50 tabular-nums text-foreground-muted
-                             placeholder:text-foreground-subtle"
-                />
-                <button
-                  onClick={() => handleCapture(line.id)}
-                  title="Aktuelle Position erfassen"
-                  className="w-6 h-6 flex items-center justify-center rounded-md text-foreground-subtle hover:text-accent transition-colors"
-                >
-                  <Timer size={11} strokeWidth={1.75} />
-                </button>
-                {hasTs && (
-                  <button
-                    onClick={() => handleClear(line.id)}
-                    className="w-6 h-6 flex items-center justify-center rounded-md text-foreground-subtle hover:text-red-400 transition-colors"
-                  >
-                    <X size={11} strokeWidth={1.75} />
-                  </button>
-                )}
-              </div>
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
 // ─── Main component ───────────────────────────────────────────────────────────
 
 interface Props {
@@ -538,7 +554,7 @@ export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer }: P
     queryKey: ['spotify-current-track'],
     queryFn: () =>
       api.get<SpotifyCurrentlyPlayingResponse>('/spotify/current-track').then((r) => r.data),
-    enabled: karaoke || mode === 'edit',
+    enabled: karaoke || mode === 'edit' || showTimestamps,
     refetchInterval: 1_000,
     staleTime: 0,
   })
@@ -586,6 +602,7 @@ export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer }: P
       if (total !== 0) flushShift.mutate(total)
     }, 600)
   }, [flushShift])
+
   const currentText = draft !== null ? draft : lyrics?.rawText ?? ''
   const isDirty = draft !== null && draft !== (lyrics?.rawText ?? '')
 
@@ -673,28 +690,6 @@ export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer }: P
             </button>
           )}
 
-          {mode === 'view' && hasTimestamps && (
-            <div
-              className="flex items-center rounded-lg border border-edge bg-surface-raised p-0.5 gap-0.5"
-              title="Alle Timestamps verschieben (Lag-Kompensation)"
-            >
-              <button
-                onClick={() => shiftTimestamps(-1000)}
-                disabled={flushShift.isPending}
-                className="px-2 py-1 rounded-md text-xs text-foreground-subtle hover:text-foreground transition-colors disabled:opacity-40"
-              >
-                −1s
-              </button>
-              <button
-                onClick={() => shiftTimestamps(1000)}
-                disabled={flushShift.isPending}
-                className="px-2 py-1 rounded-md text-xs text-foreground-subtle hover:text-foreground transition-colors disabled:opacity-40"
-              >
-                +1s
-              </button>
-            </div>
-          )}
-
           {mode === 'view' && lyrics && (lyrics.lines?.length ?? 0) > 0 && (
             <button
               onClick={() => setShowTimestamps((v) => !v)}
@@ -747,6 +742,9 @@ export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer }: P
             lyrics={lyrics}
             spotifyId={spotifyId}
             showAnnotations={showAnnotations}
+            showTimestamps={showTimestamps}
+            shiftTimestamps={shiftTimestamps}
+            shiftPending={flushShift.isPending}
             onEdit={() => setMode('edit')}
             activeLineId={activeLineId}
             onSeek={(ms) => seek.mutate(ms)}
@@ -803,10 +801,6 @@ export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer }: P
             )}
           </div>
         </>
-      )}
-
-      {mode === 'view' && showTimestamps && lyrics && (lyrics.lines?.length ?? 0) > 0 && (
-        <TimestampPanel lyrics={lyrics} spotifyId={spotifyId} />
       )}
 
       {mode === 'view' && lyrics && (

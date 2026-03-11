@@ -1,7 +1,7 @@
 import { BarChart2, Clock, Compass, Home, Library, Settings, BookOpen, ArrowRight } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import SpotifyConnect from "./SpotifyConnect";
 import UsernameEdit from "./UsernameEdit";
 import LyricsSearchButton from "./LyricsSearchButton";
@@ -11,12 +11,15 @@ import type { SpotifyCurrentlyPlayingResponse, Song } from "../types";
 
 /** Shows "View Song" if the currently playing track is in the DB, else falls back to LyricsSearchButton */
 function SongAction() {
-  const qc = useQueryClient();
-
-  // Read current track from cache (NowPlayingWidget owns the fetch)
-  const currentTrack = qc.getQueryData<SpotifyCurrentlyPlayingResponse | null>(
-    ["spotify-current-track"]
-  );
+  // Subscribe to the same key NowPlayingWidget polls — React Query deduplicates the fetch
+  const { data: currentTrack } = useQuery<SpotifyCurrentlyPlayingResponse | null>({
+    queryKey: ["spotify-current-track"],
+    queryFn: () =>
+      api.get<SpotifyCurrentlyPlayingResponse>("/spotify/current-track").then((r) => r.data),
+    refetchInterval: 5_000,
+    staleTime: 0,
+    retry: false,
+  });
   const spotifyId = currentTrack?.item?.id;
 
   const { data: song } = useQuery<Song | null>({

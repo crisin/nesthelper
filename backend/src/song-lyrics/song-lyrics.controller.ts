@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Put,
   Req,
@@ -13,6 +14,7 @@ import {
 } from '@nestjs/common'
 import { JwtAuthGuard } from '../auth/jwt-auth.guard'
 import { UpdateSongLyricsDto } from './dto/update-song-lyrics.dto'
+import { UpdateTimestampsDto } from './dto/update-timestamps.dto'
 import { SongLyricsService } from './song-lyrics.service'
 
 type AuthedRequest = { user: { id: string } }
@@ -53,5 +55,15 @@ export class SongLyricsController {
   @HttpCode(HttpStatus.ACCEPTED)
   enqueueFetch(@Param('spotifyId') spotifyId: string) {
     return this.service.enqueueFetch(spotifyId)
+  }
+
+  /** PATCH /songs/:spotifyId/lyrics/timestamps — update only timestamps, no version bump */
+  @Patch(':spotifyId/lyrics/timestamps')
+  @HttpCode(HttpStatus.OK)
+  updateTimestamps(
+    @Param('spotifyId') spotifyId: string,
+    @Body() dto: UpdateTimestampsDto,
+  ) {
+    return this.service.updateTimestamps(spotifyId, dto.lines)
   }
 }

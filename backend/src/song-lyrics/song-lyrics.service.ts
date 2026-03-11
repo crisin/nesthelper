@@ -179,4 +179,34 @@ export class SongLyricsService {
 
     return { status: 'queued' };
   }
+
+  async updateTimestamps(
+    spotifyId: string,
+    lines: { id: string; timestampMs: number | null }[],
+  ): Promise<SongLyricsWithContent> {
+    const song = await this.prisma.song.findUnique({
+      where: { spotifyId },
+      select: { id: true },
+    });
+    if (!song) throw new NotFoundException('Song not found');
+
+    const lyrics = await this.prisma.songLyrics.findUnique({
+      where: { songId: song.id },
+    });
+    if (!lyrics) throw new NotFoundException('Lyrics not found');
+
+    await this.prisma.$transaction(
+      lines.map(({ id, timestampMs }) =>
+        this.prisma.lyricsLine.update({
+          where: { id },
+          data: { timestampMs },
+        }),
+      ),
+    );
+
+    return this.prisma.songLyrics.findUniqueOrThrow({
+      where: { songId: song.id },
+      include: LYRICS_INCLUDE,
+    });
+  }
 }

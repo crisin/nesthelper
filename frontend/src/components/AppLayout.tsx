@@ -4,6 +4,7 @@ import { Link, useLocation } from "react-router-dom";
 import SpotifyConnect from "./SpotifyConnect";
 import UsernameEdit from "./UsernameEdit";
 import LyricsSearchButton from "./LyricsSearchButton";
+import NowPlayingWidget from "./NowPlayingWidget";
 
 const NAV = [
   { path: "/dashboard", label: "Dashboard", Icon: Home },
@@ -62,6 +63,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           })}
         </nav>
         <div className="px-4 py-4 flex-shrink-0 space-y-3">
+          <NowPlayingWidget />
           <LyricsSearchButton />
         </div>
         {/* User controls */}

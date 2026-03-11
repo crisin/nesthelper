@@ -39,6 +39,10 @@ exports.AppModule = AppModule = __decorate([
                     connection: {
                         host: config.get('REDIS_HOST', 'localhost'),
                         port: parseInt(config.get('REDIS_PORT', '6379'), 10),
+                        lazyConnect: true,
+                        enableReadyCheck: false,
+                        maxRetriesPerRequest: null,
+                        retryStrategy: () => null,
                     },
                 }),
             }),

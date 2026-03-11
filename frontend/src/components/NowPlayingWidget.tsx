@@ -1,12 +1,22 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Music, Radio } from 'lucide-react'
 import api from '../services/api'
 import type { SpotifyCurrentlyPlayingResponse } from '../types'
 import LyricsViewer from './LyricsViewer'
 
+function formatMs(ms: number) {
+  const totalSec = Math.floor(ms / 1000)
+  const min = Math.floor(totalSec / 60)
+  const sec = totalSec % 60
+  return `${min}:${sec.toString().padStart(2, '0')}`
+}
+
 export default function NowPlayingWidget() {
   const [viewerOpen, setViewerOpen] = useState(false)
+  const [localProgressMs, setLocalProgressMs] = useState(0)
+  const baseProgressMs = useRef(0)
+  const fetchedAt = useRef(Date.now())
 
   const { data: track } = useQuery<SpotifyCurrentlyPlayingResponse | null>({
     queryKey: ['spotify-current-track'],
@@ -17,10 +27,29 @@ export default function NowPlayingWidget() {
     retry: false,
   })
 
+  // Sync refs + local state whenever Spotify gives us a new position
+  useEffect(() => {
+    if (track?.progress_ms != null) {
+      baseProgressMs.current = track.progress_ms
+      fetchedAt.current = Date.now()
+      setLocalProgressMs(track.progress_ms)
+    }
+  }, [track?.progress_ms, track?.is_playing])
+
+  // Tick every second to interpolate between polls; poll corrects drift
+  useEffect(() => {
+    if (!track?.is_playing) return
+    const id = setInterval(() => {
+      setLocalProgressMs(baseProgressMs.current + (Date.now() - fetchedAt.current))
+    }, 1_000)
+    return () => clearInterval(id)
+  }, [track?.is_playing, track?.progress_ms])
+
   if (!track?.item) return null
 
-  const { item, progress_ms, is_playing } = track
-  const progressPct = item.duration_ms > 0 ? ((progress_ms ?? 0) / item.duration_ms) * 100 : 0
+  const { item, is_playing } = track
+  const duration = item.duration_ms
+  const progressPct = duration > 0 ? Math.min((localProgressMs / duration) * 100, 100) : 0
   const imgUrl = item.album.images[0]?.url
 
   return (
@@ -62,12 +91,17 @@ export default function NowPlayingWidget() {
             </div>
           </div>
 
-          {/* Progress bar */}
-          <div className="h-0.5 rounded-full bg-surface-overlay overflow-hidden">
-            <div
-              className="h-full bg-accent/60 rounded-full transition-[width] duration-1000 ease-linear"
-              style={{ width: `${progressPct}%` }}
-            />
+          {/* Progress bar + time */}
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-0.5 rounded-full bg-surface-overlay overflow-hidden">
+              <div
+                className="h-full bg-accent/60 rounded-full"
+                style={{ width: `${progressPct}%` }}
+              />
+            </div>
+            <span className="text-[9px] tabular-nums text-foreground-subtle flex-shrink-0">
+              {formatMs(localProgressMs)}
+            </span>
           </div>
         </div>
       </button>

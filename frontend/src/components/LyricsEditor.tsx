@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useCallback } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Eye, Pencil, History, ChevronDown, ChevronUp, MessageSquarePlus,
@@ -563,6 +563,29 @@ export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer }: P
   })
 
   const hasTimestamps = lyrics?.lines?.some((l) => l.timestampMs != null) ?? false
+
+  const pendingDelta = useRef(0)
+  const shiftTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const flushShift = useMutation({
+    mutationFn: (deltaMs: number) => {
+      const lines = (lyrics?.lines ?? [])
+        .filter((l) => l.timestampMs != null)
+        .map((l) => ({ id: l.id, timestampMs: Math.max(0, l.timestampMs! + deltaMs) }))
+      return api.patch(`/songs/${spotifyId}/lyrics/timestamps`, { lines }).then((r) => r.data)
+    },
+    onSuccess: (data: SongLyrics) => queryClient.setQueryData(['lyrics', spotifyId], data),
+  })
+
+  const shiftTimestamps = useCallback((deltaMs: number) => {
+    pendingDelta.current += deltaMs
+    if (shiftTimer.current) clearTimeout(shiftTimer.current)
+    shiftTimer.current = setTimeout(() => {
+      const total = pendingDelta.current
+      pendingDelta.current = 0
+      if (total !== 0) flushShift.mutate(total)
+    }, 600)
+  }, [flushShift])
   const currentText = draft !== null ? draft : lyrics?.rawText ?? ''
   const isDirty = draft !== null && draft !== (lyrics?.rawText ?? '')
 
@@ -648,6 +671,28 @@ export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer }: P
               <Headphones size={11} strokeWidth={2} />
               Karaoke
             </button>
+          )}
+
+          {mode === 'view' && hasTimestamps && (
+            <div
+              className="flex items-center rounded-lg border border-edge bg-surface-raised p-0.5 gap-0.5"
+              title="Alle Timestamps verschieben (Lag-Kompensation)"
+            >
+              <button
+                onClick={() => shiftTimestamps(-1000)}
+                disabled={flushShift.isPending}
+                className="px-2 py-1 rounded-md text-xs text-foreground-subtle hover:text-foreground transition-colors disabled:opacity-40"
+              >
+                −1s
+              </button>
+              <button
+                onClick={() => shiftTimestamps(1000)}
+                disabled={flushShift.isPending}
+                className="px-2 py-1 rounded-md text-xs text-foreground-subtle hover:text-foreground transition-colors disabled:opacity-40"
+              >
+                +1s
+              </button>
+            </div>
           )}
 
           {mode === 'view' && lyrics && (lyrics.lines?.length ?? 0) > 0 && (

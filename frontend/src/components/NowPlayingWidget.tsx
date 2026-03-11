@@ -27,33 +27,48 @@ export default function NowPlayingWidget() {
     <>
       <button
         onClick={() => setViewerOpen(true)}
-        className="w-full rounded-xl border border-edge bg-surface p-3 space-y-2 text-left hover:border-foreground-muted/40 transition-colors"
+        className="w-full rounded-xl border border-edge bg-surface overflow-hidden text-left hover:border-foreground-muted/40 transition-colors"
       >
-        <div className="flex items-center gap-2.5">
-          {imgUrl ? (
-            <img src={imgUrl} alt={item.name} className="w-9 h-9 rounded-lg flex-shrink-0 object-cover" />
-          ) : (
-            <div className="w-9 h-9 rounded-lg flex-shrink-0 bg-surface-overlay flex items-center justify-center">
-              <Music size={13} className="text-foreground-subtle" />
-            </div>
-          )}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5">
-              {is_playing && (
-                <Radio size={9} className="text-accent flex-shrink-0 animate-pulse" strokeWidth={2} />
-              )}
-              <p className="text-xs font-medium text-foreground truncate">{item.name}</p>
-            </div>
-            <p className="text-[10px] text-foreground-muted truncate">
-              {item.artists.map((a) => a.name).join(', ')}
-            </p>
-          </div>
-        </div>
-        <div className="h-0.5 rounded-full bg-surface-overlay overflow-hidden">
-          <div
-            className="h-full bg-accent/60 rounded-full transition-[width] duration-1000 ease-linear"
-            style={{ width: `${progressPct}%` }}
+        {/* Full-width cover */}
+        {imgUrl ? (
+          <img
+            src={imgUrl}
+            alt={item.name}
+            className="w-full aspect-square object-cover"
           />
+        ) : (
+          <div className="w-full aspect-square bg-surface-overlay flex items-center justify-center">
+            <Music size={28} className="text-foreground-subtle" strokeWidth={1.25} />
+          </div>
+        )}
+
+        {/* Track info + progress */}
+        <div className="px-3 pt-2.5 pb-2 space-y-2">
+          <div className="flex items-start gap-1.5">
+            {is_playing && (
+              <Radio
+                size={9}
+                className="text-accent flex-shrink-0 mt-1 animate-pulse"
+                strokeWidth={2}
+              />
+            )}
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-foreground leading-tight truncate">
+                {item.name}
+              </p>
+              <p className="text-[10px] text-foreground-muted truncate mt-0.5">
+                {item.artists.map((a) => a.name).join(', ')}
+              </p>
+            </div>
+          </div>
+
+          {/* Progress bar */}
+          <div className="h-0.5 rounded-full bg-surface-overlay overflow-hidden">
+            <div
+              className="h-full bg-accent/60 rounded-full transition-[width] duration-1000 ease-linear"
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
         </div>
       </button>
 

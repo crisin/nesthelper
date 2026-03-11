@@ -1,10 +1,47 @@
-import { BarChart2, Clock, Compass, Home, Library, Settings, BookOpen } from "lucide-react";
+import { BarChart2, Clock, Compass, Home, Library, Settings, BookOpen, ArrowRight } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import SpotifyConnect from "./SpotifyConnect";
 import UsernameEdit from "./UsernameEdit";
 import LyricsSearchButton from "./LyricsSearchButton";
 import NowPlayingWidget from "./NowPlayingWidget";
+import api from "../services/api";
+import type { SpotifyCurrentlyPlayingResponse, Song } from "../types";
+
+/** Shows "View Song" if the currently playing track is in the DB, else falls back to LyricsSearchButton */
+function SongAction() {
+  const qc = useQueryClient();
+
+  // Read current track from cache (NowPlayingWidget owns the fetch)
+  const currentTrack = qc.getQueryData<SpotifyCurrentlyPlayingResponse | null>(
+    ["spotify-current-track"]
+  );
+  const spotifyId = currentTrack?.item?.id;
+
+  const { data: song } = useQuery<Song | null>({
+    queryKey: ["song", spotifyId],
+    queryFn: () =>
+      api.get<Song>(`/songs/${spotifyId}`).then((r) => r.data).catch(() => null),
+    enabled: !!spotifyId,
+    staleTime: 60_000,
+    retry: false,
+  });
+
+  if (song) {
+    return (
+      <Link
+        to={`/songs/${spotifyId}`}
+        className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-accent text-black font-semibold text-sm hover:opacity-90 transition-opacity active:scale-[0.98]"
+      >
+        Song ansehen
+        <ArrowRight size={14} strokeWidth={2.25} />
+      </Link>
+    );
+  }
+
+  return <LyricsSearchButton />;
+}
 
 const NAV = [
   { path: "/dashboard", label: "Dashboard", Icon: Home },
@@ -64,7 +101,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         </nav>
         <div className="px-4 py-4 flex-shrink-0 space-y-3">
           <NowPlayingWidget />
-          <LyricsSearchButton />
+          <SongAction />
         </div>
         {/* User controls */}
         <div className="px-4 py-4 border-t border-edge flex-shrink-0 space-y-3">

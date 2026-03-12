@@ -16,6 +16,7 @@ import { CollectionsModule } from './collections/collections.module';
 import { LyricsFetchModule } from './lyrics-fetch/lyrics-fetch.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { DigestModule } from './digest/digest.module';
+import { FeatureRequestsModule } from './feature-requests/feature-requests.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { DigestModule } from './digest/digest.module';
     LyricsFetchModule,
     AnalyticsModule,
     DigestModule,
+    FeatureRequestsModule,
   ],
 })
 export class AppModule {}

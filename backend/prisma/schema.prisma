@@ -24,6 +24,14 @@ enum LyricsFetchStatus {
   FAILED
 }
 
+enum FeatureStatus {
+  DRAFT
+  MUST_HAVE
+  WORKING_ON_IT
+  DONE
+  DECLINED
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
@@ -32,13 +40,15 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  spotifyTokens    SpotifyToken[]
-  savedLyrics      SavedLyric[]
-  searchHistory    SearchHistory[]
-  lineAnnotations  LineAnnotation[]
-  songNotes        SongNote[]
-  collections      Collection[]
-  digests          Digest[]
+  spotifyTokens       SpotifyToken[]
+  savedLyrics         SavedLyric[]
+  searchHistory       SearchHistory[]
+  lineAnnotations     LineAnnotation[]
+  songNotes           SongNote[]
+  collections         Collection[]
+  digests             Digest[]
+  featureRequests     FeatureRequest[]
+  featureRequestVotes FeatureRequestVote[]
 }
 
 model SpotifyToken {
@@ -312,4 +322,34 @@ model CollectionItem {
   line       LyricsLine? @relation(fields: [lineId], references: [id], onDelete: SetNull)
 
   @@index([collectionId, position])
+}
+
+// ─── Feature Requests ─────────────────────────────────────────────────────────
+
+model FeatureRequest {
+  id        String        @id @default(cuid())
+  userId    String
+  title     String?
+  content   String
+  page      String?
+  status    FeatureStatus @default(DRAFT)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  user  User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  votes FeatureRequestVote[]
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model FeatureRequestVote {
+  id        String @id @default(cuid())
+  userId    String
+  requestId String
+
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  request FeatureRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, requestId])
 }

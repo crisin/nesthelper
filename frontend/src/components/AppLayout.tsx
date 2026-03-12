@@ -1,6 +1,7 @@
-import { BarChart2, Clock, Compass, Home, Library, Settings, BookOpen, ArrowRight, Music2 } from "lucide-react";
-import type { ReactNode } from "react";
+import { BarChart2, Clock, Compass, Home, Library, Settings, BookOpen, ArrowRight, Music2, Lightbulb } from "lucide-react";
+import { type ReactNode, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import FeatureRequestPanel from "./FeatureRequestPanel";
 import { useQuery } from "@tanstack/react-query";
 import SpotifyConnect from "./SpotifyConnect";
 import UsernameEdit from "./UsernameEdit";
@@ -59,6 +60,7 @@ const NAV = [
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
+  const [featureOpen, setFeatureOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-surface text-foreground flex">
@@ -135,6 +137,16 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       <main className="flex-1 sm:ml-56 pb-24 sm:pb-0 mb-safe sm:mb-0 min-h-screen overflow-x-hidden">
         {children}
       </main>
+
+      {/* ── FAB ─────────────────────────────────────────────────────── */}
+      <button
+        onClick={() => setFeatureOpen(true)}
+        className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-40 w-12 h-12 rounded-full bg-accent text-black flex items-center justify-center shadow-lg hover:opacity-90 transition-opacity"
+        title="Feature Requests"
+      >
+        <Lightbulb size={20} strokeWidth={2} />
+      </button>
+      {featureOpen && <FeatureRequestPanel onClose={() => setFeatureOpen(false)} />}
 
       {/* ── Bottom nav (mobile only) ──────────────────────────────── */}
       <nav className="sm:hidden fixed bottom-0 inset-x-0 z-40 flex flex-col bg-surface-raised border-t border-edge">

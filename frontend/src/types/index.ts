@@ -259,3 +259,20 @@ export interface SpotifySavedTrackItem {
   track: SpotifyLibraryTrack
   added_at: string
 }
+
+// ─── Feature Requests ────────────────────────────────────────────────────────
+
+export type FeatureStatus = 'DRAFT' | 'MUST_HAVE' | 'WORKING_ON_IT' | 'DONE' | 'DECLINED'
+
+export interface FeatureRequest {
+  id: string
+  userId: string
+  title: string | null
+  content: string
+  page: string | null
+  status: FeatureStatus
+  createdAt: string
+  updatedAt: string
+  user: { id: string; name: string | null }
+  votes: { userId: string }[]
+}

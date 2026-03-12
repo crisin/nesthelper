@@ -49,6 +49,7 @@ model User {
   digests             Digest[]
   featureRequests     FeatureRequest[]
   featureRequestVotes FeatureRequestVote[]
+  playHistory         PlayHistory[]
 }
 
 model SpotifyToken {
@@ -322,6 +323,24 @@ model CollectionItem {
   line       LyricsLine? @relation(fields: [lineId], references: [id], onDelete: SetNull)
 
   @@index([collectionId, position])
+}
+
+// ─── Play History ─────────────────────────────────────────────────────────────
+
+model PlayHistory {
+  id        String   @id @default(cuid())
+  userId    String
+  spotifyId String
+  track     String
+  artist    String
+  artists   String[] @default([])
+  imgUrl    String?
+  playedAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, playedAt(sort: Desc)])
+  @@index([spotifyId])
 }
 
 // ─── Feature Requests ─────────────────────────────────────────────────────────

@@ -116,4 +116,38 @@ export class SpotifyController {
   bulkImport(@Req() req: AuthedRequest, @Body() body: { tracks: BulkImportTrackDto[] }) {
     return this.spotify.bulkImport(req.user.id, body.tracks);
   }
+
+  // ── Play history ─────────────────────────────────────────────────────────────
+
+  /** POST /spotify/plays — record a single play event (called on track change) */
+  @Post('plays')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  recordPlay(
+    @Req() req: AuthedRequest,
+    @Body() body: { spotifyId: string; track: string; artist: string; artists: string[]; imgUrl?: string },
+  ) {
+    return this.spotify.recordPlay(req.user.id, body);
+  }
+
+  /** POST /spotify/sync-history — pull last 50 plays from Spotify recently-played API */
+  @Post('sync-history')
+  @UseGuards(JwtAuthGuard)
+  syncHistory(@Req() req: AuthedRequest) {
+    return this.spotify.syncRecentlyPlayed(req.user.id);
+  }
+
+  /** GET /spotify/plays?limit=100 */
+  @Get('plays')
+  @UseGuards(JwtAuthGuard)
+  getPlays(@Req() req: AuthedRequest, @Query('limit') limit = '100') {
+    return this.spotify.getPlayHistory(req.user.id, parseInt(limit, 10));
+  }
+
+  /** POST /spotify/plays/:spotifyId/import — save play history entry as a proper song bookmark */
+  @Post('plays/:spotifyId/import')
+  @UseGuards(JwtAuthGuard)
+  importPlay(@Req() req: AuthedRequest, @Param('spotifyId') spotifyId: string) {
+    return this.spotify.importPlayToLibrary(req.user.id, spotifyId);
+  }
 }

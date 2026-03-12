@@ -260,6 +260,18 @@ export interface SpotifySavedTrackItem {
   added_at: string
 }
 
+// ─── Play History ────────────────────────────────────────────────────────────
+
+export interface PlayHistoryEntry {
+  id: string
+  spotifyId: string
+  track: string
+  artist: string
+  artists: string[]
+  imgUrl: string | null
+  playedAt: string
+}
+
 // ─── Feature Requests ────────────────────────────────────────────────────────
 
 export type FeatureStatus = 'DRAFT' | 'MUST_HAVE' | 'WORKING_ON_IT' | 'DONE' | 'DECLINED'

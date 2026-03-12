@@ -18,6 +18,7 @@ export default function NowPlayingWidget() {
   const [localProgressMs, setLocalProgressMs] = useState(0)
   const baseProgressMs = useRef(0)
   const fetchedAt = useRef(0)
+  const prevTrackId = useRef<string | null>(null)
 
   const { data: track } = useQuery<SpotifyCurrentlyPlayingResponse | null>({
     queryKey: ['spotify-current-track'],
@@ -27,6 +28,20 @@ export default function NowPlayingWidget() {
     staleTime: 0,
     retry: false,
   })
+
+  // Record play on track change (fire-and-forget)
+  useEffect(() => {
+    const id = track?.item?.id ?? null
+    if (!id || id === prevTrackId.current) return
+    prevTrackId.current = id
+    api.post('/spotify/plays', {
+      spotifyId: id,
+      track: track!.item!.name,
+      artist: track!.item!.artists[0]?.name ?? '',
+      artists: track!.item!.artists.map((a) => a.name),
+      imgUrl: track!.item!.album.images[0]?.url ?? null,
+    }).catch(() => {})
+  }, [track?.item?.id])
 
   // Sync refs whenever Spotify gives us a new position (no setState — interval handles display)
   useEffect(() => {

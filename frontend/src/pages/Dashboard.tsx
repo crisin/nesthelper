@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import LyricsSearch from '../components/LyricsSearch'
 import PullToRefresh from '../components/PullToRefresh'
+import RecentlyHeard from '../components/RecentlyHeard'
 import api from '../services/api'
 
 interface SpotifyStatus {
@@ -67,6 +68,7 @@ export default function Dashboard() {
         {/* <h2 className="text-base font-semibold text-foreground">Search Lyrics</h2> */}
       </div>
       <LyricsSearch />
+      <RecentlyHeard />
     </div>
     </PullToRefresh>
   )

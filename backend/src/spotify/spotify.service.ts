@@ -51,17 +51,42 @@ export interface SpotifyCurrentlyPlayingResponse {
   is_playing: boolean;
 }
 
+type PlayHistoryRecord = {
+  id: string;
+  userId: string;
+  spotifyId: string;
+  track: string;
+  artist: string;
+  artists: string[];
+  imgUrl: string | null;
+  playedAt: Date;
+};
+
+type PlayHistoryDb = {
+  playHistory: {
+    findFirst(args: unknown): Promise<{ id: string } | null>;
+    create(args: unknown): Promise<PlayHistoryRecord>;
+    findMany(args: unknown): Promise<PlayHistoryRecord[]>;
+  };
+};
+
 @Injectable()
 export class SpotifyService {
   private readonly clientId: string;
   private readonly clientSecret: string;
   private readonly redirectUri: string;
+
+  // Pre-migration accessor — resolves after: npx prisma migrate dev && npx prisma generate
+  private get histDb(): PlayHistoryDb {
+    return this.prisma as unknown as PlayHistoryDb;
+  }
   private readonly scope = [
     'streaming',
     'user-read-email',
     'user-read-private',
     'user-read-playback-state',
     'user-modify-playback-state',
+    'user-read-recently-played',
     'playlist-modify-public',
   ].join(' ');
 
@@ -239,6 +264,133 @@ export class SpotifyService {
     if (!res.ok && res.status !== 204) {
       throw new Error('Spotify seek failed');
     }
+  }
+
+  // ── Play history ────────────────────────────────────────────────────────────
+
+  async recordPlay(
+    userId: string,
+    dto: { spotifyId: string; track: string; artist: string; artists: string[]; imgUrl?: string | null },
+  ): Promise<void> {
+    // Dedup: skip if same song was recorded for this user within the last 5 minutes
+    const since = new Date(Date.now() - 5 * 60 * 1000);
+    const recent = await this.histDb.playHistory.findFirst({
+      where: { userId, spotifyId: dto.spotifyId, playedAt: { gte: since } },
+      select: { id: true },
+    });
+    if (recent) return;
+
+    await this.histDb.playHistory.create({
+      data: {
+        userId,
+        spotifyId: dto.spotifyId,
+        track: dto.track,
+        artist: dto.artist,
+        artists: dto.artists,
+        imgUrl: dto.imgUrl ?? null,
+      },
+    });
+  }
+
+  async syncRecentlyPlayed(userId: string): Promise<{ synced: number }> {
+    const token = await this.getValidAccessToken(userId);
+    const res = await fetch(
+      'https://api.spotify.com/v1/me/player/recently-played?limit=50',
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    if (!res.ok) throw new Error('Failed to fetch recently played from Spotify');
+
+    const data = (await res.json()) as {
+      items: {
+        track: SpotifyTrackObject;
+        played_at: string;
+      }[];
+    };
+
+    let synced = 0;
+    for (const item of data.items) {
+      if (!item.track?.id) continue;
+      const playedAt = new Date(item.played_at);
+
+      // Skip if already stored (±1 s tolerance)
+      const existing = await this.histDb.playHistory.findFirst({
+        where: {
+          userId,
+          spotifyId: item.track.id,
+          playedAt: { gte: new Date(playedAt.getTime() - 1000), lte: new Date(playedAt.getTime() + 1000) },
+        },
+        select: { id: true },
+      });
+      if (existing) continue;
+
+      await this.histDb.playHistory.create({
+        data: {
+          userId,
+          spotifyId: item.track.id,
+          track: item.track.name,
+          artist: item.track.artists[0]?.name ?? '',
+          artists: item.track.artists.map((a) => a.name),
+          imgUrl: item.track.album.images[0]?.url ?? null,
+          playedAt,
+        },
+      });
+      synced++;
+    }
+    return { synced };
+  }
+
+  async getPlayHistory(userId: string, limit = 100) {
+    return this.histDb.playHistory.findMany({
+      where: { userId },
+      orderBy: { playedAt: 'desc' },
+      take: limit,
+    });
+  }
+
+  /** Turn a play history entry into a proper Song + SavedLyric bookmark. */
+  async importPlayToLibrary(userId: string, spotifyId: string): Promise<{ imported: boolean }> {
+    const play = await this.histDb.playHistory.findFirst({
+      where: { userId, spotifyId },
+      orderBy: { playedAt: 'desc' } as never,
+      select: { track: true, artist: true, artists: true, imgUrl: true } as never,
+    }) as PlayHistoryRecord | null;
+
+    if (!play) {
+      throw new NotFoundException('No play history entry found for this track');
+    }
+
+    const song = await this.prisma.song.upsert({
+      where: { spotifyId },
+      create: {
+        spotifyId,
+        title: play.track,
+        artist: play.artist,
+        artists: play.artists,
+        imgUrl: play.imgUrl,
+        spotifyUrl: `https://open.spotify.com/track/${spotifyId}`,
+      },
+      update: { imgUrl: play.imgUrl },
+      select: { id: true, fetchStatus: true },
+    });
+
+    const existing = await this.prisma.savedLyric.findUnique({
+      where: { userId_songId: { userId, songId: song.id } },
+      select: { id: true },
+    });
+    if (existing) return { imported: false };
+
+    await this.prisma.savedLyric.create({ data: { userId, songId: song.id } });
+
+    if (song.fetchStatus === 'IDLE' && this.lyricsQueue) {
+      await this.prisma.song.update({ where: { id: song.id }, data: { fetchStatus: 'FETCHING' } });
+      await this.lyricsQueue.add(
+        'fetch',
+        { songId: song.id, spotifyId, track: play.track, artist: play.artist },
+        { attempts: 3, backoff: { type: 'exponential', delay: 5000 }, removeOnComplete: true },
+      );
+    }
+
+    return { imported: true };
   }
 
   // ── Library browsing ────────────────────────────────────────────────────────

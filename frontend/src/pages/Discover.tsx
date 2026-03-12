@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ExternalLink, FileText, LayoutGrid, LayoutList, Search, X } from 'lucide-react'
+import { BookmarkPlus, Check, ExternalLink, FileText, LayoutGrid, LayoutList, RefreshCw, Search, X } from 'lucide-react'
 import api from '../services/api'
-import type { SavedLyric, Song } from '../types'
+import type { PlayHistoryEntry, SavedLyric, Song } from '../types'
 import PullToRefresh from '../components/PullToRefresh'
 import TrackCover from '../components/TrackCover'
 import TrackListItem from '../components/TrackListItem'
@@ -222,9 +222,77 @@ function ArtistDivider({ name }: { name: string }) {
   )
 }
 
+// ── History row ────────────────────────────────────────────────────────────
+
+function timeAgoShort(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime()
+  const m = Math.floor(diff / 60_000)
+  if (m < 1) return 'gerade eben'
+  if (m < 60) return `${m}m`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h}h`
+  return `${Math.floor(h / 24)}d`
+}
+
+function HistoryRow({
+  entry,
+  onImported,
+}: {
+  entry: PlayHistoryEntry
+  onImported: () => void
+}) {
+  const navigate = useNavigate()
+  const [done, setDone] = useState(false)
+
+  const importMutation = useMutation({
+    mutationFn: () =>
+      api.post<{ imported: boolean }>(`/spotify/plays/${entry.spotifyId}/import`).then((r) => r.data),
+    onSuccess: (data) => {
+      setDone(true)
+      if (data.imported) onImported()
+    },
+  })
+
+  return (
+    <li className="group">
+      <TrackListItem
+        src={entry.imgUrl ?? undefined}
+        track={entry.track}
+        artist={entry.artists.join(', ') || entry.artist}
+        size="md"
+        interactive
+        onContentClick={() => navigate(`/songs/${entry.spotifyId}`)}
+        actions={
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <span className="text-[11px] text-foreground-subtle tabular-nums hidden sm:block">
+              {timeAgoShort(entry.playedAt)}
+            </span>
+            <button
+              onClick={() => importMutation.mutate()}
+              disabled={importMutation.isPending || done}
+              title={done ? 'Gespeichert' : 'Als Song speichern'}
+              className={[
+                'w-9 h-9 sm:w-7 sm:h-7 flex items-center justify-center rounded-lg transition-all',
+                done
+                  ? 'text-accent'
+                  : 'text-foreground-subtle hover:text-accent sm:opacity-0 sm:group-hover:opacity-100 disabled:opacity-40',
+              ].join(' ')}
+            >
+              {done
+                ? <Check size={13} strokeWidth={2} />
+                : <BookmarkPlus size={13} strokeWidth={1.75} />
+              }
+            </button>
+          </div>
+        }
+      />
+    </li>
+  )
+}
+
 // ── Main Discover page ─────────────────────────────────────────────────────
 
-type Tab = 'library' | 'activity'
+type Tab = 'library' | 'activity' | 'history'
 
 export default function Discover() {
   const location = useLocation()
@@ -267,6 +335,11 @@ export default function Discover() {
     enabled: tab === 'activity',
   })
 
+  const syncHistory = useMutation({
+    mutationFn: () => api.post<{ synced: number }>('/spotify/sync-history').then((r) => r.data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['play-history'] }),
+  })
+
   const { data: favorites = [] } = useQuery<SavedLyric[]>({
     queryKey: ['saved-lyrics-favorites'],
     queryFn: () => api.get<SavedLyric[]>('/saved-lyrics/favorites').then((r) => r.data),
@@ -277,6 +350,13 @@ export default function Discover() {
   )
 
   const [libraryQuery, setLibraryQuery] = useState('')
+
+  const { data: history = [], isLoading: historyLoading } = useQuery<PlayHistoryEntry[]>({
+    queryKey: ['play-history'],
+    queryFn: () => api.get<PlayHistoryEntry[]>('/spotify/plays?limit=200').then((r) => r.data),
+    enabled: tab === 'history' || (tab === 'library' && libraryQuery.trim().length > 0),
+    staleTime: 30_000,
+  })
 
   const sortedSongs = useMemo(() => {
     const list = [...songs]
@@ -295,6 +375,26 @@ export default function Discover() {
         s.artists.some((a) => a.toLowerCase().includes(q)),
     )
   }, [sortedSongs, libraryQuery])
+
+  // History entries that match the search query but aren't already saved songs
+  const savedSpotifyIds = useMemo(() => new Set(songs.map((s) => s.spotifyId)), [songs])
+
+  const filteredHistory = useMemo(() => {
+    const q = libraryQuery.trim().toLowerCase()
+    if (!q) return []
+    // Deduplicate by spotifyId — only keep most recent play per track
+    const seen = new Set<string>()
+    return history.filter((e) => {
+      if (savedSpotifyIds.has(e.spotifyId)) return false
+      if (seen.has(e.spotifyId)) return false
+      const matches =
+        e.track.toLowerCase().includes(q) ||
+        e.artist.toLowerCase().includes(q) ||
+        e.artists.some((a) => a.toLowerCase().includes(q))
+      if (matches) seen.add(e.spotifyId)
+      return matches
+    })
+  }, [history, libraryQuery, savedSpotifyIds])
 
   const artistGroups = useMemo(() => {
     if (librarySort !== 'artist' || libraryQuery.trim()) return null
@@ -319,15 +419,13 @@ export default function Discover() {
   })
 
   const handleRefresh = useCallback(() => {
-    if (tab === 'library') {
-      queryClient.invalidateQueries({ queryKey: ['songs'] })
-    } else {
-      queryClient.invalidateQueries({ queryKey: ['global-feed'] })
-    }
+    if (tab === 'library') queryClient.invalidateQueries({ queryKey: ['songs'] })
+    else if (tab === 'activity') queryClient.invalidateQueries({ queryKey: ['global-feed'] })
+    else queryClient.invalidateQueries({ queryKey: ['play-history'] })
     return Promise.resolve()
   }, [queryClient, tab])
 
-  const isLoading = tab === 'library' ? songsLoading : feedLoading
+  const isLoading = tab === 'library' ? songsLoading : tab === 'activity' ? feedLoading : historyLoading
 
   function cardProps(song: Song) {
     return {
@@ -375,7 +473,7 @@ export default function Discover() {
 
         {/* Tab switcher */}
         <div className="flex gap-1 p-1 rounded-lg bg-surface-raised border border-edge w-fit">
-          {(['library', 'activity'] as Tab[]).map((t) => (
+          {(['library', 'activity', 'history'] as Tab[]).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -386,7 +484,7 @@ export default function Discover() {
                   : 'text-foreground-muted hover:text-foreground',
               ].join(' ')}
             >
-              {t === 'library' ? 'Song Library' : 'Activity'}
+              {t === 'library' ? 'Song Library' : t === 'activity' ? 'Activity' : 'Verlauf'}
             </button>
           ))}
         </div>
@@ -514,6 +612,59 @@ export default function Discover() {
           ) : (
             renderLibrarySongs(filteredSongs)
           )
+        )}
+
+        {/* ── Library tab: history hits not yet saved ───────────── */}
+        {tab === 'library' && filteredHistory.length > 0 && (
+          <div className="space-y-2 mt-2">
+            <div className="flex items-center gap-3">
+              <p className="text-[11px] font-semibold text-foreground-subtle uppercase tracking-widest whitespace-nowrap">
+                Aus Verlauf
+              </p>
+              <div className="flex-1 h-px bg-edge" />
+            </div>
+            <ul className="space-y-0.5">
+              {filteredHistory.map((entry) => (
+                <HistoryRow
+                  key={entry.id}
+                  entry={entry}
+                  onImported={() => queryClient.invalidateQueries({ queryKey: ['saved-lyrics'] })}
+                />
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* ── History tab ───────────────────────────────────────── */}
+        {!isLoading && tab === 'history' && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-foreground-subtle">{history.length} Songs aufgezeichnet</p>
+              <button
+                onClick={() => syncHistory.mutate()}
+                disabled={syncHistory.isPending}
+                className="flex items-center gap-1.5 text-xs text-foreground-subtle hover:text-accent transition-colors disabled:opacity-40"
+              >
+                <RefreshCw size={11} strokeWidth={1.75} className={syncHistory.isPending ? 'animate-spin' : ''} />
+                Von Spotify synchronisieren
+              </button>
+            </div>
+            {history.length === 0 ? (
+              <p className="text-sm text-foreground-subtle py-4">
+                Noch keine Songs aufgezeichnet. Spiele etwas ab und öffne Lyrics Helper!
+              </p>
+            ) : (
+              <ul className="space-y-0.5">
+                {history.map((entry) => (
+                  <HistoryRow
+                    key={entry.id}
+                    entry={entry}
+                    onImported={() => queryClient.invalidateQueries({ queryKey: ['saved-lyrics'] })}
+                  />
+                ))}
+              </ul>
+            )}
+          </div>
         )}
 
         {/* ── Activity tab ──────────────────────────────────────── */}

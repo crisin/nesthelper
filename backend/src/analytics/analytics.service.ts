@@ -110,15 +110,14 @@ const STOPWORDS = new Set([
 type RawSave = {
   id: string;
   createdAt: Date;
-  song: {
-    title: string;
-    artist: string;
-    artists: string[];
-    imgUrl: string | null;
-    spotifyId: string;
-    lyrics: { rawText: string } | null;
-    tags: { tag: string }[];
-  };
+  track: string;
+  artist: string;
+  artists: string[];
+  spotifyId: string | null;
+  lyricsStructured: { rawText: string } | null;
+  tags: { tag: string }[];
+  searchHistory: { imgUrl: string | null } | null;
+  song: { imgUrl: string | null } | null;
 };
 
 type NewDb = {
@@ -161,7 +160,7 @@ export class AnalyticsService {
   async getArtists(userId: string) {
     const saves = await this.prisma.savedLyric.findMany({
       where: { userId },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
       select: { song: { select: { artist: true } } } as any,
     });
     const freq = new Map<string, number>();
@@ -199,24 +198,20 @@ export class AnalyticsService {
       select: {
         id: true,
         createdAt: true,
-        song: {
-          select: {
-            title: true,
-            artist: true,
-            artists: true,
-            imgUrl: true,
-            spotifyId: true,
-            lyrics: { select: { rawText: true } },
-            tags: { where: { type: 'MOOD' }, select: { tag: true } },
-          },
-        },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- pre-migration workaround
-      } as any,
+        track: true,
+        artist: true,
+        artists: true,
+        spotifyId: true,
+        lyricsStructured: { select: { rawText: true } },
+        tags: { where: { type: 'MOOD' } as never, select: { tag: true } },
+        searchHistory: { select: { imgUrl: true } },
+        song: { select: { imgUrl: true } },
+      },
       orderBy: { createdAt: 'asc' },
     });
 
     const monthMap = new Map<number, RawSave[]>();
-    for (const save of saves as unknown as RawSave[]) {
+    for (const save of saves as RawSave[]) {
       const m = new Date(save.createdAt).getMonth();
       if (!monthMap.has(m)) monthMap.set(m, []);
       monthMap.get(m)!.push(save);
@@ -242,7 +237,7 @@ export class AnalyticsService {
       .map(([m, monthSaves]) => {
         const freq = new Map<string, number>();
         for (const save of monthSaves) {
-          for (const { tag } of save.song.tags) {
+          for (const { tag } of save.tags) {
             freq.set(tag, (freq.get(tag) ?? 0) + 1);
           }
         }
@@ -251,15 +246,15 @@ export class AnalyticsService {
 
         const songs = monthSaves.map((save) => ({
           id: save.id,
-          track: save.song.title,
-          artist: save.song.artist,
-          artists: save.song.artists,
-          lyrics: save.song.lyrics?.rawText ?? null,
+          track: save.track,
+          artist: save.artist,
+          artists: save.artists,
+          lyrics: save.lyricsStructured?.rawText ?? null,
           searchHistory: {
-            imgUrl: save.song.imgUrl,
-            spotifyId: save.song.spotifyId,
+            imgUrl: save.song?.imgUrl ?? save.searchHistory?.imgUrl ?? null,
+            spotifyId: save.spotifyId,
           },
-          tags: save.song.tags,
+          tags: save.tags,
           createdAt: save.createdAt,
         }));
 

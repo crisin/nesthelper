@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Music, Radio } from 'lucide-react'
+import { Radio } from 'lucide-react'
 import api from '../services/api'
 import type { SpotifyCurrentlyPlayingResponse } from '../types'
 import LyricsViewer from './LyricsViewer'
+import TrackCover from './TrackCover'
 
 function formatMs(ms: number) {
   const totalSec = Math.floor(ms / 1000)
@@ -16,7 +17,7 @@ export default function NowPlayingWidget() {
   const [viewerOpen, setViewerOpen] = useState(false)
   const [localProgressMs, setLocalProgressMs] = useState(0)
   const baseProgressMs = useRef(0)
-  const fetchedAt = useRef(Date.now())
+  const fetchedAt = useRef(0)
 
   const { data: track } = useQuery<SpotifyCurrentlyPlayingResponse | null>({
     queryKey: ['spotify-current-track'],
@@ -27,20 +28,22 @@ export default function NowPlayingWidget() {
     retry: false,
   })
 
-  // Sync refs + local state whenever Spotify gives us a new position
+  // Sync refs whenever Spotify gives us a new position (no setState — interval handles display)
   useEffect(() => {
     if (track?.progress_ms != null) {
       baseProgressMs.current = track.progress_ms
       fetchedAt.current = Date.now()
-      setLocalProgressMs(track.progress_ms)
     }
   }, [track?.progress_ms, track?.is_playing])
 
-  // Tick every second to interpolate between polls; poll corrects drift
+  // Tick every second; interpolates when playing, holds when paused; poll corrects drift
   useEffect(() => {
-    if (!track?.is_playing) return
     const id = setInterval(() => {
-      setLocalProgressMs(baseProgressMs.current + (Date.now() - fetchedAt.current))
+      setLocalProgressMs(
+        track?.is_playing
+          ? baseProgressMs.current + (Date.now() - fetchedAt.current)
+          : baseProgressMs.current,
+      )
     }, 1_000)
     return () => clearInterval(id)
   }, [track?.is_playing, track?.progress_ms])
@@ -58,18 +61,14 @@ export default function NowPlayingWidget() {
         onClick={() => setViewerOpen(true)}
         className="w-full rounded-xl border border-edge bg-surface overflow-hidden text-left hover:border-foreground-muted/40 transition-colors"
       >
-        {/* Full-width cover */}
-        {imgUrl ? (
-          <img
-            src={imgUrl}
-            alt={item.name}
-            className="w-full aspect-square object-cover"
-          />
-        ) : (
-          <div className="w-full aspect-square bg-surface-overlay flex items-center justify-center">
-            <Music size={28} className="text-foreground-subtle" strokeWidth={1.25} />
-          </div>
-        )}
+        {/* Full-width cover — click opens fullscreen overlay, rest of button opens LyricsViewer */}
+        <TrackCover
+          src={imgUrl}
+          track={item.name}
+          artist={item.artists[0]?.name}
+          className="w-full aspect-square rounded-none"
+          iconSize={28}
+        />
 
         {/* Track info + progress */}
         <div className="px-3 pt-2.5 pb-2 space-y-2">

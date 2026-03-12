@@ -550,15 +550,6 @@ export default function SongDetail() {
                     <ExternalLink size={11} strokeWidth={1.75} />
                   </a>
                 )}
-                <a
-                  href={`https://www.google.com/search?q=${encodeURIComponent(`${title} ${artistDisplay} lyrics`)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs text-foreground-subtle hover:text-accent transition-colors"
-                >
-                  Lyrics suchen
-                  <ExternalLink size={11} strokeWidth={1.75} />
-                </a>
               </div>
             </div>
             <button

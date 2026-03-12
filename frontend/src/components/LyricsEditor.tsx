@@ -925,6 +925,12 @@ export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer }: P
         )
       ) : (
         <>
+          {hasTimestamps && (
+            <div className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-accent/5 border border-accent/20 text-[11px] text-foreground-muted">
+              <Clock size={10} className="text-accent flex-shrink-0" strokeWidth={2} />
+              Zeilen mit übereinstimmendem Text behalten ihre Timestamps und Annotationen nach dem Speichern.
+            </div>
+          )}
           <textarea
             className="w-full min-h-48 sm:min-h-96 bg-surface-raised border border-edge rounded-xl p-4 resize-y
                        focus:outline-none focus:border-foreground-muted/60 transition-colors text-sm leading-relaxed"

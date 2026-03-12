@@ -81,33 +81,59 @@ export class SongLyricsService {
         });
 
         // Prune old versions beyond limit
-        const old = await tx.lyricsVersion.findMany({
+        const oldVersions = await tx.lyricsVersion.findMany({
           where: { songLyricsId: existing.id },
           orderBy: { version: 'desc' },
           skip: VERSIONS_TO_KEEP,
           select: { id: true },
         });
-        if (old.length > 0) {
+        if (oldVersions.length > 0) {
           await tx.lyricsVersion.deleteMany({
-            where: { id: { in: old.map((v) => v.id) } },
+            where: { id: { in: oldVersions.map((v) => v.id) } },
           });
         }
 
-        // Replace all lines
-        await tx.lyricsLine.deleteMany({
+        // ── Smart merge: reuse line IDs to preserve timestamps + annotations ──
+        const currentLines = await tx.lyricsLine.findMany({
           where: { songLyricsId: existing.id },
+          orderBy: { lineNumber: 'asc' },
+          select: { id: true, text: true, timestampMs: true },
         });
+
+        const { matched, deletedOldIds } = mergeLines(currentLines, lineTexts);
+
+        // Delete lines that have no match in the new text (cascades to annotations)
+        if (deletedOldIds.length > 0) {
+          await tx.lyricsLine.deleteMany({ where: { id: { in: deletedOldIds } } });
+        }
+
+        // Update matched lines (new position + text, timestamps untouched)
+        for (const m of matched) {
+          await tx.lyricsLine.update({
+            where: { id: m.oldId },
+            data: { lineNumber: m.newIndex + 1, text: lineTexts[m.newIndex] },
+          });
+        }
+
+        // Create new lines that had no match
+        const matchedIndices = new Set(matched.map((m) => m.newIndex));
+        const newLines = lineTexts
+          .map((text, i) => ({ text, lineNumber: i + 1, i }))
+          .filter((l) => !matchedIndices.has(l.i));
+
+        if (newLines.length > 0) {
+          await tx.lyricsLine.createMany({
+            data: newLines.map((l) => ({
+              songLyricsId: existing.id,
+              lineNumber: l.lineNumber,
+              text: l.text,
+            })),
+          });
+        }
 
         return tx.songLyrics.update({
           where: { id: existing.id },
-          data: {
-            rawText,
-            version: { increment: 1 },
-            lastEditedBy: userId,
-            lines: {
-              create: lineTexts.map((text, i) => ({ lineNumber: i + 1, text })),
-            },
-          },
+          data: { rawText, version: { increment: 1 }, lastEditedBy: userId },
           include: LYRICS_INCLUDE,
         });
       });
@@ -296,4 +322,92 @@ export interface LrclibPreviewResult {
   albumName: string;
   isSynced: boolean;
   lines: LrclibPreviewLine[];
+}
+
+// ── Line merge helpers ────────────────────────────────────────────────────────
+
+interface OldLineRecord {
+  id: string;
+  text: string;
+  timestampMs: number | null;
+}
+
+interface LineMatch {
+  oldId: string;
+  newIndex: number;
+}
+
+interface MergeResult {
+  matched: LineMatch[];
+  deletedOldIds: string[];
+}
+
+const SIMILARITY_THRESHOLD = 0.8;
+
+function normalise(text: string): string {
+  return text.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+/** Two-row Levenshtein distance (O(m*n) time, O(n) space) */
+function levenshtein(a: string, b: string): number {
+  if (a === b) return 0;
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  const curr = new Array<number>(b.length + 1);
+  for (let i = 1; i <= a.length; i++) {
+    curr[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      curr[j] =
+        a[i - 1] === b[j - 1]
+          ? prev[j - 1]
+          : 1 + Math.min(prev[j], curr[j - 1], prev[j - 1]);
+    }
+    prev = curr.slice();
+  }
+  return prev[b.length];
+}
+
+function lineSimilarity(a: string, b: string): number {
+  const na = normalise(a);
+  const nb = normalise(b);
+  if (na === nb) return 1;
+  if (!na && !nb) return 1;
+  if (!na || !nb) return 0;
+  const maxLen = Math.max(na.length, nb.length);
+  // Skip expensive edit-distance for very long lines — only exact match counts
+  if (maxLen > 300) return 0;
+  return 1 - levenshtein(na, nb) / maxLen;
+}
+
+/**
+ * Greedy O(n×m) matching: each new line claims the best unclaimed old line
+ * that exceeds SIMILARITY_THRESHOLD. Preserves relative order implicitly
+ * because we iterate new lines sequentially.
+ */
+function mergeLines(oldLines: OldLineRecord[], newTexts: string[]): MergeResult {
+  const claimed = new Set<string>();
+  const matched: LineMatch[] = [];
+
+  for (let i = 0; i < newTexts.length; i++) {
+    let bestId: string | null = null;
+    let bestSim = SIMILARITY_THRESHOLD - 0.001;
+
+    for (const old of oldLines) {
+      if (claimed.has(old.id)) continue;
+      const sim = lineSimilarity(newTexts[i], old.text);
+      if (sim > bestSim) {
+        bestSim = sim;
+        bestId = old.id;
+      }
+    }
+
+    if (bestId) {
+      claimed.add(bestId);
+      matched.push({ oldId: bestId, newIndex: i });
+    }
+  }
+
+  const deletedOldIds = oldLines.filter((o) => !claimed.has(o.id)).map((o) => o.id);
+  return { matched, deletedOldIds };
 }

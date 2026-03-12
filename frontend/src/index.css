@@ -133,6 +133,25 @@
   }
 }
 
+/* ── Dynamic background animations ─────────────────────────────── */
+/* CSS variables (animation editor hooks):
+   --bg-blur              blur radius in px
+   --bg-dim               dim strength 0–1
+   --bg-pulse-scale       max scale during pulse (e.g. 1.02)
+   --bg-pulse-duration    one-beat duration in ms
+   --bg-ambient-opacity   ambient color strength 0–1
+*/
+
+@keyframes bg-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%       { transform: scale(var(--bg-pulse-scale, 1.02)); opacity: 0.85; }
+}
+
+@keyframes bg-breathe {
+  0%, 100% { filter: blur(0px); opacity: 1; }
+  50%       { filter: blur(6px); opacity: 0.8; }
+}
+
 /* ── Utilities ──────────────────────────────────────────────────── */
 
 @layer utilities {

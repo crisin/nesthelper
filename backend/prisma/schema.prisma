@@ -75,9 +75,10 @@ model Song {
   imgUrl      String?
   spotifyUrl  String?
   videoUrl    String?
-  fetchStatus LyricsFetchStatus @default(IDLE)
-  firstSeenAt DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  fetchStatus   LyricsFetchStatus @default(IDLE)
+  audioFeatures Json?            // { tempo, energy, valence, danceability } from Spotify audio-features API
+  firstSeenAt   DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
 
   lyrics  SongLyrics?
   tags    SongTag[]

@@ -9,6 +9,7 @@ import {
   Eye,
 } from "lucide-react";
 import api from "../services/api";
+import DynamicBackground from "../components/DynamicBackground";
 import type { SavedLyric } from "../types";
 import SwipeToDelete from "../components/SwipeToDelete";
 import PullToRefresh from "../components/PullToRefresh";
@@ -102,6 +103,7 @@ export default function Favorites() {
 
   return (
     <>
+      <DynamicBackground page="favorites" />
       <PullToRefresh onRefresh={handleRefresh}>
         <div className="px-4 sm:px-8 py-8 max-w-5xl mx-auto space-y-4 overflow-hidden">
           {/* Weekly digest */}

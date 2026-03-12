@@ -150,4 +150,13 @@ export class SpotifyController {
   importPlay(@Req() req: AuthedRequest, @Param('spotifyId') spotifyId: string) {
     return this.spotify.importPlayToLibrary(req.user.id, spotifyId);
   }
+
+  // ── Audio features ────────────────────────────────────────────────────────────
+
+  /** GET /spotify/audio-features/:spotifyId */
+  @Get('audio-features/:spotifyId')
+  @UseGuards(JwtAuthGuard)
+  getAudioFeatures(@Req() req: AuthedRequest, @Param('spotifyId') spotifyId: string) {
+    return this.spotify.getAudioFeatures(req.user.id, spotifyId);
+  }
 }

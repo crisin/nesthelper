@@ -6,6 +6,8 @@ import api from "../services/api";
 import { useAuthStore } from "../stores/authStore";
 import UsernameEdit from "../components/UsernameEdit";
 import { useTheme } from "../hooks/useTheme";
+import { useVisualStore } from "../stores/visualStore";
+import type { VisualMode, VisualizerStyle } from "../stores/visualStore";
 
 // ─── Password strength ────────────────────────────────────────────────────────
 
@@ -220,6 +222,7 @@ export default function Settings() {
   const navigate = useNavigate();
   const clearAuth = useAuthStore((s) => s.clearAuth);
   const { isDark, toggle } = useTheme();
+  const visual = useVisualStore();
 
   function handleLogout() {
     clearAuth();
@@ -356,6 +359,177 @@ export default function Settings() {
           )}
         </div>
       </section>
+      {/* ── Visual settings ──────────────────────────────────────────── */}
+      <section className="pt-6 border-t border-edge space-y-4">
+        <h2 className="text-sm font-semibold text-foreground">Visuelles</h2>
+
+        {/* Global toggle */}
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-foreground">Dynamischer Hintergrund</p>
+            <p className="text-xs text-foreground-muted mt-0.5">
+              Albumcover als Hintergrund während Musikwiedergabe
+            </p>
+          </div>
+          <button
+            role="switch"
+            aria-checked={visual.enabled}
+            onClick={() => visual.setEnabled(!visual.enabled)}
+            className={`relative w-10 h-5.5 rounded-full transition-colors flex-shrink-0 ${
+              visual.enabled ? "bg-accent" : "bg-surface-overlay"
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 left-0.5 w-4.5 h-4.5 rounded-full bg-white shadow transition-transform ${
+                visual.enabled ? "translate-x-4.5" : "translate-x-0"
+              }`}
+            />
+          </button>
+        </div>
+
+        {visual.enabled && (
+          <div className="space-y-4 pl-3 border-l-2 border-edge">
+            {/* Per-page toggles */}
+            <div className="space-y-2.5">
+              <p className="text-xs font-medium text-foreground-muted uppercase tracking-wide">Seiten</p>
+              {(
+                [
+                  ["dashboard", "Dashboard"],
+                  ["discover", "Entdecken"],
+                  ["favorites", "Favoriten"],
+                  ["timeline", "Timeline"],
+                ] as [string, string][]
+              ).map(([key, label]) => (
+                <div key={key} className="flex items-center justify-between">
+                  <span className="text-sm text-foreground-muted">{label}</span>
+                  <button
+                    role="switch"
+                    aria-checked={!!visual.pages[key]}
+                    onClick={() => visual.setPageEnabled(key, !visual.pages[key])}
+                    className={`relative w-8 h-4.5 rounded-full transition-colors flex-shrink-0 ${
+                      visual.pages[key] ? "bg-accent" : "bg-surface-overlay"
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 left-0.5 w-3.5 h-3.5 rounded-full bg-white shadow transition-transform ${
+                        visual.pages[key] ? "translate-x-3.5" : "translate-x-0"
+                      }`}
+                    />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Mode selector */}
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium text-foreground-muted uppercase tracking-wide">Modus</p>
+              <div className="flex gap-2">
+                {(
+                  [
+                    ["blur", "Unschärfe"],
+                    ["ambient", "Farbe"],
+                    ["both", "Beides"],
+                  ] as [VisualMode, string][]
+                ).map(([val, label]) => (
+                  <button
+                    key={val}
+                    onClick={() => visual.set({ mode: val })}
+                    className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                      visual.mode === val
+                        ? "bg-accent text-black"
+                        : "bg-surface-overlay text-foreground-muted hover:text-foreground"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Blur slider */}
+            {(visual.mode === "blur" || visual.mode === "both") && (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium text-foreground-muted uppercase tracking-wide">Unschärfe</p>
+                  <span className="text-xs text-foreground-subtle">{visual.blurAmount}px</span>
+                </div>
+                <input
+                  type="range"
+                  min={8}
+                  max={40}
+                  value={visual.blurAmount}
+                  onChange={(e) => visual.set({ blurAmount: Number(e.target.value) })}
+                  className="w-full accent-accent"
+                />
+              </div>
+            )}
+
+            {/* Dim slider */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-foreground-muted uppercase tracking-wide">Abdunklung</p>
+                <span className="text-xs text-foreground-subtle">{Math.round(visual.dimAmount * 100)}%</span>
+              </div>
+              <input
+                type="range"
+                min={50}
+                max={95}
+                value={Math.round(visual.dimAmount * 100)}
+                onChange={(e) => visual.set({ dimAmount: Number(e.target.value) / 100 })}
+                className="w-full accent-accent"
+              />
+            </div>
+
+            {/* Visualizer (desktop only) */}
+            <div className="hidden sm:block space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-foreground">Visualizer</p>
+                  <p className="text-xs text-foreground-muted mt-0.5">BPM-synchronisierte Animation</p>
+                </div>
+                <button
+                  role="switch"
+                  aria-checked={visual.showVisualizer}
+                  onClick={() => visual.set({ showVisualizer: !visual.showVisualizer })}
+                  className={`relative w-10 h-5.5 rounded-full transition-colors flex-shrink-0 ${
+                    visual.showVisualizer ? "bg-accent" : "bg-surface-overlay"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 w-4.5 h-4.5 rounded-full bg-white shadow transition-transform ${
+                      visual.showVisualizer ? "translate-x-4.5" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {visual.showVisualizer && (
+                <div className="flex gap-2">
+                  {(
+                    [
+                      ["pulse", "Pulse"],
+                      ["breathe", "Breathe"],
+                    ] as [VisualizerStyle, string][]
+                  ).map(([val, label]) => (
+                    <button
+                      key={val}
+                      onClick={() => visual.set({ visualizerStyle: val })}
+                      className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                        visual.visualizerStyle === val
+                          ? "bg-accent text-black"
+                          : "bg-surface-overlay text-foreground-muted hover:text-foreground"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </section>
+
       <section className="pt-6 border-t border-edge">
         <div className="flex items-center justify-between pt-0.5">
           <button

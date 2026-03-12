@@ -39,6 +39,13 @@ export interface BulkImportTrackDto {
   external_urls: { spotify: string };
 }
 
+export interface AudioFeatures {
+  tempo: number;
+  energy: number;
+  valence: number;
+  danceability: number;
+}
+
 export interface SpotifyCurrentlyPlayingResponse {
   item: {
     id: string;
@@ -391,6 +398,42 @@ export class SpotifyService {
     }
 
     return { imported: true };
+  }
+
+  // ── Audio features ──────────────────────────────────────────────────────────
+
+  async getAudioFeatures(userId: string, spotifyId: string): Promise<AudioFeatures | null> {
+    // Return cached value if already stored on Song
+    const song = await this.prisma.song.findUnique({
+      where: { spotifyId },
+      select: { audioFeatures: true },
+    });
+    if (song?.audioFeatures) return song.audioFeatures as unknown as AudioFeatures;
+
+    // Fetch from Spotify API
+    const token = await this.getValidAccessToken(userId);
+    const res = await fetch(`https://api.spotify.com/v1/audio-features/${spotifyId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+
+    const data = (await res.json()) as {
+      tempo: number;
+      energy: number;
+      valence: number;
+      danceability: number;
+    };
+    const features: AudioFeatures = {
+      tempo: data.tempo,
+      energy: data.energy,
+      valence: data.valence,
+      danceability: data.danceability,
+    };
+
+    // Cache on Song record if it exists
+    await this.prisma.song.updateMany({ where: { spotifyId }, data: { audioFeatures: features as object } });
+
+    return features;
   }
 
   // ── Library browsing ────────────────────────────────────────────────────────

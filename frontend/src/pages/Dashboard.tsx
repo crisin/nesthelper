@@ -1,6 +1,7 @@
 import { useCallback } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
+import DynamicBackground from '../components/DynamicBackground'
 import LyricsSearch from '../components/LyricsSearch'
 import PullToRefresh from '../components/PullToRefresh'
 import RecentlyHeard from '../components/RecentlyHeard'
@@ -33,6 +34,8 @@ export default function Dashboard() {
   )
 
   return (
+    <>
+    <DynamicBackground page="dashboard" />
     <PullToRefresh onRefresh={handleRefresh}>
     <div className="px-4 sm:px-8 py-8 max-w-5xl mx-auto space-y-5 overflow-hidden">
       {/* Spotify connect prompt */}
@@ -71,5 +74,6 @@ export default function Dashboard() {
       <RecentlyHeard />
     </div>
     </PullToRefresh>
+    </>
   )
 }

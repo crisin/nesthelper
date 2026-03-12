@@ -1,4 +1,4 @@
-import { BarChart2, Clock, Compass, Home, Library, Settings, BookOpen, ArrowRight } from "lucide-react";
+import { BarChart2, Clock, Compass, Home, Library, Settings, BookOpen, ArrowRight, Music2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -51,6 +51,7 @@ const NAV = [
   { path: "/discover", label: "Entdecken", Icon: Compass },
   { path: "/favorites", label: "Favoriten", Icon: Library },
   { path: "/collections", label: "Collections", Icon: BookOpen },
+  { path: "/library", label: "Bibliothek", Icon: Music2 },
   { path: "/analytics", label: "Analytics", Icon: BarChart2 },
   { path: "/timeline", label: "Timeline", Icon: Clock },
   { path: "/settings", label: "Einstellungen", Icon: Settings },

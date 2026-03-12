@@ -3,10 +3,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Eye, Pencil, History, ChevronDown, ChevronUp, MessageSquarePlus,
   RotateCcw, Check, Music, Headphones, Timer, Loader2, Rewind, X,
-  BookOpen, MessageSquare, Clock,
+  BookOpen, MessageSquare, Clock, Sparkles,
 } from 'lucide-react'
 import api from '../services/api'
-import type { SongLyrics, LineAnnotation, LyricsFetchStatus, SpotifyCurrentlyPlayingResponse } from '../types'
+import type { SongLyrics, LineAnnotation, LyricsFetchStatus, SpotifyCurrentlyPlayingResponse, LrclibPreview } from '../types'
 import { useAuthStore } from '../stores/authStore'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -525,6 +525,148 @@ function VersionHistory({
   )
 }
 
+// ─── LRCLib preview panel ─────────────────────────────────────────────────────
+
+function LrclibPreviewPanel({
+  spotifyId,
+  onClose,
+}: {
+  spotifyId: string
+  onClose: () => void
+}) {
+  const queryClient = useQueryClient()
+
+  const { data: preview, isLoading, isError } = useQuery<LrclibPreview | null>({
+    queryKey: ['lrclib-preview', spotifyId],
+    queryFn: () =>
+      api.get<LrclibPreview>(`/songs/${spotifyId}/lyrics/lrclib-preview`).then((r) => r.data),
+    staleTime: 5 * 60_000,
+    retry: false,
+  })
+
+  const accept = useMutation({
+    mutationFn: async () => {
+      if (!preview) return
+      const rawText = preview.lines.map((l) => l.text).join('\n')
+      const saved = await api
+        .put<SongLyrics>(`/songs/${spotifyId}/lyrics`, { rawText })
+        .then((r) => r.data)
+      if (preview.isSynced && (saved.lines?.length ?? 0) > 0) {
+        const timestampLines = preview.lines
+          .map((l, i) => ({ id: saved.lines[i]?.id, timestampMs: l.timestampMs ?? null }))
+          .filter((l): l is { id: string; timestampMs: number } => !!l.id && l.timestampMs != null)
+        if (timestampLines.length > 0) {
+          await api.patch(`/songs/${spotifyId}/lyrics/timestamps`, { lines: timestampLines })
+        }
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['lyrics', spotifyId] })
+      onClose()
+    },
+  })
+
+  return (
+    <div className="rounded-xl border border-edge bg-surface-raised overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-edge bg-surface">
+        <Sparkles size={13} className="text-accent flex-shrink-0" strokeWidth={2} />
+        <span className="text-xs font-semibold text-foreground flex-1">LRCLib-Vorschlag</span>
+        <button
+          onClick={onClose}
+          className="text-foreground-subtle hover:text-foreground transition-colors"
+          aria-label="Schließen"
+        >
+          <X size={13} strokeWidth={2} />
+        </button>
+      </div>
+
+      <div className="px-4 py-3 space-y-3">
+        {isLoading && (
+          <div className="flex items-center gap-2 text-xs text-foreground-muted py-2">
+            <Loader2 size={13} className="animate-spin" />
+            LRCLib wird durchsucht…
+          </div>
+        )}
+
+        {isError && (
+          <p className="text-xs text-foreground-muted py-2">Kein Treffer in LRCLib gefunden.</p>
+        )}
+
+        {!isLoading && !isError && !preview && (
+          <p className="text-xs text-foreground-muted py-2">Keine Lyrics für diesen Song in LRCLib gefunden.</p>
+        )}
+
+        {preview && (
+          <>
+            {/* Match info */}
+            <div className="flex items-start gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-foreground truncate">{preview.trackName}</p>
+                <p className="text-[11px] text-foreground-muted truncate">{preview.artistName} · {preview.albumName}</p>
+              </div>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                {preview.isSynced ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent/10 border border-accent/20 text-[10px] font-medium text-accent">
+                    <Check size={9} strokeWidth={2.5} />
+                    Synced
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-overlay border border-edge text-[10px] text-foreground-muted">
+                    Nur Text
+                  </span>
+                )}
+                <span className="text-[10px] text-foreground-subtle">{preview.lines.length} Zeilen</span>
+              </div>
+            </div>
+
+            {/* Lines preview */}
+            <div className="rounded-lg bg-surface border border-edge p-3 space-y-1 max-h-48 overflow-y-auto">
+              {preview.lines.slice(0, 8).map((line, i) => (
+                <div key={i} className="flex items-baseline gap-2">
+                  {line.timestampMs != null && (
+                    <span className="text-[9px] font-mono text-foreground-subtle flex-shrink-0 tabular-nums">
+                      {formatMs(line.timestampMs)}
+                    </span>
+                  )}
+                  <span className="text-xs text-foreground leading-relaxed">{line.text || <span className="text-foreground-subtle italic">—</span>}</span>
+                </div>
+              ))}
+              {preview.lines.length > 8 && (
+                <p className="text-[10px] text-foreground-subtle pt-1">… und {preview.lines.length - 8} weitere Zeilen</p>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => accept.mutate()}
+                disabled={accept.isPending}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent text-black text-xs font-semibold
+                           hover:opacity-90 disabled:opacity-50 transition-opacity"
+              >
+                {accept.isPending ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} strokeWidth={2.5} />}
+                {accept.isPending ? 'Wird übernommen…' : 'Übernehmen'}
+              </button>
+              <button
+                onClick={onClose}
+                disabled={accept.isPending}
+                className="px-3 py-1.5 rounded-lg border border-edge text-xs text-foreground-muted
+                           hover:text-foreground hover:border-foreground-muted/50 disabled:opacity-50 transition-colors"
+              >
+                Ablehnen
+              </button>
+              {accept.isError && (
+                <span className="text-[11px] text-red-400 ml-auto">Fehler beim Speichern.</span>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 interface Props {
@@ -541,6 +683,7 @@ export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer }: P
   const [karaoke, setKaraoke] = useState(false)
   const [showAnnotations, setShowAnnotations] = useState(true)
   const [showTimestamps, setShowTimestamps] = useState(false)
+  const [showLrclib, setShowLrclib] = useState(false)
 
   const { data: lyrics = null } = useQuery<SongLyrics | null>({
     queryKey: ['lyrics', spotifyId],
@@ -706,6 +849,22 @@ export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer }: P
             </button>
           )}
 
+          {mode === 'view' && (
+            <button
+              onClick={() => setShowLrclib((v) => !v)}
+              title="Lyrics von LRCLib vorschlagen lassen"
+              className={[
+                'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors border',
+                showLrclib
+                  ? 'bg-accent/10 border-accent/30 text-accent'
+                  : 'border-edge text-foreground-subtle hover:text-foreground-muted',
+              ].join(' ')}
+            >
+              <Sparkles size={11} strokeWidth={2} />
+              LRCLib
+            </button>
+          )}
+
           <div className="flex items-center rounded-lg border border-edge bg-surface-raised p-0.5 gap-0.5">
             <button
               onClick={() => setMode('view')}
@@ -734,6 +893,14 @@ export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer }: P
           </div>
         </div>
       </div>
+
+      {/* LRCLib preview panel */}
+      {showLrclib && (
+        <LrclibPreviewPanel
+          spotifyId={spotifyId}
+          onClose={() => setShowLrclib(false)}
+        />
+      )}
 
       {/* Content */}
       {mode === 'view' ? (

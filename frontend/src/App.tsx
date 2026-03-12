@@ -10,6 +10,7 @@ import CollectionDetail from './pages/CollectionDetail'
 import Analytics from './pages/Analytics'
 import Timeline from './pages/Timeline'
 import Settings from './pages/Settings'
+import SpotifyLibrary from './pages/SpotifyLibrary'
 import PrivateRoute from './components/PrivateRoute'
 import AppLayout from './components/AppLayout'
 import { CoverViewerProvider } from './contexts/CoverViewerContext'
@@ -61,6 +62,10 @@ const router = createBrowserRouter([
   {
     path: '/timeline',
     element: <AppPage><Timeline /></AppPage>,
+  },
+  {
+    path: '/library',
+    element: <AppPage><SpotifyLibrary /></AppPage>,
   },
   {
     path: '/settings',

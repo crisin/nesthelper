@@ -66,4 +66,10 @@ export class SongLyricsController {
   ) {
     return this.service.updateTimestamps(spotifyId, dto.lines)
   }
+
+  /** GET /songs/:spotifyId/lyrics/lrclib-preview — fetch LRCLib suggestion without saving */
+  @Get(':spotifyId/lyrics/lrclib-preview')
+  lrclibPreview(@Param('spotifyId') spotifyId: string) {
+    return this.service.lrclibPreview(spotifyId)
+  }
 }

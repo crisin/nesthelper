@@ -209,4 +209,91 @@ export class SongLyricsService {
       include: LYRICS_INCLUDE,
     });
   }
+
+  // ── LRCLib preview ──────────────────────────────────────────────────────────
+
+  async lrclibPreview(spotifyId: string): Promise<LrclibPreviewResult | null> {
+    const song = await this.prisma.song.findUnique({
+      where: { spotifyId },
+      select: { title: true, artist: true },
+    });
+    if (!song) throw new NotFoundException('Song not found');
+
+    const hit = await this.fetchLrclibSearch(song.title, song.artist);
+    if (!hit) return null;
+
+    const synced = hit.syncedLyrics ? parseLrc(hit.syncedLyrics) : null;
+
+    let lines: LrclibPreviewLine[];
+    if (synced && synced.length > 0) {
+      lines = synced.map((l) => ({ text: l.text, timestampMs: l.timestampMs }));
+    } else if (hit.plainLyrics) {
+      lines = hit.plainLyrics.split('\n').map((text) => ({ text }));
+    } else {
+      return null;
+    }
+
+    return {
+      trackName: hit.trackName,
+      artistName: hit.artistName,
+      albumName: hit.albumName,
+      isSynced: synced != null && synced.length > 0,
+      lines,
+    };
+  }
+
+  private async fetchLrclibSearch(
+    track: string,
+    artist: string,
+  ): Promise<LrclibApiResponse | null> {
+    try {
+      const params = new URLSearchParams({ track_name: track, artist_name: artist });
+      const res = await fetch(`https://lrclib.net/api/search?${params}`, {
+        signal: AbortSignal.timeout(10_000),
+        headers: { 'Lrclib-Client': 'lyrics-helper/1.0 (self-hosted)' },
+      });
+      if (!res.ok) return null;
+      const results = (await res.json()) as LrclibApiResponse[];
+      return results[0] ?? null;
+    } catch {
+      return null;
+    }
+  }
+}
+
+// ── LRCLib types ──────────────────────────────────────────────────────────────
+
+interface LrclibApiResponse {
+  trackName: string;
+  artistName: string;
+  albumName: string;
+  duration: number;
+  plainLyrics: string | null;
+  syncedLyrics: string | null;
+}
+
+function parseLrc(lrc: string): { text: string; timestampMs: number }[] {
+  const result: { text: string; timestampMs: number }[] = [];
+  for (const line of lrc.split('\n')) {
+    const match = /^\[(\d{1,2}):(\d{2}\.\d+)\](.*)$/.exec(line.trim());
+    if (!match) continue;
+    const min = parseInt(match[1], 10);
+    const sec = parseFloat(match[2]);
+    const text = match[3].trim();
+    result.push({ text, timestampMs: Math.round((min * 60 + sec) * 1000) });
+  }
+  return result;
+}
+
+export interface LrclibPreviewLine {
+  text: string;
+  timestampMs?: number;
+}
+
+export interface LrclibPreviewResult {
+  trackName: string;
+  artistName: string;
+  albumName: string;
+  isSynced: boolean;
+  lines: LrclibPreviewLine[];
 }

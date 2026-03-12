@@ -592,6 +592,7 @@ export default function SongDetail() {
           artists={s?.artists}
           imgUrl={imgUrl}
           lyrics={s?.lyrics?.rawText ?? ''}
+          spotifyId={spotifyId}
           onClose={() => setViewerOpen(false)}
         />
       )}

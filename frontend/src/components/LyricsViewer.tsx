@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { X, SlidersHorizontal, Maximize2, Minimize2, Zap, Check, SkipForward, ChevronLeft } from 'lucide-react'
+import { X, SlidersHorizontal, Maximize2, Minimize2, Zap, Check, SkipForward, ChevronLeft, ArrowUpRight } from 'lucide-react'
+import { Link, useLocation } from 'react-router-dom'
 import api from '../services/api'
 import type { SongLyrics, SpotifyCurrentlyPlayingResponse } from '../types'
 
@@ -79,6 +80,7 @@ export default function LyricsViewer({
   track, artist, artists, imgUrl, lyrics, onClose, authorLabel, spotifyId,
 }: LyricsViewerProps) {
   const queryClient = useQueryClient()
+  const location = useLocation()
   const [s, setS] = useState<ViewerSettings>(loadSettings)
   const [showSettings, setShowSettings] = useState(false)
   const [expanded, setExpanded] = useState(false)
@@ -286,6 +288,19 @@ export default function LyricsViewer({
               <p className="text-[10px] truncate mt-0.5" style={{ opacity: 0.4 }}>{authorLabel}</p>
             )}
           </div>
+
+          {/* Song page link — shown when viewer opened from elsewhere (e.g. NowPlayingWidget) */}
+          {spotifyId && location.pathname !== `/songs/${spotifyId}` && (
+            <Link
+              to={`/songs/${spotifyId}`}
+              onClick={onClose}
+              title="Song ansehen"
+              className="hidden sm:flex flex-shrink-0 w-7 h-7 items-center justify-center rounded-lg"
+              style={{ opacity: 0.45 }}
+            >
+              <ArrowUpRight size={14} strokeWidth={1.75} />
+            </Link>
+          )}
 
           {/* Font size pill */}
           {!syncMode && (

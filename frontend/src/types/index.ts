@@ -205,3 +205,57 @@ export interface Digest {
   read: boolean
   createdAt: string
 }
+
+// ─── LRCLib preview ───────────────────────────────────────────────────────────
+
+export interface LrclibPreviewLine {
+  text: string
+  timestampMs?: number
+}
+
+export interface LrclibPreview {
+  trackName: string
+  artistName: string
+  albumName: string
+  isSynced: boolean
+  lines: LrclibPreviewLine[]
+}
+
+// ─── Spotify Library (F15) ───────────────────────────────────────────────────
+
+export interface SpotifyLibraryTrack {
+  id: string
+  name: string
+  artists: { name: string }[]
+  album: { name: string; images: { url: string }[] }
+  duration_ms: number
+  external_urls: { spotify: string }
+}
+
+export interface SpotifyLibraryPage<T> {
+  items: T[]
+  total: number
+  limit: number
+  offset: number
+  next: string | null
+}
+
+export interface SpotifyPlaylist {
+  id: string
+  name: string
+  description: string | null
+  images: { url: string }[]
+  tracks: { total: number }
+  owner: { display_name: string }
+  external_urls: { spotify: string }
+}
+
+export interface SpotifyPlaylistTrackItem {
+  track: SpotifyLibraryTrack | null
+  added_at: string
+}
+
+export interface SpotifySavedTrackItem {
+  track: SpotifyLibraryTrack
+  added_at: string
+}

@@ -1,9 +1,11 @@
 import {
+  Body,
   Controller,
   Delete,
   Get,
   HttpCode,
   HttpStatus,
+  Param,
   Post,
   Query,
   Redirect,
@@ -12,7 +14,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { SpotifyService } from './spotify.service';
+import { SpotifyService, BulkImportTrackDto } from './spotify.service';
 
 type AuthedRequest = { user: { id: string } };
 
@@ -23,21 +25,12 @@ export class SpotifyController {
     private readonly config: ConfigService,
   ) {}
 
-  /**
-   * Returns the Spotify authorization URL as JSON.
-   * The frontend fetches this (with Bearer token) then navigates the browser to the URL.
-   */
   @Get('connect')
   @UseGuards(JwtAuthGuard)
   getConnectUrl(@Req() req: AuthedRequest) {
-    const url = this.spotify.buildAuthUrl(req.user.id);
-    return { url };
+    return { url: this.spotify.buildAuthUrl(req.user.id) };
   }
 
-  /**
-   * Spotify redirects the browser here after the user authorizes.
-   * We exchange the code, save tokens, then redirect back to the frontend.
-   */
   @Get('callback')
   @Redirect()
   async callback(
@@ -45,13 +38,8 @@ export class SpotifyController {
     @Query('state') state: string,
     @Query('error') error?: string,
   ) {
-    const base =
-      this.config.get<string>('FRONTEND_URL') ?? 'http://127.0.0.1:5173';
-
-    if (error || !code || !state) {
-      return { url: `${base}/dashboard?spotify=error` };
-    }
-
+    const base = this.config.get<string>('FRONTEND_URL') ?? 'http://127.0.0.1:5173';
+    if (error || !code || !state) return { url: `${base}/dashboard?spotify=error` };
     try {
       await this.spotify.handleCallback(code, state);
       return { url: `${base}/dashboard?spotify=connected` };
@@ -60,14 +48,12 @@ export class SpotifyController {
     }
   }
 
-  /** Returns whether the current user has a Spotify connection saved. */
   @Get('status')
   @UseGuards(JwtAuthGuard)
   status(@Req() req: AuthedRequest) {
     return this.spotify.getStatus(req.user.id);
   }
 
-  /** Removes the stored Spotify tokens for the current user. */
   @Delete('disconnect')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
@@ -75,18 +61,59 @@ export class SpotifyController {
     await this.spotify.disconnect(req.user.id);
   }
 
-  /** Returns the currently playing track from Spotify (auto-refreshes token if needed). */
   @Get('current-track')
   @UseGuards(JwtAuthGuard)
   currentTrack(@Req() req: AuthedRequest) {
     return this.spotify.getCurrentTrack(req.user.id);
   }
 
-  /** Seeks to a position in the currently playing track. */
   @Post('seek')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
   seek(@Req() req: AuthedRequest, @Query('positionMs') positionMs: string) {
     return this.spotify.seek(req.user.id, parseInt(positionMs, 10));
+  }
+
+  // ── Library browsing ────────────────────────────────────────────────────────
+
+  /** GET /spotify/library/tracks?offset=0&limit=50 */
+  @Get('library/tracks')
+  @UseGuards(JwtAuthGuard)
+  getLikedTracks(
+    @Req() req: AuthedRequest,
+    @Query('offset') offset = '0',
+    @Query('limit') limit = '50',
+  ) {
+    return this.spotify.getLikedTracks(req.user.id, parseInt(offset), parseInt(limit));
+  }
+
+  /** GET /spotify/library/playlists?offset=0&limit=50 */
+  @Get('library/playlists')
+  @UseGuards(JwtAuthGuard)
+  getPlaylists(
+    @Req() req: AuthedRequest,
+    @Query('offset') offset = '0',
+    @Query('limit') limit = '50',
+  ) {
+    return this.spotify.getPlaylists(req.user.id, parseInt(offset), parseInt(limit));
+  }
+
+  /** GET /spotify/library/playlists/:id/tracks?offset=0&limit=50 */
+  @Get('library/playlists/:id/tracks')
+  @UseGuards(JwtAuthGuard)
+  getPlaylistTracks(
+    @Req() req: AuthedRequest,
+    @Param('id') playlistId: string,
+    @Query('offset') offset = '0',
+    @Query('limit') limit = '50',
+  ) {
+    return this.spotify.getPlaylistTracks(req.user.id, playlistId, parseInt(offset), parseInt(limit));
+  }
+
+  /** POST /spotify/library/import — bulk-import tracks as bookmarks */
+  @Post('library/import')
+  @UseGuards(JwtAuthGuard)
+  bulkImport(@Req() req: AuthedRequest, @Body() body: { tracks: BulkImportTrackDto[] }) {
+    return this.spotify.bulkImport(req.user.id, body.tracks);
   }
 }

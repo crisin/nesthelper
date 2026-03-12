@@ -5,4 +5,6 @@ export interface LyricsFetchJobData {
   spotifyId: string;
   track: string;
   artist: string;
+  /** Used to improve LRCLib match accuracy */
+  durationMs?: number;
 }

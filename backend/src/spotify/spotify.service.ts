@@ -1,11 +1,43 @@
 import {
   Injectable,
   NotFoundException,
+  Optional,
   UnauthorizedException,
 } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { ConfigService } from '@nestjs/config';
 import { createHmac } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { LYRICS_FETCH_QUEUE } from '../lyrics-fetch/lyrics-fetch.queue';
+
+// ── Spotify Library types ─────────────────────────────────────────────────────
+
+export interface SpotifyTrackObject {
+  id: string;
+  name: string;
+  artists: { id: string; name: string }[];
+  album: { id: string; name: string; images: { url: string }[] };
+  duration_ms: number;
+  external_urls: { spotify: string };
+}
+
+export interface SpotifyPage<T> {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+  next: string | null;
+}
+
+export interface BulkImportTrackDto {
+  id: string;
+  name: string;
+  artists: { name: string }[];
+  album: { name: string; images: { url: string }[] };
+  duration_ms: number;
+  external_urls: { spotify: string };
+}
 
 export interface SpotifyCurrentlyPlayingResponse {
   item: {
@@ -36,6 +68,7 @@ export class SpotifyService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    @Optional() @InjectQueue(LYRICS_FETCH_QUEUE) private readonly lyricsQueue: Queue | null,
   ) {
     this.clientId = config.getOrThrow('SPOTIFY_CLIENT_ID');
     this.clientSecret = config.getOrThrow('SPOTIFY_CLIENT_SECRET');
@@ -206,6 +239,111 @@ export class SpotifyService {
     if (!res.ok && res.status !== 204) {
       throw new Error('Spotify seek failed');
     }
+  }
+
+  // ── Library browsing ────────────────────────────────────────────────────────
+
+  async getLikedTracks(
+    userId: string,
+    offset = 0,
+    limit = 50,
+  ): Promise<SpotifyPage<{ track: SpotifyTrackObject; added_at: string }>> {
+    const token = await this.getValidAccessToken(userId);
+    const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+    const res = await fetch(`https://api.spotify.com/v1/me/tracks?${params}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error('Failed to fetch liked tracks');
+    return (await res.json()) as SpotifyPage<{ track: SpotifyTrackObject; added_at: string }>;
+  }
+
+  async getPlaylists(
+    userId: string,
+    offset = 0,
+    limit = 50,
+  ): Promise<SpotifyPage<{ id: string; name: string; description: string | null; images: { url: string }[]; tracks: { total: number }; owner: { display_name: string } }>> {
+    const token = await this.getValidAccessToken(userId);
+    const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+    const res = await fetch(`https://api.spotify.com/v1/me/playlists?${params}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error('Failed to fetch playlists');
+    return (await res.json()) as SpotifyPage<{ id: string; name: string; description: string | null; images: { url: string }[]; tracks: { total: number }; owner: { display_name: string } }>;
+  }
+
+  async getPlaylistTracks(
+    userId: string,
+    playlistId: string,
+    offset = 0,
+    limit = 50,
+  ): Promise<SpotifyPage<{ track: SpotifyTrackObject | null; added_at: string }>> {
+    const token = await this.getValidAccessToken(userId);
+    const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+    const res = await fetch(
+      `https://api.spotify.com/v1/playlists/${playlistId}/tracks?${params}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    if (!res.ok) throw new Error('Failed to fetch playlist tracks');
+    return (await res.json()) as SpotifyPage<{ track: SpotifyTrackObject | null; added_at: string }>;
+  }
+
+  // ── Bulk import ─────────────────────────────────────────────────────────────
+
+  async bulkImport(
+    userId: string,
+    tracks: BulkImportTrackDto[],
+  ): Promise<{ imported: number; alreadyExisted: number }> {
+    let imported = 0;
+    let alreadyExisted = 0;
+
+    for (const track of tracks) {
+      const artist = track.artists[0]?.name ?? '';
+      const artists = track.artists.map((a) => a.name);
+      const imgUrl = track.album.images[0]?.url ?? null;
+
+      // Upsert the shared Song record
+      const song = await this.prisma.song.upsert({
+        where: { spotifyId: track.id },
+        create: {
+          spotifyId: track.id,
+          title: track.name,
+          artist,
+          artists,
+          imgUrl,
+          spotifyUrl: track.external_urls.spotify,
+        },
+        update: { artists, imgUrl, spotifyUrl: track.external_urls.spotify },
+        select: { id: true, fetchStatus: true },
+      });
+
+      // Create per-user bookmark (skip if already saved)
+      const existing = await this.prisma.savedLyric.findUnique({
+        where: { userId_songId: { userId, songId: song.id } },
+        select: { id: true },
+      });
+
+      if (existing) {
+        alreadyExisted++;
+      } else {
+        await this.prisma.savedLyric.create({ data: { userId, songId: song.id } });
+        imported++;
+
+        // Queue lyrics fetch if song has no lyrics yet
+        if (song.fetchStatus === 'IDLE' && this.lyricsQueue) {
+          await this.prisma.song.update({
+            where: { id: song.id },
+            data: { fetchStatus: 'FETCHING' },
+          });
+          await this.lyricsQueue.add(
+            'fetch',
+            { songId: song.id, spotifyId: track.id, track: track.name, artist, durationMs: track.duration_ms },
+            { attempts: 3, backoff: { type: 'exponential', delay: 5000 }, removeOnComplete: true },
+          );
+        }
+      }
+    }
+
+    return { imported, alreadyExisted };
   }
 
   // ---------------------------------------------------------------------------

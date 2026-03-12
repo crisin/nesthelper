@@ -539,17 +539,24 @@ export default function SongDetail() {
               <h1 className="text-lg font-semibold text-foreground leading-tight">{title}</h1>
               <p className="text-sm text-foreground-muted mt-0.5">{artistDisplay}</p>
               <div className="flex items-center gap-3 mt-1.5">
-                {s?.spotifyUrl && (
+                {spotifyId && (
                   <a
-                    href={s.spotifyUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    href={`spotify:track:${spotifyId}`}
                     className="inline-flex items-center gap-1 text-xs text-foreground-subtle hover:text-accent transition-colors"
                   >
-                    Auf Spotify öffnen
+                    In Spotify abspielen
                     <ExternalLink size={11} strokeWidth={1.75} />
                   </a>
                 )}
+                <a
+                  href={`https://www.google.com/search?q=${encodeURIComponent(`${title} ${artistDisplay} lyrics`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs text-foreground-subtle hover:text-accent transition-colors"
+                >
+                  Lyrics suchen
+                  <ExternalLink size={11} strokeWidth={1.75} />
+                </a>
               </div>
             </div>
             <button

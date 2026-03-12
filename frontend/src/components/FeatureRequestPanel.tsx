@@ -9,6 +9,8 @@ import { useAuthStore } from '../stores/authStore'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
+export type PanelMode = 'feature' | 'bug'
+
 const PAGES = [
   'Dashboard', 'Entdecken', 'Favoriten', 'Song-Detail', 'Collections',
   'Bibliothek', 'Analytics', 'Timeline', 'Einstellungen',
@@ -17,14 +19,39 @@ const PAGES = [
 ]
 
 const STATUS_META: Record<FeatureStatus, { label: string; color: string }> = {
-  DRAFT:         { label: 'Entwurf',       color: 'bg-surface-overlay text-foreground-muted border-edge' },
-  MUST_HAVE:     { label: 'Must Have',     color: 'bg-orange-500/10 text-orange-400 border-orange-500/20' },
-  WORKING_ON_IT: { label: 'In Arbeit',     color: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
-  DONE:          { label: 'Erledigt',      color: 'bg-green-500/10 text-green-400 border-green-500/20' },
-  DECLINED:      { label: 'Abgelehnt',     color: 'bg-red-500/10 text-red-400 border-red-500/20' },
+  DRAFT:         { label: 'Entwurf',   color: 'bg-surface-overlay text-foreground-muted border-edge' },
+  MUST_HAVE:     { label: 'Must Have', color: 'bg-orange-500/10 text-orange-400 border-orange-500/20' },
+  WORKING_ON_IT: { label: 'In Arbeit', color: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
+  DONE:          { label: 'Erledigt',  color: 'bg-green-500/10 text-green-400 border-green-500/20' },
+  DECLINED:      { label: 'Abgelehnt', color: 'bg-red-500/10 text-red-400 border-red-500/20' },
 }
 
 const ALL_STATUSES = Object.keys(STATUS_META) as FeatureStatus[]
+
+const MODE_META = {
+  feature: {
+    label: 'Feature-Wünsche',
+    createLabel: 'Neuer Feature-Wunsch',
+    placeholder: 'Was wünschst du dir? *',
+    submitLabel: 'Einreichen',
+    emptyLabel: 'Noch keine Wünsche.',
+    emptyHint: 'Sei der Erste!',
+    accentClass: 'bg-accent text-black',
+    headerAccent: 'text-foreground',
+    borderClass: 'border-edge',
+  },
+  bug: {
+    label: 'Bug-Reports',
+    createLabel: 'Neuer Bug-Report',
+    placeholder: 'Was ist kaputt? Wie lässt sich der Bug reproduzieren? *',
+    submitLabel: 'Melden',
+    emptyLabel: 'Keine Bugs gemeldet.',
+    emptyHint: 'Alles läuft super! 🎉',
+    accentClass: 'bg-orange-500 text-white',
+    headerAccent: 'text-orange-400',
+    borderClass: 'border-orange-500/30',
+  },
+} as const
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -37,13 +64,7 @@ function StatusBadge({ status }: { status: FeatureStatus }) {
   )
 }
 
-function RequestCard({
-  req,
-  currentUserId,
-}: {
-  req: FeatureRequest
-  currentUserId: string
-}) {
+function RequestCard({ req, currentUserId }: { req: FeatureRequest; currentUserId: string }) {
   const qc = useQueryClient()
   const [expanded, setExpanded] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -55,37 +76,23 @@ function RequestCard({
   const voteCount = req.votes.length
   const hasVoted = req.votes.some((v) => v.userId === currentUserId)
   const isOwner = req.userId === currentUserId
+  const qKey = ['feature-requests', req.kind ?? 'feature']
 
   const vote = useMutation({
     mutationFn: () => api.post(`/feature-requests/${req.id}/vote`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['feature-requests'] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qKey }),
   })
-
   const update = useMutation({
-    mutationFn: () =>
-      api.patch(`/feature-requests/${req.id}`, {
-        title: title.trim() || null,
-        content,
-        page: page || null,
-      }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['feature-requests'] })
-      setEditing(false)
-    },
+    mutationFn: () => api.patch(`/feature-requests/${req.id}`, { title: title.trim() || null, content, page: page || null }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: qKey }); setEditing(false) },
   })
-
   const updateStatus = useMutation({
-    mutationFn: (status: FeatureStatus) =>
-      api.patch(`/feature-requests/${req.id}/status`, { status }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['feature-requests'] })
-      setStatusOpen(false)
-    },
+    mutationFn: (status: FeatureStatus) => api.patch(`/feature-requests/${req.id}/status`, { status }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: qKey }); setStatusOpen(false) },
   })
-
   const remove = useMutation({
     mutationFn: () => api.delete(`/feature-requests/${req.id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['feature-requests'] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qKey }),
   })
 
   if (editing) {
@@ -101,7 +108,6 @@ function RequestCard({
         <textarea
           className="w-full bg-surface-raised border border-edge rounded-lg px-3 py-2 text-sm resize-none
                      placeholder:text-foreground-subtle focus:outline-none focus:border-foreground-muted/50"
-          placeholder="Beschreibung"
           rows={3}
           value={content}
           onChange={(e) => setContent(e.target.value)}
@@ -125,8 +131,7 @@ function RequestCard({
             {update.isPending ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} strokeWidth={2.5} />}
             Speichern
           </button>
-          <button
-            onClick={() => setEditing(false)}
+          <button onClick={() => setEditing(false)}
             className="px-3 py-1.5 rounded-lg border border-edge text-xs text-foreground-muted hover:text-foreground transition-colors"
           >
             Abbrechen
@@ -142,13 +147,11 @@ function RequestCard({
         className="flex items-start gap-3 px-3 py-3 cursor-pointer hover:bg-surface-overlay/30 transition-colors"
         onClick={() => setExpanded((v) => !v)}
       >
-        {/* Vote button */}
         <button
           onClick={(e) => { e.stopPropagation(); vote.mutate() }}
           disabled={vote.isPending}
           className={[
-            'flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg border flex-shrink-0 min-w-[40px]',
-            'transition-colors disabled:opacity-50',
+            'flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg border flex-shrink-0 min-w-[40px] transition-colors disabled:opacity-50',
             hasVoted
               ? 'bg-accent/10 border-accent/30 text-accent'
               : 'border-edge text-foreground-subtle hover:border-foreground-muted/40 hover:text-foreground-muted',
@@ -158,7 +161,6 @@ function RequestCard({
           <span className="text-[10px] font-semibold tabular-nums leading-none">{voteCount}</span>
         </button>
 
-        {/* Content */}
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
@@ -175,7 +177,6 @@ function RequestCard({
               strokeWidth={1.75}
             />
           </div>
-
           <div className="flex items-center gap-1.5 mt-2 flex-wrap">
             <StatusBadge status={req.status} />
             {req.page && (
@@ -190,18 +191,15 @@ function RequestCard({
         </div>
       </div>
 
-      {/* Expanded actions */}
       {expanded && (
         <div className="border-t border-edge/50 bg-surface px-3 py-2 flex items-center gap-2 flex-wrap">
-          {/* Status picker */}
           <div className="relative">
             <button
               onClick={() => setStatusOpen((v) => !v)}
               className="flex items-center gap-1 px-2 py-1 rounded-md border border-edge text-[11px] text-foreground-muted
                          hover:text-foreground hover:border-foreground-muted/40 transition-colors"
             >
-              Status
-              <ChevronDown size={10} strokeWidth={1.75} />
+              Status <ChevronDown size={10} strokeWidth={1.75} />
             </button>
             {statusOpen && (
               <div className="absolute left-0 top-full mt-1 z-20 bg-surface-raised border border-edge rounded-xl shadow-xl overflow-hidden min-w-[140px]">
@@ -228,8 +226,7 @@ function RequestCard({
             className="flex items-center gap-1 px-2 py-1 rounded-md border border-edge text-[11px] text-foreground-muted
                        hover:text-foreground hover:border-foreground-muted/40 transition-colors"
           >
-            <Pencil size={10} strokeWidth={1.75} />
-            Bearbeiten
+            <Pencil size={10} strokeWidth={1.75} /> Bearbeiten
           </button>
 
           {isOwner && (
@@ -249,30 +246,25 @@ function RequestCard({
   )
 }
 
-// ─── Create form ──────────────────────────────────────────────────────────────
-
-function CreateForm({ onDone }: { onDone: () => void }) {
+function CreateForm({ mode, onDone }: { mode: PanelMode; onDone: () => void }) {
   const qc = useQueryClient()
+  const meta = MODE_META[mode]
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [page, setPage] = useState('')
 
   const create = useMutation({
     mutationFn: () =>
-      api.post('/feature-requests', {
-        title: title.trim() || undefined,
-        content,
-        page: page || undefined,
-      }),
+      api.post('/feature-requests', { kind: mode, title: title.trim() || undefined, content, page: page || undefined }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['feature-requests'] })
+      qc.invalidateQueries({ queryKey: ['feature-requests', mode] })
       onDone()
     },
   })
 
   return (
     <div className="space-y-2.5 px-4 py-4 border-t border-edge bg-surface flex-shrink-0">
-      <p className="text-xs font-semibold text-foreground">Neuer Feature-Wunsch</p>
+      <p className={`text-xs font-semibold ${meta.headerAccent}`}>{meta.createLabel}</p>
       <input
         className="w-full bg-surface-raised border border-edge rounded-lg px-3 py-2 text-sm
                    placeholder:text-foreground-subtle focus:outline-none focus:border-foreground-muted/50 transition-colors"
@@ -284,7 +276,7 @@ function CreateForm({ onDone }: { onDone: () => void }) {
       <textarea
         className="w-full bg-surface-raised border border-edge rounded-lg px-3 py-2 text-sm resize-none
                    placeholder:text-foreground-subtle focus:outline-none focus:border-foreground-muted/50 transition-colors"
-        placeholder="Was wünschst du dir? *"
+        placeholder={meta.placeholder}
         rows={3}
         value={content}
         onChange={(e) => setContent(e.target.value)}
@@ -302,11 +294,11 @@ function CreateForm({ onDone }: { onDone: () => void }) {
         <button
           onClick={() => create.mutate()}
           disabled={!content.trim() || create.isPending}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-accent text-black text-xs font-semibold
-                     hover:opacity-90 disabled:opacity-50 transition-opacity"
+          className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold
+                     hover:opacity-90 disabled:opacity-50 transition-opacity ${meta.accentClass}`}
         >
           {create.isPending ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} strokeWidth={2.5} />}
-          Einreichen
+          {meta.submitLabel}
         </button>
         <button
           onClick={onDone}
@@ -322,49 +314,46 @@ function CreateForm({ onDone }: { onDone: () => void }) {
 // ─── Main panel ────────────────────────────────────────────────────────────────
 
 interface Props {
+  mode: PanelMode
   onClose: () => void
 }
 
-export default function FeatureRequestPanel({ onClose }: Props) {
+export default function FeatureRequestPanel({ mode, onClose }: Props) {
   const [showCreate, setShowCreate] = useState(false)
   const [sortBy, setSortBy] = useState<'votes' | 'date'>('votes')
   const currentUserId = useAuthStore((s) => s.user?.id ?? '')
+  const meta = MODE_META[mode]
 
   const { data: requests = [], isLoading } = useQuery<FeatureRequest[]>({
-    queryKey: ['feature-requests'],
-    queryFn: () => api.get<FeatureRequest[]>('/feature-requests').then((r) => r.data),
+    queryKey: ['feature-requests', mode],
+    queryFn: () => api.get<FeatureRequest[]>(`/feature-requests?kind=${mode}`).then((r) => r.data),
     staleTime: 30_000,
   })
 
-  const sorted = [...requests].sort((a, b) => {
-    if (sortBy === 'votes') return b.votes.length - a.votes.length
-    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  })
+  const sorted = [...requests].sort((a, b) =>
+    sortBy === 'votes'
+      ? b.votes.length - a.votes.length
+      : new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  )
 
   return (
     <>
-      {/* Backdrop (mobile) */}
-      <div
-        className="fixed inset-0 z-40 bg-black/30 sm:hidden"
-        onClick={onClose}
-      />
+      <div className="fixed inset-0 z-40 bg-black/30 sm:hidden" onClick={onClose} />
 
-      {/* Panel */}
-      <div className="fixed bottom-0 right-0 z-50 flex flex-col
+      <div className={`fixed bottom-0 right-0 z-50 flex flex-col
                       w-full sm:w-[420px] sm:bottom-20 sm:right-4
                       h-[80vh] sm:h-[600px] max-h-[90vh]
-                      bg-surface-raised border border-edge rounded-t-2xl sm:rounded-2xl shadow-2xl">
+                      bg-surface-raised border ${meta.borderClass} rounded-t-2xl sm:rounded-2xl shadow-2xl`}>
 
         {/* Header */}
-        <div className="flex items-center gap-3 px-4 py-3.5 border-b border-edge flex-shrink-0">
+        <div className={`flex items-center gap-3 px-4 py-3.5 border-b ${meta.borderClass} flex-shrink-0`}>
           <div className="flex-1 min-w-0">
-            <h2 className="text-sm font-semibold text-foreground">Feature-Wünsche</h2>
+            <h2 className={`text-sm font-semibold ${meta.headerAccent}`}>{meta.label}</h2>
             <p className="text-[11px] text-foreground-muted mt-0.5">
               {requests.length} {requests.length === 1 ? 'Eintrag' : 'Einträge'}
             </p>
           </div>
 
-          {/* Sort toggle */}
           <div className="flex items-center rounded-lg border border-edge bg-surface p-0.5 gap-0.5">
             {(['votes', 'date'] as const).map((s) => (
               <button
@@ -372,9 +361,7 @@ export default function FeatureRequestPanel({ onClose }: Props) {
                 onClick={() => setSortBy(s)}
                 className={[
                   'px-2 py-1 rounded-md text-[11px] font-medium transition-colors',
-                  sortBy === s
-                    ? 'bg-surface-overlay text-foreground'
-                    : 'text-foreground-subtle hover:text-foreground-muted',
+                  sortBy === s ? 'bg-surface-overlay text-foreground' : 'text-foreground-subtle hover:text-foreground-muted',
                 ].join(' ')}
               >
                 {s === 'votes' ? 'Votes' : 'Neu'}
@@ -384,11 +371,13 @@ export default function FeatureRequestPanel({ onClose }: Props) {
 
           <button
             onClick={() => setShowCreate((v) => !v)}
-            title="Neuen Wunsch einreichen"
+            title={meta.createLabel}
             className={[
               'w-7 h-7 flex items-center justify-center rounded-lg border transition-colors',
               showCreate
-                ? 'bg-accent/10 border-accent/30 text-accent'
+                ? mode === 'bug'
+                  ? 'bg-orange-500/10 border-orange-500/30 text-orange-400'
+                  : 'bg-accent/10 border-accent/30 text-accent'
                 : 'border-edge text-foreground-subtle hover:text-foreground hover:border-foreground-muted/40',
             ].join(' ')}
           >
@@ -403,7 +392,7 @@ export default function FeatureRequestPanel({ onClose }: Props) {
           </button>
         </div>
 
-        {/* Scrollable list */}
+        {/* List */}
         <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2 min-h-0">
           {isLoading && (
             <div className="flex items-center justify-center py-12">
@@ -412,8 +401,8 @@ export default function FeatureRequestPanel({ onClose }: Props) {
           )}
           {!isLoading && sorted.length === 0 && (
             <div className="text-center py-12 space-y-1">
-              <p className="text-sm text-foreground-muted">Noch keine Wünsche.</p>
-              <p className="text-xs text-foreground-subtle">Sei der Erste!</p>
+              <p className="text-sm text-foreground-muted">{meta.emptyLabel}</p>
+              <p className="text-xs text-foreground-subtle">{meta.emptyHint}</p>
             </div>
           )}
           {sorted.map((req) => (
@@ -421,8 +410,7 @@ export default function FeatureRequestPanel({ onClose }: Props) {
           ))}
         </div>
 
-        {/* Create form — pinned at bottom */}
-        {showCreate && <CreateForm onDone={() => setShowCreate(false)} />}
+        {showCreate && <CreateForm mode={mode} onDone={() => setShowCreate(false)} />}
       </div>
     </>
   )

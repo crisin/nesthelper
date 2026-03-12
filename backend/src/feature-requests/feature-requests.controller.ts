@@ -8,6 +8,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -26,10 +27,10 @@ type AuthedRequest = { user: { id: string } };
 export class FeatureRequestsController {
   constructor(private readonly service: FeatureRequestsService) {}
 
-  /** GET /feature-requests — all requests, sorted by date */
+  /** GET /feature-requests?kind=feature|bug — filtered by kind */
   @Get()
-  getAll(@Req() req: AuthedRequest) {
-    return this.service.getAll(req.user.id);
+  getAll(@Req() req: AuthedRequest, @Query('kind') kind?: string) {
+    return this.service.getAll(req.user.id, kind);
   }
 
   /** POST /feature-requests */

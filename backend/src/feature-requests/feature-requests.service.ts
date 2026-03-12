@@ -15,8 +15,9 @@ export type FeatureRequestWithMeta = Prisma.FeatureRequestGetPayload<{
 export class FeatureRequestsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  getAll(requestingUserId: string): Promise<FeatureRequestWithMeta[]> {
+  getAll(requestingUserId: string, kind?: string): Promise<FeatureRequestWithMeta[]> {
     return this.prisma.featureRequest.findMany({
+      where: kind ? { kind } : undefined,
       include: REQUEST_INCLUDE,
       orderBy: [{ createdAt: 'desc' }],
     });
@@ -24,10 +25,10 @@ export class FeatureRequestsService {
 
   async create(
     userId: string,
-    data: { title?: string; content: string; page?: string },
+    data: { kind?: string; title?: string; content: string; page?: string },
   ): Promise<FeatureRequestWithMeta> {
     return this.prisma.featureRequest.create({
-      data: { userId, ...data },
+      data: { userId, kind: data.kind ?? 'feature', ...data },
       include: REQUEST_INCLUDE,
     });
   }

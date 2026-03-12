@@ -1,7 +1,7 @@
-import { BarChart2, Clock, Compass, Home, Library, Settings, BookOpen, ArrowRight, Music2, Lightbulb } from "lucide-react";
+import { BarChart2, Clock, Compass, Home, Library, Settings, BookOpen, ArrowRight, Music2, Lightbulb, Bug } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import FeatureRequestPanel from "./FeatureRequestPanel";
+import FeatureRequestPanel, { type PanelMode } from "./FeatureRequestPanel";
 import { useQuery } from "@tanstack/react-query";
 import SpotifyConnect from "./SpotifyConnect";
 import UsernameEdit from "./UsernameEdit";
@@ -60,7 +60,8 @@ const NAV = [
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
-  const [featureOpen, setFeatureOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [panelMode, setPanelMode] = useState<PanelMode | null>(null);
 
   return (
     <div className="min-h-screen bg-surface text-foreground flex">
@@ -140,13 +141,42 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
       {/* ── FAB ─────────────────────────────────────────────────────── */}
       <button
-        onClick={() => setFeatureOpen(true)}
+        onClick={() => setPickerOpen((v) => !v)}
         className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-40 w-12 h-12 rounded-full bg-accent text-black flex items-center justify-center shadow-lg hover:opacity-90 transition-opacity"
-        title="Feature Requests"
+        title="Feedback"
       >
         <Lightbulb size={20} strokeWidth={2} />
       </button>
-      {featureOpen && <FeatureRequestPanel onClose={() => setFeatureOpen(false)} />}
+
+      {/* Picker popup */}
+      {pickerOpen && !panelMode && (
+        <>
+          <div className="fixed inset-0 z-40 sm:hidden" onClick={() => setPickerOpen(false)} />
+          <div className="fixed bottom-36 right-4 sm:bottom-[88px] sm:right-6 z-50 flex flex-col gap-2 items-end">
+            <button
+              onClick={() => { setPanelMode('bug'); setPickerOpen(false) }}
+              className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-surface-raised border border-orange-500/30 shadow-xl text-sm font-medium text-orange-400 hover:bg-orange-500/10 transition-colors"
+            >
+              <Bug size={15} strokeWidth={1.75} />
+              Bug melden
+            </button>
+            <button
+              onClick={() => { setPanelMode('feature'); setPickerOpen(false) }}
+              className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-surface-raised border border-edge shadow-xl text-sm font-medium text-foreground-muted hover:text-foreground hover:bg-surface-overlay transition-colors"
+            >
+              <Lightbulb size={15} strokeWidth={1.75} />
+              Feature wünschen
+            </button>
+          </div>
+        </>
+      )}
+
+      {panelMode && (
+        <FeatureRequestPanel
+          mode={panelMode}
+          onClose={() => setPanelMode(null)}
+        />
+      )}
 
       {/* ── Bottom nav (mobile only) ──────────────────────────────── */}
       <nav className="sm:hidden fixed bottom-0 inset-x-0 z-40 flex flex-col bg-surface-raised border-t border-edge">

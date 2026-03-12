@@ -349,6 +349,7 @@ model PlayHistory {
 model FeatureRequest {
   id        String        @id @default(cuid())
   userId    String
+  kind      String        @default("feature")  // "feature" | "bug"
   title     String?
   content   String
   page      String?

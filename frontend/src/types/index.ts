@@ -279,6 +279,7 @@ export type FeatureStatus = 'DRAFT' | 'MUST_HAVE' | 'WORKING_ON_IT' | 'DONE' | '
 export interface FeatureRequest {
   id: string
   userId: string
+  kind: string
   title: string | null
   content: string
   page: string | null

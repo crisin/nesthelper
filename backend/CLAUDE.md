@@ -120,5 +120,3 @@ File: [`src/spotify/spotify.service.ts`](src/spotify/spotify.service.ts)
 - `artists String[]` — all artists stored separately
 - Derive in service: `artist = artists[0] ?? ''`
 
-### Known workaround: PlayHistory
-`spotify.service.ts` uses a `histDb` typed accessor because the `add_play_history` migration hasn't run yet. After migration: replace with `this.prisma.playHistory` directly.

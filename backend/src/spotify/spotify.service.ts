@@ -58,35 +58,12 @@ export interface SpotifyCurrentlyPlayingResponse {
   is_playing: boolean;
 }
 
-type PlayHistoryRecord = {
-  id: string;
-  userId: string;
-  spotifyId: string;
-  track: string;
-  artist: string;
-  artists: string[];
-  imgUrl: string | null;
-  playedAt: Date;
-};
-
-type PlayHistoryDb = {
-  playHistory: {
-    findFirst(args: unknown): Promise<{ id: string } | null>;
-    create(args: unknown): Promise<PlayHistoryRecord>;
-    findMany(args: unknown): Promise<PlayHistoryRecord[]>;
-  };
-};
-
 @Injectable()
 export class SpotifyService {
   private readonly clientId: string;
   private readonly clientSecret: string;
   private readonly redirectUri: string;
 
-  // Pre-migration accessor — resolves after: npx prisma migrate dev && npx prisma generate
-  private get histDb(): PlayHistoryDb {
-    return this.prisma as unknown as PlayHistoryDb;
-  }
   private readonly scope = [
     'streaming',
     'user-read-email',
@@ -100,7 +77,9 @@ export class SpotifyService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
-    @Optional() @InjectQueue(LYRICS_FETCH_QUEUE) private readonly lyricsQueue: Queue | null,
+    @Optional()
+    @InjectQueue(LYRICS_FETCH_QUEUE)
+    private readonly lyricsQueue: Queue | null,
   ) {
     this.clientId = config.getOrThrow('SPOTIFY_CLIENT_ID');
     this.clientSecret = config.getOrThrow('SPOTIFY_CLIENT_SECRET');
@@ -277,17 +256,23 @@ export class SpotifyService {
 
   async recordPlay(
     userId: string,
-    dto: { spotifyId: string; track: string; artist: string; artists: string[]; imgUrl?: string | null },
+    dto: {
+      spotifyId: string;
+      track: string;
+      artist: string;
+      artists: string[];
+      imgUrl?: string | null;
+    },
   ): Promise<void> {
     // Dedup: skip if same song was recorded for this user within the last 5 minutes
     const since = new Date(Date.now() - 5 * 60 * 1000);
-    const recent = await this.histDb.playHistory.findFirst({
+    const recent = await this.prisma.playHistory.findFirst({
       where: { userId, spotifyId: dto.spotifyId, playedAt: { gte: since } },
       select: { id: true },
     });
     if (recent) return;
 
-    await this.histDb.playHistory.create({
+    await this.prisma.playHistory.create({
       data: {
         userId,
         spotifyId: dto.spotifyId,
@@ -305,7 +290,8 @@ export class SpotifyService {
       'https://api.spotify.com/v1/me/player/recently-played?limit=50',
       { headers: { Authorization: `Bearer ${token}` } },
     );
-    if (!res.ok) throw new Error('Failed to fetch recently played from Spotify');
+    if (!res.ok)
+      throw new Error('Failed to fetch recently played from Spotify');
 
     const data = (await res.json()) as {
       items: {
@@ -320,17 +306,20 @@ export class SpotifyService {
       const playedAt = new Date(item.played_at);
 
       // Skip if already stored (±1 s tolerance)
-      const existing = await this.histDb.playHistory.findFirst({
+      const existing = await this.prisma.playHistory.findFirst({
         where: {
           userId,
           spotifyId: item.track.id,
-          playedAt: { gte: new Date(playedAt.getTime() - 1000), lte: new Date(playedAt.getTime() + 1000) },
+          playedAt: {
+            gte: new Date(playedAt.getTime() - 1000),
+            lte: new Date(playedAt.getTime() + 1000),
+          },
         },
         select: { id: true },
       });
       if (existing) continue;
 
-      await this.histDb.playHistory.create({
+      await this.prisma.playHistory.create({
         data: {
           userId,
           spotifyId: item.track.id,
@@ -347,7 +336,7 @@ export class SpotifyService {
   }
 
   async getPlayHistory(userId: string, limit = 100) {
-    return this.histDb.playHistory.findMany({
+    return this.prisma.playHistory.findMany({
       where: { userId },
       orderBy: { playedAt: 'desc' },
       take: limit,
@@ -355,12 +344,15 @@ export class SpotifyService {
   }
 
   /** Turn a play history entry into a proper Song + SavedLyric bookmark. */
-  async importPlayToLibrary(userId: string, spotifyId: string): Promise<{ imported: boolean }> {
-    const play = await this.histDb.playHistory.findFirst({
+  async importPlayToLibrary(
+    userId: string,
+    spotifyId: string,
+  ): Promise<{ imported: boolean }> {
+    const play = await this.prisma.playHistory.findFirst({
       where: { userId, spotifyId },
-      orderBy: { playedAt: 'desc' } as never,
-      select: { track: true, artist: true, artists: true, imgUrl: true } as never,
-    }) as PlayHistoryRecord | null;
+      orderBy: { playedAt: 'desc' },
+      select: { track: true, artist: true, artists: true, imgUrl: true },
+    });
 
     if (!play) {
       throw new NotFoundException('No play history entry found for this track');
@@ -389,11 +381,18 @@ export class SpotifyService {
     await this.prisma.savedLyric.create({ data: { userId, songId: song.id } });
 
     if (song.fetchStatus === 'IDLE' && this.lyricsQueue) {
-      await this.prisma.song.update({ where: { id: song.id }, data: { fetchStatus: 'FETCHING' } });
+      await this.prisma.song.update({
+        where: { id: song.id },
+        data: { fetchStatus: 'FETCHING' },
+      });
       await this.lyricsQueue.add(
         'fetch',
         { songId: song.id, spotifyId, track: play.track, artist: play.artist },
-        { attempts: 3, backoff: { type: 'exponential', delay: 5000 }, removeOnComplete: true },
+        {
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 5000 },
+          removeOnComplete: true,
+        },
       );
     }
 
@@ -402,19 +401,26 @@ export class SpotifyService {
 
   // ── Audio features ──────────────────────────────────────────────────────────
 
-  async getAudioFeatures(userId: string, spotifyId: string): Promise<AudioFeatures | null> {
+  async getAudioFeatures(
+    userId: string,
+    spotifyId: string,
+  ): Promise<AudioFeatures | null> {
     // Return cached value if already stored on Song
     const song = await this.prisma.song.findUnique({
       where: { spotifyId },
       select: { audioFeatures: true },
     });
-    if (song?.audioFeatures) return song.audioFeatures as unknown as AudioFeatures;
+    if (song?.audioFeatures)
+      return song.audioFeatures as unknown as AudioFeatures;
 
     // Fetch from Spotify API
     const token = await this.getValidAccessToken(userId);
-    const res = await fetch(`https://api.spotify.com/v1/audio-features/${spotifyId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const res = await fetch(
+      `https://api.spotify.com/v1/audio-features/${spotifyId}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    );
     if (!res.ok) return null;
 
     const data = (await res.json()) as {
@@ -431,7 +437,10 @@ export class SpotifyService {
     };
 
     // Cache on Song record if it exists
-    await this.prisma.song.updateMany({ where: { spotifyId }, data: { audioFeatures: features as object } });
+    await this.prisma.song.updateMany({
+      where: { spotifyId },
+      data: { audioFeatures: features as object },
+    });
 
     return features;
   }
@@ -444,26 +453,54 @@ export class SpotifyService {
     limit = 50,
   ): Promise<SpotifyPage<{ track: SpotifyTrackObject; added_at: string }>> {
     const token = await this.getValidAccessToken(userId);
-    const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+    const params = new URLSearchParams({
+      limit: String(limit),
+      offset: String(offset),
+    });
     const res = await fetch(`https://api.spotify.com/v1/me/tracks?${params}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) throw new Error('Failed to fetch liked tracks');
-    return (await res.json()) as SpotifyPage<{ track: SpotifyTrackObject; added_at: string }>;
+    return (await res.json()) as SpotifyPage<{
+      track: SpotifyTrackObject;
+      added_at: string;
+    }>;
   }
 
   async getPlaylists(
     userId: string,
     offset = 0,
     limit = 50,
-  ): Promise<SpotifyPage<{ id: string; name: string; description: string | null; images: { url: string }[]; tracks: { total: number }; owner: { display_name: string } }>> {
+  ): Promise<
+    SpotifyPage<{
+      id: string;
+      name: string;
+      description: string | null;
+      images: { url: string }[];
+      tracks: { total: number };
+      owner: { display_name: string };
+    }>
+  > {
     const token = await this.getValidAccessToken(userId);
-    const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
-    const res = await fetch(`https://api.spotify.com/v1/me/playlists?${params}`, {
-      headers: { Authorization: `Bearer ${token}` },
+    const params = new URLSearchParams({
+      limit: String(limit),
+      offset: String(offset),
     });
+    const res = await fetch(
+      `https://api.spotify.com/v1/me/playlists?${params}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    );
     if (!res.ok) throw new Error('Failed to fetch playlists');
-    return (await res.json()) as SpotifyPage<{ id: string; name: string; description: string | null; images: { url: string }[]; tracks: { total: number }; owner: { display_name: string } }>;
+    return (await res.json()) as SpotifyPage<{
+      id: string;
+      name: string;
+      description: string | null;
+      images: { url: string }[];
+      tracks: { total: number };
+      owner: { display_name: string };
+    }>;
   }
 
   async getPlaylistTracks(
@@ -471,15 +508,23 @@ export class SpotifyService {
     playlistId: string,
     offset = 0,
     limit = 50,
-  ): Promise<SpotifyPage<{ track: SpotifyTrackObject | null; added_at: string }>> {
+  ): Promise<
+    SpotifyPage<{ track: SpotifyTrackObject | null; added_at: string }>
+  > {
     const token = await this.getValidAccessToken(userId);
-    const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+    const params = new URLSearchParams({
+      limit: String(limit),
+      offset: String(offset),
+    });
     const res = await fetch(
       `https://api.spotify.com/v1/playlists/${playlistId}/tracks?${params}`,
       { headers: { Authorization: `Bearer ${token}` } },
     );
     if (!res.ok) throw new Error('Failed to fetch playlist tracks');
-    return (await res.json()) as SpotifyPage<{ track: SpotifyTrackObject | null; added_at: string }>;
+    return (await res.json()) as SpotifyPage<{
+      track: SpotifyTrackObject | null;
+      added_at: string;
+    }>;
   }
 
   // ── Bulk import ─────────────────────────────────────────────────────────────
@@ -520,7 +565,9 @@ export class SpotifyService {
       if (existing) {
         alreadyExisted++;
       } else {
-        await this.prisma.savedLyric.create({ data: { userId, songId: song.id } });
+        await this.prisma.savedLyric.create({
+          data: { userId, songId: song.id },
+        });
         imported++;
 
         // Queue lyrics fetch if song has no lyrics yet
@@ -531,8 +578,18 @@ export class SpotifyService {
           });
           await this.lyricsQueue.add(
             'fetch',
-            { songId: song.id, spotifyId: track.id, track: track.name, artist, durationMs: track.duration_ms },
-            { attempts: 3, backoff: { type: 'exponential', delay: 5000 }, removeOnComplete: true },
+            {
+              songId: song.id,
+              spotifyId: track.id,
+              track: track.name,
+              artist,
+              durationMs: track.duration_ms,
+            },
+            {
+              attempts: 3,
+              backoff: { type: 'exponential', delay: 5000 },
+              removeOnComplete: true,
+            },
           );
         }
       }

@@ -95,9 +95,3 @@ new-helper/
         └── index.css                  ← Tailwind + keyframes
 ```
 
-## Pending work
-```bash
-# Play history migration — RecentlyHeard + Verlauf tab depend on this table existing
-cd backend && npx prisma migrate dev --name add_play_history
-# After: remove histDb workaround in backend/src/spotify/spotify.service.ts
-```

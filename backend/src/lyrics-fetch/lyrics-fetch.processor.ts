@@ -40,7 +40,9 @@ export class LyricsFetchProcessor extends WorkerHost {
 
   async process(job: Job<LyricsFetchJobData>): Promise<void> {
     const { songId, spotifyId, track, artist, durationMs } = job.data;
-    this.logger.log(`Fetching lyrics for "${track}" by "${artist}" (${spotifyId})`);
+    this.logger.log(
+      `Fetching lyrics for "${track}" by "${artist}" (${spotifyId})`,
+    );
 
     try {
       const result = await this.fetchFromLrclib(track, artist, durationMs);
@@ -57,13 +59,22 @@ export class LyricsFetchProcessor extends WorkerHost {
         const existing = await tx.songLyrics.findUnique({ where: { songId } });
 
         if (existing) {
-          await tx.lyricsLine.deleteMany({ where: { songLyricsId: existing.id } });
+          await tx.lyricsLine.deleteMany({
+            where: { songLyricsId: existing.id },
+          });
           await tx.songLyrics.update({
             where: { id: existing.id },
             data: {
               rawText,
+              lrclibSource: true,
               version: { increment: 1 },
-              lines: { create: lines.map((l, i) => ({ lineNumber: i + 1, text: l.text, timestampMs: l.timestampMs ?? null })) },
+              lines: {
+                create: lines.map((l, i) => ({
+                  lineNumber: i + 1,
+                  text: l.text,
+                  timestampMs: l.timestampMs ?? null,
+                })),
+              },
             },
           });
         } else {
@@ -71,7 +82,14 @@ export class LyricsFetchProcessor extends WorkerHost {
             data: {
               songId,
               rawText,
-              lines: { create: lines.map((l, i) => ({ lineNumber: i + 1, text: l.text, timestampMs: l.timestampMs ?? null })) },
+              lrclibSource: true,
+              lines: {
+                create: lines.map((l, i) => ({
+                  lineNumber: i + 1,
+                  text: l.text,
+                  timestampMs: l.timestampMs ?? null,
+                })),
+              },
             },
           });
         }
@@ -83,23 +101,36 @@ export class LyricsFetchProcessor extends WorkerHost {
       });
 
       const synced = lines.some((l) => l.timestampMs != null);
-      this.logger.log(`Stored lyrics for ${spotifyId} (${lines.length} lines, synced=${synced})`);
+      this.logger.log(
+        `Stored lyrics for ${spotifyId} (${lines.length} lines, synced=${synced})`,
+      );
     } catch (err) {
-      this.logger.error(`Lyrics fetch failed for ${spotifyId}: ${(err as Error).message}`);
+      this.logger.error(
+        `Lyrics fetch failed for ${spotifyId}: ${(err as Error).message}`,
+      );
       await this.setStatus(songId, LyricsFetchStatus.FAILED);
       throw err;
     }
   }
 
-  private async setStatus(songId: string, status: LyricsFetchStatus): Promise<void> {
-    await this.prisma.song.update({ where: { id: songId }, data: { fetchStatus: status } });
+  private async setStatus(
+    songId: string,
+    status: LyricsFetchStatus,
+  ): Promise<void> {
+    await this.prisma.song.update({
+      where: { id: songId },
+      data: { fetchStatus: status },
+    });
   }
 
   private async fetchFromLrclib(
     track: string,
     artist: string,
     durationMs?: number,
-  ): Promise<{ rawText: string; lines: { text: string; timestampMs?: number }[] } | null> {
+  ): Promise<{
+    rawText: string;
+    lines: { text: string; timestampMs?: number }[];
+  } | null> {
     try {
       // Try exact match first (with duration if available), fall back to search
       const hit = durationMs
@@ -154,7 +185,10 @@ export class LyricsFetchProcessor extends WorkerHost {
     track: string,
     artist: string,
   ): Promise<LrclibResponse | null> {
-    const params = new URLSearchParams({ track_name: track, artist_name: artist });
+    const params = new URLSearchParams({
+      track_name: track,
+      artist_name: artist,
+    });
     const res = await fetch(`https://lrclib.net/api/search?${params}`, {
       signal: AbortSignal.timeout(10_000),
       headers: { 'Lrclib-Client': 'lyrics-helper/1.0 (self-hosted)' },

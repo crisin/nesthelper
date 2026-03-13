@@ -1,5 +1,5 @@
 import { Music } from 'lucide-react'
-import { useCoverViewer } from '../contexts/CoverViewerContext'
+import { useCoverViewer } from '../contexts/useCoverViewer'
 
 interface TrackCoverProps {
   src?: string | null

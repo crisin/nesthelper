@@ -95,7 +95,7 @@ function HistoryRow({
         title={entry.track}
         artist={entry.artists.join(', ') || entry.artist}
         actions={
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <>
             <span className="text-[11px] text-foreground-subtle tabular-nums hidden sm:block">
               {timeAgoShort(entry.playedAt)}
             </span>
@@ -115,7 +115,7 @@ function HistoryRow({
                 : <BookmarkPlus size={13} strokeWidth={1.75} />
               }
             </button>
-          </div>
+          </>
         }
       />
     </li>

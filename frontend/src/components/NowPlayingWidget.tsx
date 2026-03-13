@@ -45,7 +45,7 @@ export default function NowPlayingWidget() {
         imgUrl: track!.item!.album.images[0]?.url ?? null,
       })
       .catch(() => {});
-  }, [track?.item?.id]);
+  }, [track]);
 
   // Sync refs whenever Spotify gives us a new position (no setState — interval handles display)
   useEffect(() => {

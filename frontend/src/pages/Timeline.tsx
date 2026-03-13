@@ -145,7 +145,7 @@ export default function Timeline() {
                       title={song.track}
                       artist={song.artists?.join(', ') || song.artist}
                       actions={
-                        <div className="flex items-center gap-1 flex-shrink-0">
+                        <>
                           {song.lyrics && (
                             <button
                               onClick={(e) => { e.stopPropagation(); setViewing(song) }}
@@ -157,7 +157,7 @@ export default function Timeline() {
                             </button>
                           )}
                           <ChevronRight size={14} className="text-foreground-subtle" strokeWidth={1.75} />
-                        </div>
+                        </>
                       }
                     />
                   </li>

@@ -90,7 +90,7 @@ export default function SongCard({
         <div className={`flex items-center ${sm ? 'gap-3 px-3 py-2.5' : 'gap-3.5 px-3 py-3'}`}>
           <TrackCover src={imgUrl} track={title} artist={artist} className={sm ? 'w-9 h-9 rounded-lg' : 'w-24 h-24 rounded-xl shadow-sm'} iconSize={sm ? 14 : 48} />
           <div className="flex-1 min-w-0">{textContent}</div>
-          {actions && <div className="flex-shrink-0" onClick={e => e.stopPropagation()}>{actions}</div>}
+          {actions && <div className="flex items-center gap-2 flex-shrink-0" onClick={e => e.stopPropagation()}>{actions}</div>}
         </div>
         {append}
       </button>
@@ -102,7 +102,7 @@ export default function SongCard({
       <div className={`flex items-center ${sm ? 'gap-3 px-3 py-2.5' : 'gap-3.5 px-3 py-3'}`}>
         <TrackCover src={imgUrl} track={title} artist={artist} className={sm ? 'w-9 h-9 rounded-lg' : 'w-24 h-24 rounded-xl shadow-sm'} iconSize={sm ? 14 : 48} />
         <div className="flex-1 min-w-0">{textContent}</div>
-        {actions && <div className="flex-shrink-0">{actions}</div>}
+        {actions && <div className="flex items-center gap-2 flex-shrink-0">{actions}</div>}
       </div>
       {append}
     </div>

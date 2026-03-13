@@ -38,7 +38,7 @@ function PlayRow({ entry }: { entry: PlayHistoryEntry }) {
       size="sm"
       noNavigate
       actions={
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <>
           <span className="text-[10px] text-foreground-subtle hidden sm:block">
             {timeAgo(entry.playedAt)}
           </span>
@@ -54,7 +54,7 @@ function PlayRow({ entry }: { entry: PlayHistoryEntry }) {
               : <BookmarkPlus size={13} strokeWidth={1.75} />
             }
           </button>
-        </div>
+        </>
       }
     />
   )

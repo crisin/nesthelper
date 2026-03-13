@@ -1,6 +1,7 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
+import { CoverViewerContext } from './coverViewerContextDef'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -9,14 +10,6 @@ export interface CoverInfo {
   track?: string
   artist?: string
 }
-
-type OpenCover = (info: CoverInfo) => void
-
-// ── Context ────────────────────────────────────────────────────────────────
-
-const CoverViewerContext = createContext<OpenCover>(() => {})
-
-export const useCoverViewer = () => useContext(CoverViewerContext)
 
 // ── Provider + Overlay ─────────────────────────────────────────────────────
 

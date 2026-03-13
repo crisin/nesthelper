@@ -214,7 +214,7 @@ export default function Favorites() {
                           </div>
                         }
                         actions={
-                          <div className="flex items-center gap-1 flex-shrink-0">
+                          <>
                             {spotifyId && (
                               <span
                                 role="img"
@@ -247,7 +247,7 @@ export default function Favorites() {
                               className="text-foreground-subtle group-hover:text-foreground-muted transition-colors"
                               strokeWidth={1.75}
                             />
-                          </div>
+                          </>
                         }
                       />
                     </SwipeToDelete>

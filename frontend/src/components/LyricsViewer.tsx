@@ -129,7 +129,7 @@ export default function LyricsViewer({
   const isMatchingTrack = !!spotifyId && currentTrack?.item?.id === spotifyId
   const isPlaying = currentTrack?.is_playing ?? false
 
-  const lines = songLyrics?.lines ?? []
+  const lines = useMemo(() => songLyrics?.lines ?? [], [songLyrics])
   const nonEmptyLines = lines.filter((l) => l.text.trim())
   const hasTimestamps = nonEmptyLines.some((l) => l.timestampMs != null)
 

@@ -88,13 +88,7 @@ export default function NowPlayingWidget() {
         {/* Track info + progress */}
         <div className="px-3 pt-2.5 pb-2 space-y-2">
           <div className="flex items-start gap-1.5">
-            {is_playing && (
-              <Radio
-                size={9}
-                className="text-accent flex-shrink-0 mt-1 animate-pulse"
-                strokeWidth={2}
-              />
-            )}
+            
             <div className="min-w-0">
               <p className="text-xs font-semibold text-foreground leading-tight truncate">
                 {item.name}
@@ -103,6 +97,13 @@ export default function NowPlayingWidget() {
                 {item.artists.map((a) => a.name).join(', ')}
               </p>
             </div>
+            {is_playing && (
+              <Radio
+                size={9}
+                className="text-accent flex-shrink-0 mt-1 animate-pulse"
+                strokeWidth={2}
+              />
+            )}
           </div>
 
           {/* Progress bar + time */}

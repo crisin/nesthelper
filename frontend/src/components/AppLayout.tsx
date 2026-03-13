@@ -1,33 +1,50 @@
-import { BarChart2, Clock, Compass, Home, Library, Settings, BookOpen, ArrowRight, Music2, Lightbulb, Bug } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import {
+  ArrowRight,
+  BarChart2,
+  BookOpen,
+  Bug,
+  Clock,
+  Compass,
+  Home,
+  Library,
+  Lightbulb,
+  Music2,
+  Settings,
+} from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import api from "../services/api";
 import { useVisualStore } from "../stores/visualStore";
+import type { SpotifyCurrentlyPlayingResponse } from "../types";
 import FeatureRequestPanel, { type PanelMode } from "./FeatureRequestPanel";
-import { useQuery } from "@tanstack/react-query";
-import SpotifyConnect from "./SpotifyConnect";
-import UsernameEdit from "./UsernameEdit";
 import LyricsSearchButton from "./LyricsSearchButton";
 import NowPlayingWidget from "./NowPlayingWidget";
-import api from "../services/api";
-import type { SpotifyCurrentlyPlayingResponse, Song } from "../types";
+import SpotifyConnect from "./SpotifyConnect";
+import UsernameEdit from "./UsernameEdit";
 
 /** Shows "View Song" if the currently playing track is in the DB, else falls back to LyricsSearchButton */
 function SongAction() {
   // Subscribe to the same key NowPlayingWidget polls — React Query deduplicates the fetch
-  const { data: currentTrack } = useQuery<SpotifyCurrentlyPlayingResponse | null>({
-    queryKey: ["spotify-current-track"],
-    queryFn: () =>
-      api.get<SpotifyCurrentlyPlayingResponse>("/spotify/current-track").then((r) => r.data),
-    refetchInterval: 5_000,
-    staleTime: 0,
-    retry: false,
-  });
+  const { data: currentTrack } =
+    useQuery<SpotifyCurrentlyPlayingResponse | null>({
+      queryKey: ["spotify-current-track"],
+      queryFn: () =>
+        api
+          .get<SpotifyCurrentlyPlayingResponse>("/spotify/current-track")
+          .then((r) => r.data),
+      refetchInterval: 5_000,
+      staleTime: 0,
+      retry: false,
+    });
   const spotifyId = currentTrack?.item?.id;
 
   const { data } = useQuery<{ exists: boolean }>({
     queryKey: ["song-exists", spotifyId],
     queryFn: () =>
-      api.get<{ exists: boolean }>(`/songs/${spotifyId}/exists`).then((r) => r.data),
+      api
+        .get<{ exists: boolean }>(`/songs/${spotifyId}/exists`)
+        .then((r) => r.data),
     enabled: !!spotifyId,
     staleTime: 60_000,
     retry: false,
@@ -66,7 +83,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const visualEnabled = useVisualStore((s) => s.enabled);
 
   return (
-    <div className={`min-h-screen text-foreground flex ${visualEnabled ? '' : 'bg-surface'}`}>
+    <div
+      className={`min-h-screen text-foreground flex ${visualEnabled ? "" : "bg-surface"}`}
+    >
       {/* ── Sidebar (desktop only) ──────────────────────────────── */}
       <div className="hidden sm:flex fixed inset-y-0 left-0 z-40 w-56 flex-col bg-surface-raised border-r border-edge">
         {/* Logo */}
@@ -114,7 +133,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         </div>
         {/* User controls */}
         <div className="px-4 py-4 border-t border-edge flex-shrink-0 space-y-3">
-          
           <SpotifyConnect />
           <UsernameEdit />
           {/* <div className="flex items-center justify-between pt-0.5">
@@ -153,17 +171,26 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       {/* Picker popup */}
       {pickerOpen && !panelMode && (
         <>
-          <div className="fixed inset-0 z-40 sm:hidden" onClick={() => setPickerOpen(false)} />
+          <div
+            className="fixed inset-0 z-40 sm:hidden"
+            onClick={() => setPickerOpen(false)}
+          />
           <div className="fixed bottom-36 right-4 sm:bottom-[88px] sm:right-6 z-50 flex flex-col gap-2 items-end">
             <button
-              onClick={() => { setPanelMode('bug'); setPickerOpen(false) }}
+              onClick={() => {
+                setPanelMode("bug");
+                setPickerOpen(false);
+              }}
               className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-surface-raised border border-orange-500/30 shadow-xl text-sm font-medium text-orange-400 hover:bg-orange-500/10 transition-colors"
             >
               <Bug size={15} strokeWidth={1.75} />
               Bug melden
             </button>
             <button
-              onClick={() => { setPanelMode('feature'); setPickerOpen(false) }}
+              onClick={() => {
+                setPanelMode("feature");
+                setPickerOpen(false);
+              }}
               className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-surface-raised border border-edge shadow-xl text-sm font-medium text-foreground-muted hover:text-foreground hover:bg-surface-overlay transition-colors"
             >
               <Lightbulb size={15} strokeWidth={1.75} />

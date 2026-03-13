@@ -1,6 +1,7 @@
 import { BarChart2, Clock, Compass, Home, Library, Settings, BookOpen, ArrowRight, Music2, Lightbulb, Bug } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { useVisualStore } from "../stores/visualStore";
 import FeatureRequestPanel, { type PanelMode } from "./FeatureRequestPanel";
 import { useQuery } from "@tanstack/react-query";
 import SpotifyConnect from "./SpotifyConnect";
@@ -62,9 +63,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [panelMode, setPanelMode] = useState<PanelMode | null>(null);
+  const visualEnabled = useVisualStore((s) => s.enabled);
 
   return (
-    <div className="min-h-screen bg-surface text-foreground flex">
+    <div className={`min-h-screen text-foreground flex ${visualEnabled ? '' : 'bg-surface'}`}>
       {/* ── Sidebar (desktop only) ──────────────────────────────── */}
       <div className="hidden sm:flex fixed inset-y-0 left-0 z-40 w-56 flex-col bg-surface-raised border-r border-edge">
         {/* Logo */}

@@ -4,7 +4,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BookmarkPlus, Check, ExternalLink, FileText, LayoutGrid, LayoutList, RefreshCw, Search, X } from 'lucide-react'
 import api from '../services/api'
 import type { PlayHistoryEntry, SavedLyric, Song } from '../types'
-import DynamicBackground from '../components/DynamicBackground'
 import PullToRefresh from '../components/PullToRefresh'
 import TrackCover from '../components/TrackCover'
 import TrackListItem from '../components/TrackListItem'
@@ -461,8 +460,6 @@ export default function Discover() {
   }
 
   return (
-    <>
-    <DynamicBackground page="discover" />
     <PullToRefresh onRefresh={handleRefresh}>
       <div className="px-4 sm:px-8 py-8 max-w-5xl mx-auto space-y-4 overflow-hidden">
 
@@ -728,6 +725,5 @@ export default function Discover() {
         )}
       </div>
     </PullToRefresh>
-    </>
   )
 }

@@ -8,7 +8,6 @@ import UsernameEdit from "../components/UsernameEdit";
 import { useTheme } from "../hooks/useTheme";
 import { useVisualStore } from "../stores/visualStore";
 import type { VisualMode, VisualizerStyle } from "../stores/visualStore";
-import DynamicBackground from "../components/DynamicBackground";
 
 // ─── Password strength ────────────────────────────────────────────────────────
 
@@ -260,8 +259,6 @@ export default function Settings() {
   }
 
   return (
-    <>
-    <DynamicBackground page="settings" />
     <div className="px-4 sm:px-8 py-8 max-w-5xl mx-auto space-y-8 overflow-hidden">
       <div>
         <p className="text-[11px] font-semibold text-foreground-subtle uppercase tracking-widest mb-1">
@@ -558,6 +555,5 @@ export default function Settings() {
         </div>
       </section>
     </div>
-    </>
   );
 }

@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query'
 import { ChevronRight, Eye } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import api from '../services/api'
-import DynamicBackground from '../components/DynamicBackground'
 import TrackListItem from '../components/TrackListItem'
 import LyricsViewer from '../components/LyricsViewer'
 import type { TimelineMonth, TimelineSong } from '../types'
@@ -79,8 +78,6 @@ export default function Timeline() {
   const years = Array.from({ length: 3 }, (_, i) => currentYear - i)
 
   return (
-    <>
-    <DynamicBackground page="timeline" />
     <div className="px-4 sm:px-8 py-8 max-w-3xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
@@ -184,6 +181,5 @@ export default function Timeline() {
         />
       )}
     </div>
-    </>
   )
 }

@@ -17,6 +17,7 @@ import { Link, useLocation } from "react-router-dom";
 import api from "../services/api";
 import { useVisualStore } from "../stores/visualStore";
 import type { SpotifyCurrentlyPlayingResponse } from "../types";
+import DynamicBackground from "./DynamicBackground";
 import FeatureRequestPanel, { type PanelMode } from "./FeatureRequestPanel";
 import LyricsSearchButton from "./LyricsSearchButton";
 import NowPlayingWidget from "./NowPlayingWidget";
@@ -65,6 +66,16 @@ function SongAction() {
   return <LyricsSearchButton />;
 }
 
+function getPageKey(pathname: string): string | null {
+  if (pathname === '/dashboard') return 'dashboard'
+  if (pathname === '/discover') return 'discover'
+  if (pathname.startsWith('/favorites')) return 'favorites'
+  if (pathname === '/timeline') return 'timeline'
+  if (pathname === '/settings') return 'settings'
+  if (pathname.startsWith('/songs/')) return 'song'
+  return null
+}
+
 const NAV = [
   { path: "/dashboard", label: "Dashboard", Icon: Home },
   { path: "/discover", label: "Entdecken", Icon: Compass },
@@ -81,11 +92,13 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [panelMode, setPanelMode] = useState<PanelMode | null>(null);
   const visualEnabled = useVisualStore((s) => s.enabled);
+  const pageKey = getPageKey(location.pathname);
 
   return (
     <div
       className={`min-h-screen text-foreground flex ${visualEnabled ? "" : "bg-surface"}`}
     >
+      <DynamicBackground pageKey={pageKey} />
       {/* ── Sidebar (desktop only) ──────────────────────────────── */}
       <div className="hidden sm:flex fixed inset-y-0 left-0 z-40 w-56 flex-col bg-surface-raised border-r border-edge">
         {/* Logo */}

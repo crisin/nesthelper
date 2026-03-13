@@ -13,7 +13,6 @@ import TrackCover from '../components/TrackCover'
 import TagSelector from '../components/TagSelector'
 import LyricsEditor from '../components/LyricsEditor'
 import LyricsViewer from '../components/LyricsViewer'
-import DynamicBackground from '../components/DynamicBackground'
 
 // ─── Song notes section (public thread, own note editable) ───────────────────
 
@@ -514,8 +513,6 @@ export default function SongDetail() {
   const tags = s?.tags ?? []
 
   return (
-    <>
-    <DynamicBackground page="song" />
     <div className="px-4 sm:px-8 py-8 max-w-5xl mx-auto space-y-6 overflow-hidden">
       {/* Back */}
       <button
@@ -637,6 +634,5 @@ export default function SongDetail() {
         </div>
       </BottomSheet>
     </div>
-    </>
   )
 }

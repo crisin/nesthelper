@@ -5,24 +5,27 @@ import { useVisualStore } from '../stores/visualStore'
 import { useAudioFeatures } from '../hooks/useAudioFeatures'
 import { useDominantColor } from '../hooks/useDominantColor'
 
-// Desktop-only — return null immediately on mobile to avoid any rendering cost
+// Desktop-only — skip all rendering on mobile
 const isDesktop = typeof window !== 'undefined' && window.matchMedia('(min-width: 640px)').matches
 
-export default function DynamicBackground({ page }: { page: string }) {
+export default function DynamicBackground({ pageKey }: { pageKey: string | null }) {
   const { enabled, pages, mode, blurAmount, dimAmount, showVisualizer, visualizerStyle } =
     useVisualStore()
   const qc = useQueryClient()
 
   const [imgUrl, setImgUrl] = useState<string | null>(null)
   const [spotifyId, setSpotifyId] = useState<string | null>(null)
-  const [visible, setVisible] = useState(false)
+  const [trackVisible, setTrackVisible] = useState(false)
   const prevIdRef = useRef<string | null>(null)
 
-  const active = isDesktop && enabled && !!pages[page]
+  const pageEnabled = pageKey ? !!pages[pageKey] : false
+  const active = isDesktop && enabled && pageEnabled
 
-  // Poll the React Query cache every 2s — no extra network request
+  // Poll the React Query cache — runs whenever globally enabled on desktop.
+  // Keeps imgUrl current even on disabled pages so switching to an enabled page
+  // shows the correct art immediately without a flash.
   useEffect(() => {
-    if (!active) return
+    if (!isDesktop || !enabled) return
     const tick = () => {
       const track = qc.getQueryData<SpotifyCurrentlyPlayingResponse | null>([
         'spotify-current-track',
@@ -32,26 +35,29 @@ export default function DynamicBackground({ page }: { page: string }) {
 
       if (id !== prevIdRef.current) {
         prevIdRef.current = id
-        // Fade out, swap image, fade back in
-        setVisible(false)
+        // Cross-fade: fade out → swap → fade in
+        setTrackVisible(false)
         setTimeout(() => {
           setImgUrl(url)
           setSpotifyId(id)
-          setVisible(!!id)
+          setTrackVisible(!!id)
         }, 400)
       }
     }
     tick()
     const timer = setInterval(tick, 2000)
     return () => clearInterval(timer)
-  }, [qc, active])
+  }, [qc, enabled])
 
-  const { data: features } = useAudioFeatures(active ? spotifyId : null)
-  const dominantColor = useDominantColor(active ? imgUrl : null)
+  const { data: features } = useAudioFeatures(spotifyId)
+  const dominantColor = useDominantColor(imgUrl)
 
-  if (!active) return null
+  if (!isDesktop) return null
 
-  // Animation timing from audio features
+  // Opacity-driven show/hide — component stays mounted across navigations,
+  // eliminating flicker. Transitions handle both track changes and page toggles.
+  const show = active && trackVisible
+
   const tempo = features?.tempo ?? 120
   const energy = features?.energy ?? 0.5
   const pulseDuration = Math.round(60000 / tempo)
@@ -72,7 +78,7 @@ export default function DynamicBackground({ page }: { page: string }) {
       className="fixed inset-0 overflow-hidden pointer-events-none"
       style={{
         zIndex: -1,
-        opacity: visible ? 1 : 0,
+        opacity: show ? 1 : 0,
         transition: 'opacity 1.2s ease',
         // CSS variables for future animation editor
         ['--bg-blur' as string]: `${blurAmount}px`,

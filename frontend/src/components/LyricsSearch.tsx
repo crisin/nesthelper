@@ -1,13 +1,12 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Search, X, ExternalLink, BookmarkPlus, FileText } from "lucide-react";
+import { BookmarkPlus, ExternalLink, Search, X } from "lucide-react";
+import { useState } from "react";
+import { useLyricsSearch } from "../hooks/useLyricsSearch";
 import api from "../services/api";
 import type { SavedLyric, SearchHistoryItem } from "../types";
-import SwipeToDelete from "./SwipeToDelete";
 import BottomSheet from "./BottomSheet";
-import TrackListItem from "./TrackListItem";
-import { useLyricsSearch } from "../hooks/useLyricsSearch";
+import SwipeToDelete from "./SwipeToDelete";
+import SongCard from "./SongCard";
 
 function timeAgo(dateStr: string) {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -20,7 +19,6 @@ function timeAgo(dateStr: string) {
 }
 
 export default function LyricsSearch() {
-  const navigate = useNavigate();
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
@@ -148,17 +146,11 @@ export default function LyricsSearch() {
                     onDelete={() => setPendingDeleteId(item.id)}
                     disabled={removeHistory.isPending}
                   >
-                    <TrackListItem
-                      src={item.imgUrl}
-                      track={item.track}
+                    <SongCard
+                      imgUrl={item.imgUrl}
+                      title={item.track}
                       artist={item.artists?.join(", ") ?? item.artist}
-                      size="md"
-                      interactive
-                      onContentClick={() =>
-                        navigate("/discover", {
-                          state: { highlightSpotifyId: item.spotifyId },
-                        })
-                      }
+                      spotifyId={item.spotifyId}
                       actions={
                         <>
                           <span className="text-[11px] text-foreground-subtle flex-shrink-0 tabular-nums">
@@ -173,15 +165,6 @@ export default function LyricsSearch() {
                           >
                             <ExternalLink size={15} strokeWidth={1.75} />
                           </a>
-                          <button
-                            onClick={() =>
-                              navigate(`/songs/${item.spotifyId}`)
-                            }
-                            aria-label="Lyrics bearbeiten"
-                            className="flex-shrink-0 w-9 h-9 sm:w-auto sm:h-auto flex items-center justify-center text-foreground-subtle hover:text-foreground transition-colors sm:opacity-0 sm:group-hover:opacity-100"
-                          >
-                            <FileText size={15} strokeWidth={1.75} />
-                          </button>
 
                           <button
                             onClick={() => toggleFavorite(item)}

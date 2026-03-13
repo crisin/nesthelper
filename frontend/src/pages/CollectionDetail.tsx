@@ -8,6 +8,7 @@ import {
 import api from '../services/api'
 import type { Collection, CollectionItem, SavedLyric } from '../types'
 import TrackCover from '../components/TrackCover'
+import SongCard from '../components/SongCard'
 import BottomSheet from '../components/BottomSheet'
 
 // ─── Rename sheet ─────────────────────────────────────────────────────────────
@@ -201,7 +202,6 @@ function ItemRow({
   onMoveDown: () => void
 }) {
   const queryClient = useQueryClient()
-  const navigate = useNavigate()
 
   const removeMutation = useMutation({
     mutationFn: () => api.delete(`/collections/${collectionId}/items/${item.id}`),
@@ -214,48 +214,26 @@ function ItemRow({
   if (item.savedLyric) {
     const song = item.savedLyric
     return (
-      <li className="flex items-center gap-3 px-4 py-3 rounded-xl bg-surface-raised border border-edge
-                     hover:border-foreground-muted/30 transition-colors group">
-        <TrackCover
-          src={song.song?.imgUrl}
-          track={song.song?.title ?? ''}
-          artist={(song.song?.artists?.join(", ") || song.song?.artist) ?? ''}
-          className="w-10 h-10 rounded-lg flex-shrink-0"
-          iconSize={16}
+      <li>
+        <SongCard
+          imgUrl={song.song?.imgUrl}
+          title={song.song?.title ?? ''}
+          artist={(song.song?.artists?.join(', ') || song.song?.artist) ?? ''}
+          spotifyId={song.song?.spotifyId ?? song.id}
+          actions={
+            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button onClick={onMoveUp} disabled={isFirst} className="p-1 rounded text-foreground-subtle hover:text-foreground disabled:opacity-20 transition-colors" aria-label="Nach oben">
+                <ChevronUp size={13} strokeWidth={2} />
+              </button>
+              <button onClick={onMoveDown} disabled={isLast} className="p-1 rounded text-foreground-subtle hover:text-foreground disabled:opacity-20 transition-colors" aria-label="Nach unten">
+                <ChevronDown size={13} strokeWidth={2} />
+              </button>
+              <button onClick={() => removeMutation.mutate()} disabled={removeMutation.isPending} className="p-1 rounded text-foreground-subtle hover:text-red-400 transition-colors" aria-label="Entfernen">
+                <X size={13} strokeWidth={2} />
+              </button>
+            </div>
+          }
         />
-        <button
-          className="flex-1 min-w-0 text-left"
-          onClick={() => navigate(`/songs/${song.song?.spotifyId ?? song.id}`)}
-        >
-          <p className="text-sm font-medium text-foreground truncate">{song.song?.title ?? ''}</p>
-          <p className="text-xs text-foreground-muted truncate">{(song.song?.artists?.join(", ") || song.song?.artist) ?? ''}</p>
-        </button>
-        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-          <button
-            onClick={onMoveUp}
-            disabled={isFirst}
-            className="p-1 rounded text-foreground-subtle hover:text-foreground disabled:opacity-20 transition-colors"
-            aria-label="Nach oben"
-          >
-            <ChevronUp size={13} strokeWidth={2} />
-          </button>
-          <button
-            onClick={onMoveDown}
-            disabled={isLast}
-            className="p-1 rounded text-foreground-subtle hover:text-foreground disabled:opacity-20 transition-colors"
-            aria-label="Nach unten"
-          >
-            <ChevronDown size={13} strokeWidth={2} />
-          </button>
-          <button
-            onClick={() => removeMutation.mutate()}
-            disabled={removeMutation.isPending}
-            className="p-1 rounded text-foreground-subtle hover:text-red-400 transition-colors"
-            aria-label="Entfernen"
-          >
-            <X size={13} strokeWidth={2} />
-          </button>
-        </div>
       </li>
     )
   }

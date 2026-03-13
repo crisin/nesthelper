@@ -1,10 +1,9 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { BookmarkPlus, Check, RefreshCw } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
 import api from '../services/api'
 import type { PlayHistoryEntry } from '../types'
-import TrackCover from './TrackCover'
+import SongCard from './SongCard'
 
 function timeAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime()
@@ -17,7 +16,6 @@ function timeAgo(iso: string) {
 }
 
 function PlayRow({ entry }: { entry: PlayHistoryEntry }) {
-  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [done, setDone] = useState(false)
 
@@ -33,44 +31,32 @@ function PlayRow({ entry }: { entry: PlayHistoryEntry }) {
   })
 
   return (
-    <div className="flex items-center gap-3 py-2 group">
-      <button
-        onClick={() => navigate(`/songs/${entry.spotifyId}`)}
-        className="flex items-center gap-3 flex-1 min-w-0 text-left hover:opacity-80 transition-opacity"
-      >
-        <TrackCover
-          src={entry.imgUrl ?? undefined}
-          track={entry.track}
-          artist={entry.artists.join(', ') || entry.artist}
-          className="w-9 h-9 rounded-lg flex-shrink-0"
-          iconSize={14}
-        />
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-foreground leading-tight truncate">{entry.track}</p>
-          <p className="text-xs text-foreground-muted truncate">
-            {entry.artists.join(', ') || entry.artist}
-          </p>
+    <SongCard
+      imgUrl={entry.imgUrl}
+      title={entry.track}
+      artist={entry.artists.join(', ') || entry.artist}
+      size="sm"
+      noNavigate
+      actions={
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <span className="text-[10px] text-foreground-subtle hidden sm:block">
+            {timeAgo(entry.playedAt)}
+          </span>
+          <button
+            onClick={() => importMutation.mutate()}
+            disabled={importMutation.isPending || done}
+            title={done ? 'Gespeichert' : 'Als Song speichern'}
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-foreground-subtle
+                       hover:text-accent hover:bg-accent/10 transition-colors disabled:opacity-40"
+          >
+            {done
+              ? <Check size={13} strokeWidth={2} className="text-accent" />
+              : <BookmarkPlus size={13} strokeWidth={1.75} />
+            }
+          </button>
         </div>
-      </button>
-
-      <span className="text-[10px] text-foreground-subtle flex-shrink-0 hidden sm:block">
-        {timeAgo(entry.playedAt)}
-      </span>
-
-      <button
-        onClick={() => importMutation.mutate()}
-        disabled={importMutation.isPending || done}
-        title={done ? 'Gespeichert' : 'Als Song speichern'}
-        className="w-7 h-7 flex items-center justify-center rounded-lg text-foreground-subtle
-                   hover:text-accent hover:bg-accent/10 transition-colors disabled:opacity-40
-                   opacity-0 group-hover:opacity-100"
-      >
-        {done
-          ? <Check size={13} strokeWidth={2} className="text-accent" />
-          : <BookmarkPlus size={13} strokeWidth={1.75} />
-        }
-      </button>
-    </div>
+      }
+    />
   )
 }
 

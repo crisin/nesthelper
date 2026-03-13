@@ -5,8 +5,7 @@ import { BookmarkPlus, Check, ExternalLink, FileText, LayoutGrid, LayoutList, Re
 import api from '../services/api'
 import type { PlayHistoryEntry, SavedLyric, Song } from '../types'
 import PullToRefresh from '../components/PullToRefresh'
-import TrackCover from '../components/TrackCover'
-import TrackListItem from '../components/TrackListItem'
+import SongCard from '../components/SongCard'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -43,171 +42,6 @@ function timeAgo(dateStr: string) {
   return `${Math.floor(hrs / 24)}d ago`
 }
 
-// ── Song card — LIST layout ─────────────────────────────────────────────────
-
-function SongCard({
-  song,
-  isSaved,
-  onSave,
-  isSaving,
-  onNavigate,
-  id,
-  highlight = false,
-}: {
-  song: Song
-  isSaved: boolean
-  onSave: () => void
-  isSaving: boolean
-  onNavigate: () => void
-  id?: string
-  highlight?: boolean
-}) {
-  return (
-    <li id={id}>
-      <TrackListItem
-        src={song.imgUrl}
-        track={song.title}
-        artist={song.artists?.join(", ") || song.artist}
-        size="md"
-        className={highlight ? 'ring-2 ring-accent/50' : ''}
-        meta={
-          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-            {song.hasLyrics && (
-              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-accent/10 text-accent">
-                lyrics
-              </span>
-            )}
-            {song.saveCount != null && song.saveCount > 0 && (
-              <span className="text-[11px] text-foreground-subtle tabular-nums">
-                {song.saveCount}× saved
-              </span>
-            )}
-            <span className="text-[11px] text-foreground-subtle">
-              {timeAgo(song.updatedAt)}
-            </span>
-          </div>
-        }
-        actions={
-          <div className="flex items-center gap-0.5 flex-shrink-0">
-            <a
-              href={`https://open.spotify.com/track/${song.spotifyId}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="w-8 h-8 flex items-center justify-center text-foreground-subtle hover:text-accent transition-colors"
-              aria-label="Open on Spotify"
-            >
-              <ExternalLink size={13} strokeWidth={1.75} />
-            </a>
-            <button
-              onClick={onNavigate}
-              aria-label="Lyrics bearbeiten"
-              className="w-8 h-8 flex items-center justify-center text-foreground-subtle hover:text-foreground transition-colors"
-            >
-              <FileText size={13} strokeWidth={1.75} />
-            </button>
-            <button
-              onClick={onSave}
-              disabled={isSaving}
-              aria-label={isSaved ? 'Remove from favorites' : 'Save to favorites'}
-              className={[
-                'w-9 h-9 flex items-center justify-center text-lg leading-none transition-all disabled:opacity-30',
-                isSaved ? 'text-accent' : 'text-foreground-subtle hover:text-accent',
-              ].join(' ')}
-            >
-              {isSaved ? '♥' : '♡'}
-            </button>
-          </div>
-        }
-      />
-    </li>
-  )
-}
-
-// ── Song card — GRID layout ─────────────────────────────────────────────────
-
-function SongGridCard({
-  song,
-  isSaved,
-  onSave,
-  isSaving,
-  onNavigate,
-}: {
-  song: Song
-  isSaved: boolean
-  onSave: () => void
-  isSaving: boolean
-  onNavigate: () => void
-}) {
-  return (
-    <li className="rounded-xl bg-surface-raised border border-edge overflow-hidden shadow-card group">
-      {/* Square cover */}
-      <div className="relative aspect-square">
-        <TrackCover
-          src={song.imgUrl}
-          track={song.title}
-          artist={song.artists?.join(", ") || song.artist}
-          className="w-full h-full"
-          iconSize={28}
-        />
-
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors duration-150 pointer-events-none" />
-
-        {/* Heart */}
-        <button
-          onClick={onSave}
-          disabled={isSaving}
-          aria-label={isSaved ? 'Remove from favorites' : 'Save to favorites'}
-          className={[
-            'absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center text-base leading-none',
-            'bg-black/40 backdrop-blur-sm transition-all disabled:opacity-40',
-            isSaved ? 'text-accent' : 'text-white hover:text-accent',
-          ].join(' ')}
-        >
-          {isSaved ? '♥' : '♡'}
-        </button>
-
-        {/* Spotify link */}
-        <a
-          href={`https://open.spotify.com/track/${song.spotifyId}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Open on Spotify"
-          className="absolute top-2 left-2 w-7 h-7 rounded-full flex items-center justify-center
-                     bg-black/40 backdrop-blur-sm text-white hover:text-accent transition-all
-                     opacity-0 group-hover:opacity-100"
-        >
-          <ExternalLink size={12} strokeWidth={2} />
-        </a>
-
-        {/* Lyrics badge */}
-        {song.hasLyrics && (
-          <div className="absolute bottom-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity">
-            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md
-                             bg-black/60 backdrop-blur-sm text-white">
-              lyrics
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* Footer */}
-      <div className="flex items-center">
-        <div className="flex-1 min-w-0 px-2.5 py-2.5">
-          <p className="text-xs font-semibold text-foreground truncate leading-tight">{song.title}</p>
-          <p className="text-[11px] text-foreground-muted truncate mt-0.5">{song.artists?.join(", ") || song.artist}</p>
-        </div>
-        <button
-          onClick={onNavigate}
-          aria-label="Lyrics bearbeiten"
-          className="flex-shrink-0 w-8 h-8 mr-1 flex items-center justify-center text-foreground-subtle hover:text-foreground transition-colors"
-        >
-          <FileText size={13} strokeWidth={1.75} />
-        </button>
-      </div>
-    </li>
-  )
-}
 
 // ── Artist section divider ─────────────────────────────────────────────────
 
@@ -241,7 +75,6 @@ function HistoryRow({
   entry: PlayHistoryEntry
   onImported: () => void
 }) {
-  const navigate = useNavigate()
   const [done, setDone] = useState(false)
 
   const importMutation = useMutation({
@@ -254,14 +87,13 @@ function HistoryRow({
   })
 
   return (
-    <li className="group">
-      <TrackListItem
-        src={entry.imgUrl ?? undefined}
-        track={entry.track}
+    <li>
+      <SongCard
+        noNavigate
+        spotifyId={entry.spotifyId}
+        imgUrl={entry.imgUrl}
+        title={entry.track}
         artist={entry.artists.join(', ') || entry.artist}
-        size="md"
-        interactive
-        onContentClick={() => navigate(`/songs/${entry.spotifyId}`)}
         actions={
           <div className="flex items-center gap-2 flex-shrink-0">
             <span className="text-[11px] text-foreground-subtle tabular-nums hidden sm:block">
@@ -427,34 +259,139 @@ export default function Discover() {
 
   const isLoading = tab === 'library' ? songsLoading : tab === 'activity' ? feedLoading : historyLoading
 
-  function cardProps(song: Song) {
-    return {
-      song,
-      isSaved: favoritedSpotifyIds.has(song.spotifyId),
-      onSave: () => toggleFavorite.mutate(song.spotifyId),
-      isSaving: toggleFavorite.isPending,
-      onNavigate: () => navigate(`/songs/${song.spotifyId}`),
-    }
-  }
-
   function renderLibrarySongs(list: Song[]) {
     if (layout === 'grid') {
       return (
         <ul className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-          {list.map((s) => <SongGridCard key={s.id} {...cardProps(s)} />)}
+          {list.map((s) => {
+            const isSaved = favoritedSpotifyIds.has(s.spotifyId)
+            const isSaving = toggleFavorite.isPending
+            return (
+              <li key={s.id}>
+                <SongCard
+                  variant="grid"
+                  spotifyId={s.spotifyId}
+                  imgUrl={s.imgUrl}
+                  title={s.title}
+                  artist={s.artists?.join(', ') || s.artist}
+                  coverActions={
+                    <>
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors duration-150 pointer-events-none" />
+                      <button
+                        onClick={(e) => { e.stopPropagation(); toggleFavorite.mutate(s.spotifyId) }}
+                        disabled={isSaving}
+                        aria-label={isSaved ? 'Remove from favorites' : 'Save to favorites'}
+                        className={[
+                          'pointer-events-auto absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center text-base leading-none',
+                          'bg-black/40 backdrop-blur-sm transition-all disabled:opacity-40',
+                          isSaved ? 'text-accent' : 'text-white hover:text-accent',
+                        ].join(' ')}
+                      >
+                        {isSaved ? '♥' : '♡'}
+                      </button>
+                      <a
+                        href={`https://open.spotify.com/track/${s.spotifyId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="Open on Spotify"
+                        onClick={(e) => e.stopPropagation()}
+                        className="pointer-events-auto absolute top-2 left-2 w-7 h-7 rounded-full flex items-center justify-center
+                                   bg-black/40 backdrop-blur-sm text-white hover:text-accent transition-all
+                                   opacity-0 group-hover:opacity-100"
+                      >
+                        <ExternalLink size={12} strokeWidth={2} />
+                      </a>
+                      {s.hasLyrics && (
+                        <div className="pointer-events-none absolute bottom-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-black/60 backdrop-blur-sm text-white">
+                            lyrics
+                          </span>
+                        </div>
+                      )}
+                    </>
+                  }
+                  actions={
+                    <button
+                      onClick={(e) => { e.stopPropagation(); navigate(`/songs/${s.spotifyId}`) }}
+                      aria-label="Lyrics bearbeiten"
+                      className="flex-shrink-0 w-8 h-8 mr-1 flex items-center justify-center text-foreground-subtle hover:text-foreground transition-colors"
+                    >
+                      <FileText size={13} strokeWidth={1.75} />
+                    </button>
+                  }
+                />
+              </li>
+            )
+          })}
         </ul>
       )
     }
     return (
       <ul className="space-y-2">
-        {list.map((s) => (
-          <SongCard
-            key={s.id}
-            id={`track-${s.spotifyId}`}
-            highlight={highlightSpotifyId === s.spotifyId}
-            {...cardProps(s)}
-          />
-        ))}
+        {list.map((s) => {
+          const isSaved = favoritedSpotifyIds.has(s.spotifyId)
+          const isSaving = toggleFavorite.isPending
+          return (
+            <li key={s.id} id={`track-${s.spotifyId}`}>
+              <SongCard
+                spotifyId={s.spotifyId}
+                imgUrl={s.imgUrl}
+                title={s.title}
+                artist={s.artists?.join(', ') || s.artist}
+                className={highlightSpotifyId === s.spotifyId ? 'ring-2 ring-accent/50' : ''}
+                meta={
+                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                    {s.hasLyrics && (
+                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-accent/10 text-accent">
+                        lyrics
+                      </span>
+                    )}
+                    {s.saveCount != null && s.saveCount > 0 && (
+                      <span className="text-[11px] text-foreground-subtle tabular-nums">
+                        {s.saveCount}× saved
+                      </span>
+                    )}
+                    <span className="text-[11px] text-foreground-subtle">
+                      {timeAgo(s.updatedAt)}
+                    </span>
+                  </div>
+                }
+                actions={
+                  <div className="flex items-center gap-0.5 flex-shrink-0">
+                    <a
+                      href={`https://open.spotify.com/track/${s.spotifyId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="w-8 h-8 flex items-center justify-center text-foreground-subtle hover:text-accent transition-colors"
+                      aria-label="Open on Spotify"
+                    >
+                      <ExternalLink size={13} strokeWidth={1.75} />
+                    </a>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); navigate(`/songs/${s.spotifyId}`) }}
+                      aria-label="Lyrics bearbeiten"
+                      className="w-8 h-8 flex items-center justify-center text-foreground-subtle hover:text-foreground transition-colors"
+                    >
+                      <FileText size={13} strokeWidth={1.75} />
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); toggleFavorite.mutate(s.spotifyId) }}
+                      disabled={isSaving}
+                      aria-label={isSaved ? 'Remove from favorites' : 'Save to favorites'}
+                      className={[
+                        'w-9 h-9 flex items-center justify-center text-lg leading-none transition-all disabled:opacity-30',
+                        isSaved ? 'text-accent' : 'text-foreground-subtle hover:text-accent',
+                      ].join(' ')}
+                    >
+                      {isSaved ? '♥' : '♡'}
+                    </button>
+                  </div>
+                }
+              />
+            </li>
+          )
+        })}
       </ul>
     )
   }
@@ -679,19 +616,11 @@ export default function Discover() {
                 const isSaved = favoritedSpotifyIds.has(item.spotifyId)
                 return (
                   <li key={item.id}>
-                    <TrackListItem
-                      src={item.imgUrl}
-                      track={item.track}
-                      artist={item.artists?.join(", ") || item.artist}
-                      size="md"
-                      interactive
-                      onContentClick={() => {
-                        const match = songs.find(
-                          (s) => s.spotifyId === item.spotifyId,
-                        )
-                        setTab('library')
-                        if (match) setHighlightSpotifyId(match.spotifyId)
-                      }}
+                    <SongCard
+                      spotifyId={item.spotifyId}
+                      imgUrl={item.imgUrl}
+                      title={item.track}
+                      artist={item.artists?.join(', ') || item.artist}
                       actions={
                         <div className="flex items-center gap-3 flex-shrink-0">
                           <div className="hidden sm:flex flex-col items-end gap-0.5">
@@ -702,7 +631,7 @@ export default function Discover() {
                             {timeAgo(item.createdAt)}
                           </span>
                           <button
-                            onClick={() => toggleFavorite.mutate(item.spotifyId)}
+                            onClick={(e) => { e.stopPropagation(); toggleFavorite.mutate(item.spotifyId) }}
                             disabled={toggleFavorite.isPending}
                             aria-label={isSaved ? 'Remove from favorites' : 'Save to favorites'}
                             className={[

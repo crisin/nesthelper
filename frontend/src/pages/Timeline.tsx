@@ -1,9 +1,8 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ChevronRight, Eye } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
 import api from '../services/api'
-import TrackListItem from '../components/TrackListItem'
+import SongCard from '../components/SongCard'
 import LyricsViewer from '../components/LyricsViewer'
 import type { TimelineMonth, TimelineSong } from '../types'
 
@@ -63,7 +62,6 @@ function Skeleton() {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function Timeline() {
-  const navigate = useNavigate()
   const currentYear = new Date().getFullYear()
   const [year, setYear] = useState(currentYear)
   const [viewing, setViewing] = useState<TimelineSong | null>(null)
@@ -140,12 +138,12 @@ export default function Timeline() {
               <ul className="space-y-2">
                 {songs.map((song) => (
                   <li key={song.id}>
-                    <TrackListItem
-                      src={song.searchHistory?.imgUrl}
-                      track={song.track}
-                      artist={song.artists?.join(", ") || song.artist}
+                    <SongCard
                       size="sm"
-                      onCardClick={() => navigate(`/favorites/${song.id}`)}
+                      spotifyId={song.searchHistory?.spotifyId ?? song.id}
+                      imgUrl={song.searchHistory?.imgUrl}
+                      title={song.track}
+                      artist={song.artists?.join(', ') || song.artist}
                       actions={
                         <div className="flex items-center gap-1 flex-shrink-0">
                           {song.lyrics && (

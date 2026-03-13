@@ -1,6 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
 import {
   Search,
   X,
@@ -12,7 +11,7 @@ import api from "../services/api";
 import type { SavedLyric } from "../types";
 import SwipeToDelete from "../components/SwipeToDelete";
 import PullToRefresh from "../components/PullToRefresh";
-import TrackListItem from "../components/TrackListItem";
+import SongCard from "../components/SongCard";
 import DigestBanner from "../components/DigestBanner";
 import LyricsViewer from "../components/LyricsViewer";
 
@@ -41,7 +40,6 @@ export default function Favorites() {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("recent");
   const [viewingSong, setViewing] = useState<SavedLyric | null>(null);
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const { data: songs = [], isLoading } = useQuery<SavedLyric[]>({
@@ -194,12 +192,11 @@ export default function Favorites() {
                       }
                       disabled={unfavoriteSong.isPending || !spotifyId}
                     >
-                      <TrackListItem
-                        src={imgUrl}
-                        track={song.song?.title ?? ''}
+                      <SongCard
+                        spotifyId={spotifyId}
+                        imgUrl={imgUrl}
+                        title={song.song?.title ?? ''}
                         artist={(song.song?.artists?.join(", ") || song.song?.artist) ?? ''}
-                        size="md"
-                        onCardClick={() => navigate(`/favorites/${spotifyId ?? song.id}`)}
                         meta={
                           <div className="flex items-center gap-2 pt-0.5">
                             <span

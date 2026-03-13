@@ -142,7 +142,7 @@ function RequestCard({ req, currentUserId }: { req: FeatureRequest; currentUserI
   }
 
   return (
-    <div className="rounded-xl border border-edge bg-surface-raised overflow-hidden">
+    <div className="rounded-xl border border-edge bg-surface-raised ">
       <div
         className="flex items-start gap-3 px-3 py-3 cursor-pointer hover:bg-surface-overlay/30 transition-colors"
         onClick={() => setExpanded((v) => !v)}

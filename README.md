@@ -1,5 +1,12 @@
 # 🎵 Spotify Helper App - New Architecture
 
+
+# THANKS TO https://lrclib.net/
+
+they are awesome <3
+
+[LRCLib](https://lrclib.net/)
+
 ## 📋 Project Overview
 
 This is a complete rebuild of the Spotify Helper application using modern technologies. The app integrates Spotify Web API with custom authentication, allowing users to search, save, and manage lyrics while connecting their Spotify account.

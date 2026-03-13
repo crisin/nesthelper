@@ -18,11 +18,11 @@ export default function DynamicBackground({ page }: { page: string }) {
   const [visible, setVisible] = useState(false)
   const prevIdRef = useRef<string | null>(null)
 
-  // Early-out: mobile or disabled
-  if (!isDesktop || !enabled || !pages[page]) return null
+  const active = isDesktop && enabled && !!pages[page]
 
   // Poll the React Query cache every 2s — no extra network request
   useEffect(() => {
+    if (!active) return
     const tick = () => {
       const track = qc.getQueryData<SpotifyCurrentlyPlayingResponse | null>([
         'spotify-current-track',
@@ -44,10 +44,12 @@ export default function DynamicBackground({ page }: { page: string }) {
     tick()
     const timer = setInterval(tick, 2000)
     return () => clearInterval(timer)
-  }, [qc])
+  }, [qc, active])
 
-  const { data: features } = useAudioFeatures(spotifyId)
-  const dominantColor = useDominantColor(imgUrl)
+  const { data: features } = useAudioFeatures(active ? spotifyId : null)
+  const dominantColor = useDominantColor(active ? imgUrl : null)
+
+  if (!active) return null
 
   // Animation timing from audio features
   const tempo = features?.tempo ?? 120

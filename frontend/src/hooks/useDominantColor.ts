@@ -23,7 +23,8 @@ export function useDominantColor(
     img.crossOrigin = "anonymous";
     img.onload = () => {
       try {
-        const rgb = colorthief.getColorSync(img) as [number, number, number];
+        const raw = colorthief.getColorSync(img);
+        const rgb = Array.from(raw) as [number, number, number];
         colorCache.set(imgUrl, rgb);
         setColor(rgb);
       } catch {

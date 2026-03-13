@@ -20,7 +20,9 @@ export class CollectionsService {
           include: {
             savedLyric: {
               include: {
-                searchHistory: { select: { imgUrl: true } },
+                song: {
+                  select: { spotifyId: true, title: true, artist: true, artists: true, imgUrl: true },
+                },
               },
             },
           },
@@ -53,8 +55,8 @@ export class CollectionsService {
           include: {
             savedLyric: {
               include: {
-                searchHistory: {
-                  select: { imgUrl: true, url: true, spotifyId: true },
+                song: {
+                  select: { spotifyId: true, title: true, artist: true, artists: true, imgUrl: true },
                 },
                 tags: true,
               },

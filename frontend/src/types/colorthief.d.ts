@@ -12,4 +12,9 @@ declare module "colorthief" {
       quality: number = 10,
     ) => RGBColor[] | null
   }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  export function getColorSync(img: HTMLImageElement): [number, number, number] {
+    throw new Error("Function not implemented.")
+  }
 }

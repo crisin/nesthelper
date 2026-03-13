@@ -1,8 +1,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
+import * as colorthief from "colorthief";
 import { useState, useEffect } from "react";
-import  ColorThief  from "colorthief";
 
-const thief = new ColorThief();
 const colorCache = new Map<string, [number, number, number]>();
 
 export function useDominantColor(
@@ -24,7 +23,7 @@ export function useDominantColor(
     img.crossOrigin = "anonymous";
     img.onload = () => {
       try {
-        const rgb = thief.getColor(img) as [number, number, number];
+        const rgb = colorthief.getColorSync(img) as [number, number, number];
         colorCache.set(imgUrl, rgb);
         setColor(rgb);
       } catch {

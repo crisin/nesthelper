@@ -37,7 +37,7 @@ export class SongLyricsController {
     @Param('spotifyId') spotifyId: string,
     @Body() dto: UpdateSongLyricsDto,
   ) {
-    return this.service.upsert(req.user.id, spotifyId, dto.rawText, dto.version)
+    return this.service.upsert(req.user.id, spotifyId, dto.rawText, dto.version, dto.source)
   }
 
   /** POST /songs/:spotifyId/lyrics/restore/:version */

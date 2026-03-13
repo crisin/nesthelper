@@ -45,6 +45,7 @@ export class SongLyricsService {
     spotifyId: string,
     rawText: string,
     expectedVersion?: number,
+    source?: string,
   ): Promise<SongLyricsWithContent> {
     const song = await this.prisma.song.findUnique({
       where: { spotifyId },
@@ -133,7 +134,7 @@ export class SongLyricsService {
 
         return tx.songLyrics.update({
           where: { id: existing.id },
-          data: { rawText, version: { increment: 1 }, lastEditedBy: userId },
+          data: { rawText, version: { increment: 1 }, lastEditedBy: userId, lrclibSource: source === 'lrclib' },
           include: LYRICS_INCLUDE,
         });
       });
@@ -144,6 +145,7 @@ export class SongLyricsService {
         songId: song.id,
         rawText,
         lastEditedBy: userId,
+        lrclibSource: source === 'lrclib',
         lines: {
           create: lineTexts.map((text, i) => ({ lineNumber: i + 1, text })),
         },

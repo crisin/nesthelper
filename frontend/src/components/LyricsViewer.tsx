@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { X, SlidersHorizontal, Maximize2, Minimize2, Zap, Check, SkipForward, ChevronLeft, ArrowUpRight } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
@@ -22,6 +22,8 @@ interface ViewerSettings {
 }
 
 const VIEWER_KEY = 'lyrics-viewer-settings'
+const VIEWER_WIDTH_KEY = 'lyrics-viewer-width'
+const DEFAULT_WIDTH = 672 // ~sm:max-w-2xl equivalent
 
 const VIEWER_THEMES: Record<ViewerThemeKey, { label: string; swatch: string; bg: string; text: string; border: string }> = {
   auto:  { label: 'Auto',  swatch: '', bg: '', text: '', border: '' },
@@ -50,6 +52,17 @@ function loadSettings(): ViewerSettings {
   } catch { /**/ }
   return { theme: 'auto', font: 'sans', spacing: 'normal', fontSize: 1, fontWeight: 400, customBg: '', customText: '' }
 }
+
+function loadPanelWidth(): number {
+  try {
+    const raw = localStorage.getItem(VIEWER_WIDTH_KEY)
+    if (raw) return Math.max(380, Math.min(1200, parseInt(raw, 10)))
+  } catch { /**/ }
+  return DEFAULT_WIDTH
+}
+
+// Module-level const — evaluated once at import (intentional, matches project convention)
+const isDesktop = typeof window !== 'undefined' && window.matchMedia('(min-width: 640px)').matches
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -83,7 +96,9 @@ export default function LyricsViewer({
   const location = useLocation()
   const [s, setS] = useState<ViewerSettings>(loadSettings)
   const [showSettings, setShowSettings] = useState(false)
-  const [expanded, setExpanded] = useState(false)
+  const [fullscreen, setFullscreen] = useState(false)
+  const panelWidthRef = useRef(loadPanelWidth())
+  const [panelWidth, setPanelWidth] = useState(panelWidthRef.current)
 
   // Sync mode state
   const [syncMode, setSyncMode] = useState(false)
@@ -157,10 +172,13 @@ export default function LyricsViewer({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
       if (e.key === 'Escape') {
         if (syncMode) { setSyncMode(false); setSyncIndex(0); setPendingTs([]) }
+        else if (fullscreen) setFullscreen(false)
         else onClose()
       }
+      if ((e.key === 'f' || e.key === 'F') && !syncMode) setFullscreen((v) => !v)
       if (syncMode && e.key === ' ') {
         e.preventDefault()
         handleSyncTap()
@@ -169,12 +187,36 @@ export default function LyricsViewer({
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [syncMode, syncIndex, pendingTs])
+  }, [syncMode, syncIndex, pendingTs, fullscreen])
 
   useEffect(() => {
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     return () => { document.body.style.overflow = prev }
+  }, [])
+
+  // ── Resize handle (desktop only) ──────────────────────────────────────────
+
+  const onResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    const startX = e.clientX
+    const startW = panelWidthRef.current
+    const onMove = (me: MouseEvent) => {
+      const newW = Math.max(380, Math.min(window.innerWidth - 32, startW + me.clientX - startX))
+      panelWidthRef.current = newW
+      setPanelWidth(newW)
+    }
+    const onUp = () => {
+      try { localStorage.setItem(VIEWER_WIDTH_KEY, String(panelWidthRef.current)) } catch { /**/ }
+      document.body.style.userSelect = ''
+      document.body.style.cursor = ''
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+    }
+    document.body.style.userSelect = 'none'
+    document.body.style.cursor = 'col-resize'
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
   }, [])
 
   // ── Sync mode logic ───────────────────────────────────────────────────────
@@ -245,9 +287,16 @@ export default function LyricsViewer({
     return { background: 'transparent', borderColor: 'transparent', opacity: 0.5 }
   }
 
-  const sheetSizeClass = expanded
-    ? 'w-full sm:max-w-4xl sm:mx-4 max-h-[96vh]'
-    : 'w-full sm:max-w-2xl sm:mx-4 max-h-[88vh]'
+  // Sheet class + dimensions
+  const sheetClass = fullscreen
+    ? 'absolute inset-0 z-10 flex flex-col overflow-hidden'
+    : 'relative z-10 w-full sm:mx-4 rounded-t-2xl sm:rounded-2xl border shadow-2xl flex flex-col overflow-hidden'
+
+  const sheetDimensionStyle: React.CSSProperties = fullscreen
+    ? {}
+    : isDesktop
+      ? { width: panelWidth, maxWidth: 'calc(100vw - 32px)', maxHeight: '88vh' }
+      : { maxHeight: '88vh' }
 
   const pickerBg   = s.customBg   || theme.bg   || '#f9f9f7'
   const pickerText = s.customText || theme.text || '#0e0e0e'
@@ -268,13 +317,33 @@ export default function LyricsViewer({
 
       {/* Sheet */}
       <div
-        className={`relative z-10 ${sheetSizeClass} rounded-t-2xl sm:rounded-2xl border shadow-2xl flex flex-col transition-all duration-200`}
-        style={{ ...sheetStyle, borderColor }}
+        className={sheetClass}
+        style={{
+          ...sheetStyle,
+          ...(fullscreen ? {} : { borderColor }),
+          ...sheetDimensionStyle,
+        }}
       >
-        {/* Drag handle — mobile */}
-        <div className="sm:hidden flex justify-center pt-3 pb-1 flex-shrink-0">
-          <div className="w-8 h-1 rounded-full" style={{ background: borderColor + '66' }} />
-        </div>
+        {/* Resize handle — desktop only, not in fullscreen */}
+        {!fullscreen && (
+          <div
+            className="absolute top-0 right-0 bottom-0 w-3 cursor-col-resize select-none hidden sm:block group z-20"
+            onMouseDown={onResizeStart}
+            title="Breite anpassen"
+          >
+            <div
+              className="absolute right-0.5 top-1/2 -translate-y-1/2 w-0.5 h-10 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-150"
+              style={{ background: borderColor }}
+            />
+          </div>
+        )}
+
+        {/* Drag handle — mobile, not in fullscreen */}
+        {!fullscreen && (
+          <div className="sm:hidden flex justify-center pt-3 pb-1 flex-shrink-0">
+            <div className="w-8 h-1 rounded-full" style={{ background: borderColor + '66' }} />
+          </div>
+        )}
 
         {/* ── Header ── */}
         <div className="flex items-center gap-2.5 px-4 py-3 border-b flex-shrink-0" style={{ borderColor }}>
@@ -331,10 +400,16 @@ export default function LyricsViewer({
             </button>
           )}
 
-          {/* Expand toggle */}
+          {/* Fullscreen toggle */}
           {!syncMode && (
-            <button onClick={() => setExpanded((v) => !v)} aria-label={expanded ? 'Verkleinern' : 'Vergrößern'} className="hidden sm:flex flex-shrink-0 w-7 h-7 items-center justify-center rounded-lg" style={{ opacity: 0.45 }}>
-              {expanded ? <Minimize2 size={13} strokeWidth={1.75} /> : <Maximize2 size={13} strokeWidth={1.75} />}
+            <button
+              onClick={() => setFullscreen((v) => !v)}
+              aria-label={fullscreen ? 'Vollbild verlassen' : 'Vollbild'}
+              title={fullscreen ? 'Vollbild verlassen (F)' : 'Vollbild (F)'}
+              className="hidden sm:flex flex-shrink-0 w-7 h-7 items-center justify-center rounded-lg"
+              style={{ opacity: fullscreen ? 0.8 : 0.45 }}
+            >
+              {fullscreen ? <Minimize2 size={13} strokeWidth={1.75} /> : <Maximize2 size={13} strokeWidth={1.75} />}
             </button>
           )}
 

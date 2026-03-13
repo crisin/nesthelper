@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { BarChart2, Music, Tag, User, Calendar } from 'lucide-react'
+import { BarChart2, Music, Tag, User, Calendar, Sparkles } from 'lucide-react'
 import api from '../services/api'
-import type { WordFrequency, TagCount, ArtistCount, WeekCount } from '../types'
+import type { WordFrequency, TagCount, ArtistCount, WeekCount, LrclibStats } from '../types'
 
 type Tab = 'me' | 'global'
 
@@ -156,6 +156,45 @@ function EmptyState({ message }: { message: string }) {
   return <p className="text-sm text-foreground-subtle py-2">{message}</p>
 }
 
+// ─── LRCLib stats ─────────────────────────────────────────────────────────────
+
+function LrclibStatsView({ stats }: { stats: LrclibStats | undefined }) {
+  if (!stats) return <EmptyState message="Keine Daten" />
+  const { total, lrclibCount } = stats
+  const pct = total > 0 ? Math.round((lrclibCount / total) * 100) : 0
+  return (
+    <div className="space-y-3">
+      <div className="flex items-end justify-between">
+        <p className="text-sm text-foreground-muted">
+          <span className="text-foreground font-semibold">{lrclibCount}</span>
+          {' von '}
+          <span className="text-foreground font-semibold">{total}</span>
+          {' Songs mit LRCLib-Lyrics'}
+        </p>
+        <span className="text-xs text-foreground-subtle tabular-nums">{pct}%</span>
+      </div>
+      <div className="h-2 rounded-full bg-surface overflow-hidden">
+        <div
+          className="h-full rounded-full bg-accent transition-all duration-500"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      {lrclibCount > 0 && (
+        <p className="text-xs text-foreground-subtle">
+          {lrclibCount === 1
+            ? '1 Song wurde mit synced Lyrics aus LRCLib importiert.'
+            : `${lrclibCount} Songs wurden mit Lyrics aus LRCLib importiert.`}
+        </p>
+      )}
+      {total > 0 && lrclibCount === 0 && (
+        <p className="text-xs text-foreground-subtle">
+          Noch keine Lyrics über LRCLib importiert. Öffne einen Song und klicke auf den LRCLib-Button.
+        </p>
+      )}
+    </div>
+  )
+}
+
 // ─── Shared analytics sections ────────────────────────────────────────────────
 
 function AnalyticsSections({
@@ -291,6 +330,18 @@ export default function Analytics() {
     enabled: tab === 'global',
   })
 
+  const { data: myLrclib,  isLoading: loadingMyLrclib  } = useQuery<LrclibStats>({
+    queryKey: ['analytics-lrclib'],
+    queryFn: () => api.get<LrclibStats>('/analytics/me/lrclib').then((r) => r.data),
+    staleTime: 5 * 60_000,
+  })
+  const { data: glLrclib,  isLoading: loadingGlLrclib  } = useQuery<LrclibStats>({
+    queryKey: ['analytics-global-lrclib'],
+    queryFn: () => api.get<LrclibStats>('/analytics/global/lrclib').then((r) => r.data),
+    staleTime: 5 * 60_000,
+    enabled: tab === 'global',
+  })
+
   const totalMySaves = myTimeline.reduce((s, w) => s + w.count, 0)
   const totalGlSaves = glTimeline.reduce((s, w) => s + w.count, 0)
   const totalSaves   = tab === 'me' ? totalMySaves : totalGlSaves
@@ -355,6 +406,15 @@ export default function Analytics() {
           loading={glLoading}
         />
       )}
+
+      {/* LRCLib section */}
+      <Section
+        icon={Sparkles}
+        title="LRCLib"
+        isLoading={tab === 'me' ? loadingMyLrclib : loadingGlLrclib}
+      >
+        <LrclibStatsView stats={tab === 'me' ? myLrclib : glLrclib} />
+      </Section>
     </div>
   )
 }

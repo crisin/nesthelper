@@ -64,10 +64,16 @@ export interface SongLyrics {
   rawText: string
   version: number
   lastEditedBy: string | null
+  lrclibSource: boolean
   createdAt: string
   updatedAt: string
   lines: LyricsLine[]
   versions: LyricsVersion[]
+}
+
+export interface LrclibStats {
+  total: number
+  lrclibCount: number
 }
 
 export type LyricsFetchStatus = 'IDLE' | 'FETCHING' | 'DONE' | 'FAILED'

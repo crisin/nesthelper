@@ -549,7 +549,7 @@ function LrclibPreviewPanel({
       if (!preview) return
       const rawText = preview.lines.map((l) => l.text).join('\n')
       const saved = await api
-        .put<SongLyrics>(`/songs/${spotifyId}/lyrics`, { rawText })
+        .put<SongLyrics>(`/songs/${spotifyId}/lyrics`, { rawText, source: 'lrclib' })
         .then((r) => r.data)
       if (preview.isSynced && (saved.lines?.length ?? 0) > 0) {
         const timestampLines = preview.lines
@@ -850,19 +850,26 @@ export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer }: P
           )}
 
           {mode === 'view' && (
-            <button
-              onClick={() => setShowLrclib((v) => !v)}
-              title="Lyrics von LRCLib vorschlagen lassen"
-              className={[
-                'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors border',
-                showLrclib
-                  ? 'bg-accent/10 border-accent/30 text-accent'
-                  : 'border-edge text-foreground-subtle hover:text-foreground-muted',
-              ].join(' ')}
-            >
-              <Sparkles size={11} strokeWidth={2} />
-              LRCLib
-            </button>
+            lyrics?.lrclibSource ? (
+              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs border border-accent/20 bg-accent/8 text-accent/70">
+                <Sparkles size={11} strokeWidth={2} />
+                von LRCLib importiert
+              </span>
+            ) : (
+              <button
+                onClick={() => setShowLrclib((v) => !v)}
+                title="Lyrics von LRCLib vorschlagen lassen"
+                className={[
+                  'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors border',
+                  showLrclib
+                    ? 'bg-accent/10 border-accent/30 text-accent'
+                    : 'border-edge text-foreground-subtle hover:text-foreground-muted',
+                ].join(' ')}
+              >
+                <Sparkles size={11} strokeWidth={2} />
+                LRCLib
+              </button>
+            )
           )}
 
           <div className="flex items-center rounded-lg border border-edge bg-surface-raised p-0.5 gap-0.5">

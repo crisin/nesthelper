@@ -380,7 +380,7 @@ type Tab = 'liked' | 'playlists'
 
 export default function SpotifyLibrary() {
   const queryClient = useQueryClient()
-  const [tab, setTab] = useState<Tab>('liked')
+  const [tab, setTab] = useState<Tab>('playlists')
   const [addedSpotifyIds, setAddedSpotifyIds] = useState<Set<string>>(new Set())
   const [importResult, setImportResult] = useState<{ imported: number; alreadyExisted: number } | null>(null)
 

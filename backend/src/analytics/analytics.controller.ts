@@ -43,6 +43,11 @@ export class AnalyticsController {
     return this.analytics.getMonthlyTimeline(req.user.id, y);
   }
 
+  @Get('me/lrclib')
+  getLrclibStats(@Req() req: AuthedRequest) {
+    return this.analytics.getLrclibStats(req.user.id);
+  }
+
   // ── Global ──────────────────────────────────────────────────────────────────
 
   @Get('global/words')
@@ -68,5 +73,10 @@ export class AnalyticsController {
   @Get('global/timeline')
   getGlobalTimeline() {
     return this.analytics.getGlobalTimeline();
+  }
+
+  @Get('global/lrclib')
+  getGlobalLrclibStats() {
+    return this.analytics.getGlobalLrclibStats();
   }
 }

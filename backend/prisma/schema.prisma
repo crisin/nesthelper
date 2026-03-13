@@ -94,6 +94,7 @@ model SongLyrics {
   rawText      String   @default("")
   version      Int      @default(1)
   lastEditedBy String?
+  lrclibSource Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

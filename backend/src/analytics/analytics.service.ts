@@ -262,6 +262,34 @@ export class AnalyticsService {
       });
   }
 
+  async getLrclibStats(
+    userId: string,
+  ): Promise<{ total: number; lrclibCount: number }> {
+    const [total, lrclibCount] = await Promise.all([
+      this.prisma.songLyrics.count({
+        where: { song: { savedBy: { some: { userId } } } },
+      }),
+      this.prisma.songLyrics.count({
+        where: {
+          lrclibSource: true,
+          song: { savedBy: { some: { userId } } },
+        } as never,
+      }),
+    ]);
+    return { total, lrclibCount };
+  }
+
+  async getGlobalLrclibStats(): Promise<{
+    total: number;
+    lrclibCount: number;
+  }> {
+    const [total, lrclibCount] = await Promise.all([
+      this.prisma.songLyrics.count(),
+      this.prisma.songLyrics.count({ where: { lrclibSource: true } as never }),
+    ]);
+    return { total, lrclibCount };
+  }
+
   // ── Global (cross-user) ────────────────────────────────────────────────────
 
   async getGlobalTopWords() {

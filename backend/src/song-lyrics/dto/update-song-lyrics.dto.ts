@@ -8,4 +8,9 @@ export class UpdateSongLyricsDto {
   @IsOptional()
   @IsNumber()
   version?: number
+
+  /** Set to 'lrclib' when importing from LRCLib; omit for manual edits (resets the flag). */
+  @IsOptional()
+  @IsString()
+  source?: string
 }

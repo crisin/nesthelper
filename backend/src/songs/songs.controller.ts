@@ -44,6 +44,13 @@ export class SongsController {
     return song
   }
 
+  /** GET /songs/:spotifyId/exists — always 200, used by SongAction to avoid console 404s */
+  @Get(':spotifyId/exists')
+  async exists(@Param('spotifyId') spotifyId: string) {
+    const song = await this.service.getBySpotifyId(spotifyId)
+    return { exists: !!song }
+  }
+
   /** GET /songs/:spotifyId/insights */
   @Get(':spotifyId/insights')
   getInsights(@Param('spotifyId') spotifyId: string) {

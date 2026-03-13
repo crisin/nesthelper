@@ -318,9 +318,12 @@ interface Props {
   onClose: () => void
 }
 
+const OPEN_STATUSES: FeatureStatus[] = ['DRAFT', 'MUST_HAVE', 'WORKING_ON_IT']
+const DONE_STATUSES: FeatureStatus[] = ['DONE', 'DECLINED']
+
 export default function FeatureRequestPanel({ mode, onClose }: Props) {
   const [showCreate, setShowCreate] = useState(false)
-  const [sortBy, setSortBy] = useState<'votes' | 'date'>('votes')
+  const [tab, setTab] = useState<'open' | 'done'>('open')
   const currentUserId = useAuthStore((s) => s.user?.id ?? '')
   const meta = MODE_META[mode]
 
@@ -330,11 +333,16 @@ export default function FeatureRequestPanel({ mode, onClose }: Props) {
     staleTime: 30_000,
   })
 
-  const sorted = [...requests].sort((a, b) =>
-    sortBy === 'votes'
-      ? b.votes.length - a.votes.length
-      : new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  )
+  const filtered = requests
+    .filter((r) =>
+      tab === 'open'
+        ? OPEN_STATUSES.includes(r.status)
+        : DONE_STATUSES.includes(r.status)
+    )
+    .sort((a, b) => b.votes.length - a.votes.length)
+
+  const openCount = requests.filter((r) => OPEN_STATUSES.includes(r.status)).length
+  const doneCount = requests.filter((r) => DONE_STATUSES.includes(r.status)).length
 
   return (
     <>
@@ -349,24 +357,27 @@ export default function FeatureRequestPanel({ mode, onClose }: Props) {
         <div className={`flex items-center gap-3 px-4 py-3.5 border-b ${meta.borderClass} flex-shrink-0`}>
           <div className="flex-1 min-w-0">
             <h2 className={`text-sm font-semibold ${meta.headerAccent}`}>{meta.label}</h2>
-            <p className="text-[11px] text-foreground-muted mt-0.5">
-              {requests.length} {requests.length === 1 ? 'Eintrag' : 'Einträge'}
-            </p>
           </div>
 
           <div className="flex items-center rounded-lg border border-edge bg-surface p-0.5 gap-0.5">
-            {(['votes', 'date'] as const).map((s) => (
-              <button
-                key={s}
-                onClick={() => setSortBy(s)}
-                className={[
-                  'px-2 py-1 rounded-md text-[11px] font-medium transition-colors',
-                  sortBy === s ? 'bg-surface-overlay text-foreground' : 'text-foreground-subtle hover:text-foreground-muted',
-                ].join(' ')}
-              >
-                {s === 'votes' ? 'Votes' : 'Neu'}
-              </button>
-            ))}
+            <button
+              onClick={() => setTab('open')}
+              className={[
+                'px-2 py-1 rounded-md text-[11px] font-medium transition-colors',
+                tab === 'open' ? 'bg-surface-overlay text-foreground' : 'text-foreground-subtle hover:text-foreground-muted',
+              ].join(' ')}
+            >
+              Offen{openCount > 0 && ` · ${openCount}`}
+            </button>
+            <button
+              onClick={() => setTab('done')}
+              className={[
+                'px-2 py-1 rounded-md text-[11px] font-medium transition-colors',
+                tab === 'done' ? 'bg-surface-overlay text-foreground' : 'text-foreground-subtle hover:text-foreground-muted',
+              ].join(' ')}
+            >
+              Erledigt{doneCount > 0 && ` · ${doneCount}`}
+            </button>
           </div>
 
           <button
@@ -399,13 +410,13 @@ export default function FeatureRequestPanel({ mode, onClose }: Props) {
               <Loader2 size={20} className="animate-spin text-foreground-subtle" />
             </div>
           )}
-          {!isLoading && sorted.length === 0 && (
+          {!isLoading && filtered.length === 0 && (
             <div className="text-center py-12 space-y-1">
               <p className="text-sm text-foreground-muted">{meta.emptyLabel}</p>
               <p className="text-xs text-foreground-subtle">{meta.emptyHint}</p>
             </div>
           )}
-          {sorted.map((req) => (
+          {filtered.map((req) => (
             <RequestCard key={req.id} req={req} currentUserId={currentUserId} />
           ))}
         </div>

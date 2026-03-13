@@ -402,6 +402,7 @@ export default function Settings() {
                   ["favorites", "Favoriten"],
                   ["timeline", "Timeline"],
                   ["settings", "Einstellungen"],
+                  ["song", "Song-Detail"],
                 ] as [string, string][]
               ).map(([key, label]) => (
                 <div key={key} className="flex items-center justify-between">

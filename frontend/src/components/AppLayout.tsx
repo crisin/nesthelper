@@ -24,16 +24,16 @@ function SongAction() {
   });
   const spotifyId = currentTrack?.item?.id;
 
-  const { data: song } = useQuery<Song | null>({
-    queryKey: ["song", spotifyId],
+  const { data } = useQuery<{ exists: boolean }>({
+    queryKey: ["song-exists", spotifyId],
     queryFn: () =>
-      api.get<Song>(`/songs/${spotifyId}`).then((r) => r.data).catch(() => null),
+      api.get<{ exists: boolean }>(`/songs/${spotifyId}/exists`).then((r) => r.data),
     enabled: !!spotifyId,
     staleTime: 60_000,
     retry: false,
   });
 
-  if (song) {
+  if (data?.exists) {
     return (
       <Link
         to={`/songs/${spotifyId}`}

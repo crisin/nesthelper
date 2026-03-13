@@ -21,7 +21,7 @@ export const useVisualStore = create<VisualStore>()(
   persist(
     (set) => ({
       enabled: false,
-      pages: { dashboard: true, discover: true, favorites: true, timeline: true, settings: true },
+      pages: { dashboard: true, discover: true, favorites: true, timeline: true, settings: true, song: true },
       mode: 'both',
       blurAmount: 20,
       dimAmount: 0.75,

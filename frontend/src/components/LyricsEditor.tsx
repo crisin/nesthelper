@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useCallback } from 'react'
+import { useState, useMemo, useRef, useCallback, useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Eye, Pencil, History, ChevronDown, ChevronUp, MessageSquarePlus,
@@ -701,6 +701,17 @@ export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer }: P
     refetchInterval: 1_000,
     staleTime: 0,
   })
+
+  // When lyrics fetch is pending but nothing has arrived yet, periodically refresh
+  // saved-lyrics so we pick up fetchStatus changes (DONE/FAILED) from the queue processor.
+  // Without this, a failed LRCLib fetch leaves the spinner running forever.
+  useEffect(() => {
+    if (fetchStatus !== 'FETCHING' || lyrics !== null) return
+    const id = setInterval(() => {
+      void queryClient.invalidateQueries({ queryKey: ['saved-lyrics'] })
+    }, 8_000)
+    return () => clearInterval(id)
+  }, [fetchStatus, lyrics, queryClient])
 
   const progressMs = currentTrack?.progress_ms ?? 0
 

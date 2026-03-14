@@ -62,7 +62,12 @@ function TrackRow({
         ].join(' ')}
         title={inDb ? 'Bereits gespeichert' : 'Zu Favoriten hinzufügen'}
       >
-        {inDb ? <Check size={12} strokeWidth={2.5} /> : <Plus size={12} strokeWidth={2.5} />}
+        {inDb
+          ? <Check size={12} strokeWidth={2.5} />
+          : isPending
+            ? <Loader2 size={12} strokeWidth={2} className="animate-spin" />
+            : <Plus size={12} strokeWidth={2.5} />
+        }
       </button>
     </div>
   )

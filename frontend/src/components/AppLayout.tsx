@@ -20,6 +20,7 @@ import type { SpotifyCurrentlyPlayingResponse } from "../types";
 import DynamicBackground from "./DynamicBackground";
 import FeatureRequestPanel, { type PanelMode } from "./FeatureRequestPanel";
 import LyricsSearchButton from "./LyricsSearchButton";
+import Notifications from "./Notifications";
 import NowPlayingWidget from "./NowPlayingWidget";
 import SpotifyConnect from "./SpotifyConnect";
 import UsernameEdit from "./UsernameEdit";
@@ -98,6 +99,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     <div
       className={`min-h-screen text-foreground flex ${visualEnabled ? "" : "bg-surface"}`}
     >
+      <Notifications />
       <DynamicBackground pageKey={pageKey} />
       {/* ── Sidebar (desktop only) ──────────────────────────────── */}
       <div className="hidden sm:flex fixed inset-y-0 left-0 z-40 w-56 flex-col bg-surface-raised border-r border-edge">

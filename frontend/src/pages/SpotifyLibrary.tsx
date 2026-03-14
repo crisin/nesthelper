@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Music, Check, Plus, ChevronDown, ChevronRight, Loader2, ListMusic, Heart } from 'lucide-react'
 import api from '../services/api'
+import { useNotify } from '../stores/notificationStore'
 import type {
   SpotifyLibraryTrack,
   SpotifyLibraryPage,
@@ -385,9 +386,9 @@ type Tab = 'liked' | 'playlists'
 
 export default function SpotifyLibrary() {
   const queryClient = useQueryClient()
+  const notify = useNotify()
   const [tab, setTab] = useState<Tab>('playlists')
   const [addedSpotifyIds, setAddedSpotifyIds] = useState<Set<string>>(new Set())
-  const [importResult, setImportResult] = useState<{ imported: number; alreadyExisted: number } | null>(null)
 
   const importMutation = useMutation({
     mutationFn: (tracks: SpotifyLibraryTrack[]) =>
@@ -400,10 +401,12 @@ export default function SpotifyLibrary() {
         tracks.forEach((t) => next.add(t.id))
         return next
       })
-      setImportResult(result)
-      setTimeout(() => setImportResult(null), 4000)
+      const parts = [`${result.imported} importiert`]
+      if (result.alreadyExisted > 0) parts.push(`${result.alreadyExisted} bereits vorhanden`)
+      notify.success(parts.join(' · '))
       queryClient.invalidateQueries({ queryKey: ['saved-lyrics'] })
     },
+    onError: () => notify.error('Import fehlgeschlagen'),
   })
 
   return (
@@ -415,19 +418,6 @@ export default function SpotifyLibrary() {
           Songs aus deiner Spotify-Bibliothek importieren
         </p>
       </div>
-
-      {/* Import result toast */}
-      {importResult && (
-        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-accent/10 border border-accent/20 text-sm">
-          <Check size={14} className="text-accent flex-shrink-0" strokeWidth={2.5} />
-          <span className="text-foreground">
-            <strong>{importResult.imported}</strong> importiert
-            {importResult.alreadyExisted > 0 && (
-              <span className="text-foreground-muted"> · {importResult.alreadyExisted} bereits vorhanden</span>
-            )}
-          </span>
-        </div>
-      )}
 
       {/* Tabs */}
       <div className="flex gap-1 bg-surface-raised rounded-xl p-1 border border-edge">

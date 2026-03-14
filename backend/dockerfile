@@ -22,16 +22,20 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
+# Prisma's query engine binary requires OpenSSL at runtime
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
 # copy ONLY already-installed deps
 COPY --from=builder /app/node_modules ./node_modules
 
-# copy build output + prisma schema
+# copy build output + prisma schema + Prisma 7 config
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 COPY package*.json ./
 
-# non-root user
-RUN useradd -m nestjs
+# non-root user — chown after all COPYs so nestjs can write prisma engine files
+RUN useradd -m nestjs && chown -R nestjs:nestjs /app
 USER nestjs
 
 EXPOSE 3001

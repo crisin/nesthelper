@@ -48,8 +48,18 @@ export interface LyricsLine {
   lineNumber: number
   text: string
   timestampMs?: number | null
+  singer?: string | null
   annotations?: LineAnnotation[]
 }
+
+export interface LyricsSection {
+  id: string
+  label: string
+  startLine: number
+  position: number
+}
+
+export type LyricsStatus = 'DRAFT' | 'WORK_IN_PROGRESS' | 'FINISHED'
 
 export interface LyricsVersion {
   id: string
@@ -65,10 +75,12 @@ export interface SongLyrics {
   version: number
   lastEditedBy: string | null
   lrclibSource: boolean
+  status: LyricsStatus
   createdAt: string
   updatedAt: string
   lines: LyricsLine[]
   versions: LyricsVersion[]
+  sections: LyricsSection[]
 }
 
 export interface LrclibStats {
@@ -106,6 +118,7 @@ export interface SavedLyric {
   songId: string | null
   note?: string | null
   isFavorite?: boolean
+  artistColors?: Record<string, string> | null
   createdAt: string
   song?: Song | null
 }

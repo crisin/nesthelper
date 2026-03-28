@@ -104,6 +104,24 @@ export class SavedLyricsService {
     });
   }
 
+  async updateArtistColors(
+    userId: string,
+    id: string,
+    artistColors: Record<string, string>,
+  ): Promise<Pick<SavedLyric, 'id' | 'artistColors'>> {
+    const item = await this.prisma.savedLyric.findFirst({
+      where: { id, userId },
+      select: { id: true },
+    });
+    if (!item) throw new NotFoundException('SavedLyric not found');
+
+    return this.prisma.savedLyric.update({
+      where: { id },
+      data: { artistColors: artistColors as object },
+      select: { id: true, artistColors: true },
+    });
+  }
+
   async remove(userId: string, id: string): Promise<void> {
     const item = await this.prisma.savedLyric.findFirst({
       where: { id, userId },

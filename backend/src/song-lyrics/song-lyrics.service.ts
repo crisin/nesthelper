@@ -15,6 +15,7 @@ const VERSIONS_TO_KEEP = 20;
 const LYRICS_INCLUDE = {
   lines: { orderBy: { lineNumber: 'asc' as const } },
   versions: { orderBy: { version: 'desc' as const }, take: VERSIONS_TO_KEEP },
+  sections: { orderBy: { position: 'asc' as const } },
 } satisfies Prisma.SongLyricsInclude;
 
 export type SongLyricsWithContent = Prisma.SongLyricsGetPayload<{
@@ -40,12 +41,36 @@ export class SongLyricsService {
     });
   }
 
+  async updateStatus(
+    spotifyId: string,
+    status: import('@prisma/client').LyricsStatus,
+  ): Promise<SongLyricsWithContent> {
+    const song = await this.prisma.song.findUnique({
+      where: { spotifyId },
+      select: { id: true },
+    });
+    if (!song) throw new NotFoundException('Song not found');
+
+    const lyrics = await this.prisma.songLyrics.findUnique({
+      where: { songId: song.id },
+    });
+    if (!lyrics) throw new NotFoundException('Lyrics not found');
+
+    return this.prisma.songLyrics.update({
+      where: { id: lyrics.id },
+      data: { status },
+      include: LYRICS_INCLUDE,
+    });
+  }
+
   async upsert(
     userId: string,
     spotifyId: string,
     rawText: string,
     expectedVersion?: number,
     source?: string,
+    sections?: { label: string; startLine: number }[],
+    singerMap?: { lineNumber: number; singer?: string | null }[],
   ): Promise<SongLyricsWithContent> {
     const song = await this.prisma.song.findUnique({
       where: { spotifyId },
@@ -98,21 +123,39 @@ export class SongLyricsService {
         const currentLines = await tx.lyricsLine.findMany({
           where: { songLyricsId: existing.id },
           orderBy: { lineNumber: 'asc' },
-          select: { id: true, text: true, timestampMs: true },
+          select: { id: true, text: true, timestampMs: true, singer: true },
         });
 
         const { matched, deletedOldIds } = mergeLines(currentLines, lineTexts);
 
         // Delete lines that have no match in the new text (cascades to annotations)
         if (deletedOldIds.length > 0) {
-          await tx.lyricsLine.deleteMany({ where: { id: { in: deletedOldIds } } });
+          await tx.lyricsLine.deleteMany({
+            where: { id: { in: deletedOldIds } },
+          });
         }
 
-        // Update matched lines (new position + text, timestamps untouched)
+        // Build singer lookup by lineNumber from the incoming singerMap
+        const singerByLineNum = new Map<number, string | null | undefined>();
+        if (singerMap) {
+          for (const s of singerMap)
+            singerByLineNum.set(s.lineNumber, s.singer);
+        }
+
+        // Update matched lines (new position + text, timestamps + singer carried over or updated)
         for (const m of matched) {
+          const newLineNum = m.newIndex + 1;
+          const oldLine = currentLines.find((l) => l.id === m.oldId);
+          const singer = singerByLineNum.has(newLineNum)
+            ? (singerByLineNum.get(newLineNum) ?? null)
+            : (oldLine?.singer ?? null);
           await tx.lyricsLine.update({
             where: { id: m.oldId },
-            data: { lineNumber: m.newIndex + 1, text: lineTexts[m.newIndex] },
+            data: {
+              lineNumber: newLineNum,
+              text: lineTexts[m.newIndex],
+              singer,
+            },
           });
         }
 
@@ -128,16 +171,44 @@ export class SongLyricsService {
               songLyricsId: existing.id,
               lineNumber: l.lineNumber,
               text: l.text,
+              singer: singerByLineNum.get(l.lineNumber) ?? null,
             })),
           });
         }
 
+        // Replace sections if provided
+        if (sections !== undefined) {
+          await tx.lyricsSection.deleteMany({
+            where: { songLyricsId: existing.id },
+          });
+          if (sections.length > 0) {
+            await tx.lyricsSection.createMany({
+              data: sections.map((s) => ({
+                songLyricsId: existing.id,
+                label: s.label,
+                startLine: s.startLine,
+                position: s.startLine,
+              })),
+            });
+          }
+        }
+
         return tx.songLyrics.update({
           where: { id: existing.id },
-          data: { rawText, version: { increment: 1 }, lastEditedBy: userId, lrclibSource: source === 'lrclib' },
+          data: {
+            rawText,
+            version: { increment: 1 },
+            lastEditedBy: userId,
+            lrclibSource: source === 'lrclib',
+          },
           include: LYRICS_INCLUDE,
         });
       });
+    }
+
+    const singerByLineNum = new Map<number, string | null | undefined>();
+    if (singerMap) {
+      for (const s of singerMap) singerByLineNum.set(s.lineNumber, s.singer);
     }
 
     return this.prisma.songLyrics.create({
@@ -147,8 +218,22 @@ export class SongLyricsService {
         lastEditedBy: userId,
         lrclibSource: source === 'lrclib',
         lines: {
-          create: lineTexts.map((text, i) => ({ lineNumber: i + 1, text })),
+          create: lineTexts.map((text, i) => ({
+            lineNumber: i + 1,
+            text,
+            singer: singerByLineNum.get(i + 1) ?? null,
+          })),
         },
+        sections:
+          sections && sections.length > 0
+            ? {
+                create: sections.map((s) => ({
+                  label: s.label,
+                  startLine: s.startLine,
+                  position: s.startLine,
+                })),
+              }
+            : undefined,
       },
       include: LYRICS_INCLUDE,
     });
@@ -275,7 +360,10 @@ export class SongLyricsService {
     artist: string,
   ): Promise<LrclibApiResponse | null> {
     try {
-      const params = new URLSearchParams({ track_name: track, artist_name: artist });
+      const params = new URLSearchParams({
+        track_name: track,
+        artist_name: artist,
+      });
       const res = await fetch(`https://lrclib.net/api/search?${params}`, {
         signal: AbortSignal.timeout(10_000),
         headers: { 'Lrclib-Client': 'lyrics-helper/1.0 (self-hosted)' },
@@ -387,7 +475,10 @@ function lineSimilarity(a: string, b: string): number {
  * that exceeds SIMILARITY_THRESHOLD. Preserves relative order implicitly
  * because we iterate new lines sequentially.
  */
-function mergeLines(oldLines: OldLineRecord[], newTexts: string[]): MergeResult {
+function mergeLines(
+  oldLines: OldLineRecord[],
+  newTexts: string[],
+): MergeResult {
   const claimed = new Set<string>();
   const matched: LineMatch[] = [];
 
@@ -410,6 +501,8 @@ function mergeLines(oldLines: OldLineRecord[], newTexts: string[]): MergeResult 
     }
   }
 
-  const deletedOldIds = oldLines.filter((o) => !claimed.has(o.id)).map((o) => o.id);
+  const deletedOldIds = oldLines
+    .filter((o) => !claimed.has(o.id))
+    .map((o) => o.id);
   return { matched, deletedOldIds };
 }

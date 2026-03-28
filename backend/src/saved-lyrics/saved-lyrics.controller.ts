@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UpsertNoteDto } from './dto/upsert-note.dto';
+import { UpdateArtistColorsDto } from './dto/update-artist-colors.dto';
 import { SavedLyricsService } from './saved-lyrics.service';
 
 type AuthedRequest = { user: { id: string } };
@@ -80,5 +81,14 @@ export class SavedLyricsController {
     @Body() dto: UpsertNoteDto,
   ) {
     return this.service.upsertNote(req.user.id, id, dto.text);
+  }
+
+  @Patch(':id/artist-colors')
+  updateArtistColors(
+    @Req() req: AuthedRequest,
+    @Param('id') id: string,
+    @Body() dto: UpdateArtistColorsDto,
+  ) {
+    return this.service.updateArtistColors(req.user.id, id, dto.artistColors);
   }
 }

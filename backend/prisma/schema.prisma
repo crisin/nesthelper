@@ -32,6 +32,12 @@ enum FeatureStatus {
   DECLINED
 }
 
+enum LyricsStatus {
+  DRAFT
+  WORK_IN_PROGRESS
+  FINISHED
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
@@ -89,18 +95,34 @@ model Song {
 // ─── NEW: Shared lyrics document per Song ─────────────────────────────────────
 
 model SongLyrics {
-  id           String   @id @default(cuid())
-  songId       String   @unique
-  rawText      String   @default("")
-  version      Int      @default(1)
+  id           String       @id @default(cuid())
+  songId       String       @unique
+  rawText      String       @default("")
+  version      Int          @default(1)
   lastEditedBy String?
-  lrclibSource Boolean  @default(false)
+  lrclibSource Boolean      @default(false)
+  status       LyricsStatus @default(DRAFT)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  song     Song             @relation(fields: [songId], references: [id], onDelete: Cascade)
+  lines    LyricsLine[]
+  versions LyricsVersion[]
+  sections LyricsSection[]
+}
+
+model LyricsSection {
+  id           String   @id @default(cuid())
+  songLyricsId String
+  label        String
+  startLine    Int
+  position     Int
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  song     Song            @relation(fields: [songId], references: [id], onDelete: Cascade)
-  lines    LyricsLine[]
-  versions LyricsVersion[]
+  songLyrics SongLyrics @relation(fields: [songLyricsId], references: [id], onDelete: Cascade)
+
+  @@index([songLyricsId, position])
 }
 
 model SavedLyric {
@@ -117,6 +139,7 @@ model SavedLyric {
   isFavorite      Boolean           @default(false)
   visibility      Visibility        @default(PRIVATE)
   fetchStatus     LyricsFetchStatus @default(IDLE)
+  artistColors    Json?
   createdAt       DateTime          @default(now())
 
   // NEW: reference to shared Song
@@ -182,6 +205,7 @@ model LyricsLine {
   lineNumber  Int
   text        String
   timestampMs Int?
+  singer      String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

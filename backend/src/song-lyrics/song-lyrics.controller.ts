@@ -15,6 +15,7 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard'
 import { UpdateSongLyricsDto } from './dto/update-song-lyrics.dto'
 import { UpdateTimestampsDto } from './dto/update-timestamps.dto'
+import { UpdateLyricsStatusDto } from './dto/update-lyrics-status.dto'
 import { SongLyricsService } from './song-lyrics.service'
 
 type AuthedRequest = { user: { id: string } }
@@ -30,6 +31,12 @@ export class SongLyricsController {
     return this.service.get(spotifyId)
   }
 
+  /** GET /songs/:spotifyId/lyrics/lrclib-preview — fetch LRCLib suggestion without saving */
+  @Get(':spotifyId/lyrics/lrclib-preview')
+  lrclibPreview(@Param('spotifyId') spotifyId: string) {
+    return this.service.lrclibPreview(spotifyId)
+  }
+
   /** PUT /songs/:spotifyId/lyrics */
   @Put(':spotifyId/lyrics')
   upsert(
@@ -37,7 +44,15 @@ export class SongLyricsController {
     @Param('spotifyId') spotifyId: string,
     @Body() dto: UpdateSongLyricsDto,
   ) {
-    return this.service.upsert(req.user.id, spotifyId, dto.rawText, dto.version, dto.source)
+    return this.service.upsert(
+      req.user.id,
+      spotifyId,
+      dto.rawText,
+      dto.version,
+      dto.source,
+      dto.sections,
+      dto.lines,
+    )
   }
 
   /** POST /songs/:spotifyId/lyrics/restore/:version */
@@ -67,9 +82,13 @@ export class SongLyricsController {
     return this.service.updateTimestamps(spotifyId, dto.lines)
   }
 
-  /** GET /songs/:spotifyId/lyrics/lrclib-preview — fetch LRCLib suggestion without saving */
-  @Get(':spotifyId/lyrics/lrclib-preview')
-  lrclibPreview(@Param('spotifyId') spotifyId: string) {
-    return this.service.lrclibPreview(spotifyId)
+  /** PATCH /songs/:spotifyId/lyrics/status — update lyrics status (no version bump) */
+  @Patch(':spotifyId/lyrics/status')
+  @HttpCode(HttpStatus.OK)
+  updateStatus(
+    @Param('spotifyId') spotifyId: string,
+    @Body() dto: UpdateLyricsStatusDto,
+  ) {
+    return this.service.updateStatus(spotifyId, dto.status)
   }
 }

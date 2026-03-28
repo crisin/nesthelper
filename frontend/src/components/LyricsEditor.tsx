@@ -3,10 +3,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Eye, Pencil, History, ChevronDown, ChevronUp, MessageSquarePlus,
   RotateCcw, Check, Music, Headphones, Timer, Loader2, Rewind, X,
-  BookOpen, MessageSquare, Clock, Sparkles,
+  BookOpen, MessageSquare, Clock, Sparkles, Mic2, Pilcrow, Plus, Pen,
 } from 'lucide-react'
 import api from '../services/api'
-import type { SongLyrics, LineAnnotation, LyricsFetchStatus, SpotifyCurrentlyPlayingResponse, LrclibPreview } from '../types'
+import type { SongLyrics, LyricsSection, LyricsStatus, LineAnnotation, LyricsFetchStatus, SpotifyCurrentlyPlayingResponse, LrclibPreview } from '../types'
 import { useAuthStore } from '../stores/authStore'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -61,6 +61,63 @@ function FetchingLyricsSkeleton() {
           />
         ))}
       </div>
+    </div>
+  )
+}
+
+// ─── Lyrics status badge ──────────────────────────────────────────────────────
+
+const STATUS_LABELS: Record<LyricsStatus, string> = {
+  DRAFT: 'Entwurf',
+  WORK_IN_PROGRESS: 'In Arbeit',
+  FINISHED: 'Fertig',
+}
+
+const STATUS_COLORS: Record<LyricsStatus, string> = {
+  DRAFT: 'bg-surface-overlay border-edge text-foreground-subtle',
+  WORK_IN_PROGRESS: 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400',
+  FINISHED: 'bg-green-500/10 border-green-500/30 text-green-400',
+}
+
+function StatusBadge({
+  status,
+  onChange,
+}: {
+  status: LyricsStatus
+  onChange: (s: LyricsStatus) => void
+}) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className={[
+          'flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-medium transition-colors',
+          STATUS_COLORS[status],
+        ].join(' ')}
+      >
+        {STATUS_LABELS[status]}
+        <ChevronDown size={8} strokeWidth={2.5} />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute top-full mt-1 left-0 z-20 bg-surface border border-edge rounded-lg shadow-lg overflow-hidden min-w-[110px]">
+            {(['DRAFT', 'WORK_IN_PROGRESS', 'FINISHED'] as LyricsStatus[]).map((s) => (
+              <button
+                key={s}
+                onClick={() => { onChange(s); setOpen(false) }}
+                className={[
+                  'block w-full text-left px-3 py-1.5 text-[11px] hover:bg-surface-raised transition-colors',
+                  status === s ? 'text-foreground font-semibold' : 'text-foreground-muted',
+                ].join(' ')}
+              >
+                {STATUS_LABELS[s]}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   )
 }
@@ -124,6 +181,7 @@ function LyricsView({
 
 function AnnotatedLine({
   lineId,
+  lineNumber,
   spotifyId,
   text,
   annotations,
@@ -133,8 +191,14 @@ function AnnotatedLine({
   timestampMs,
   isActive,
   onSeek,
+  singer,
+  singerColor,
+  showSingers,
+  onSingerChange,
+  singerSuggestions,
 }: {
   lineId: string
+  lineNumber: number
   spotifyId: string
   text: string
   annotations: LineAnnotation[]
@@ -144,12 +208,19 @@ function AnnotatedLine({
   timestampMs?: number | null
   isActive?: boolean
   onSeek?: (ms: number) => void
+  singer?: string | null
+  singerColor?: string
+  showSingers?: boolean
+  onSingerChange?: (lineNumber: number, singer: string | null) => void
+  singerSuggestions?: string[]
 }) {
   const queryClient = useQueryClient()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
   const [tsEditing, setTsEditing] = useState(false)
   const [tsInput, setTsInput] = useState('')
+  const [singerEditing, setSingerEditing] = useState(false)
+  const [singerDraft, setSingerDraft] = useState('')
 
   const myAnnotation = annotations.find((a) => a.userId === currentUserId) ?? null
   const othersAnnotations = annotations.filter((a) => a.userId !== currentUserId)
@@ -205,6 +276,8 @@ function AnnotatedLine({
     setEditing(true)
   }
 
+  const datalistId = `singer-suggestions-${lineId}`
+
   if (!text.trim()) return <div className="h-4" />
 
   return (
@@ -213,7 +286,15 @@ function AnnotatedLine({
         'group rounded-lg transition-colors px-2 -mx-2',
         isActive ? 'bg-accent/10' : 'hover:bg-surface-overlay/50',
       ].join(' ')}
+      style={singerColor ? { borderLeft: `3px solid ${singerColor}`, paddingLeft: '6px', marginLeft: '-8px' } : undefined}
     >
+      {/* Singer suggestions datalist */}
+      {singerSuggestions && (
+        <datalist id={datalistId}>
+          {singerSuggestions.map((s) => <option key={s} value={s} />)}
+        </datalist>
+      )}
+
       {/* Line text row */}
       <div className="flex items-start gap-2">
         {/* Inline timestamp cell */}
@@ -281,6 +362,47 @@ function AnnotatedLine({
         >
           {text}
         </span>
+
+        {/* Singer badge */}
+        {showSingers && (
+          <div className="flex-shrink-0 mt-[9px]">
+            {singerEditing ? (
+              <input
+                autoFocus
+                value={singerDraft}
+                list={datalistId}
+                onChange={(e) => setSingerDraft(e.target.value)}
+                onBlur={() => {
+                  onSingerChange?.(lineNumber, singerDraft.trim() || null)
+                  setSingerEditing(false)
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    onSingerChange?.(lineNumber, singerDraft.trim() || null)
+                    setSingerEditing(false)
+                  }
+                  if (e.key === 'Escape') setSingerEditing(false)
+                }}
+                placeholder="Singer…"
+                className="w-24 text-[11px] bg-surface border border-accent/50 rounded px-1.5 py-0.5 focus:outline-none focus:border-accent"
+              />
+            ) : (
+              <button
+                onClick={() => { setSingerDraft(singer ?? ''); setSingerEditing(true) }}
+                title={singer ? `Gesungen von: ${singer}` : 'Singer zuweisen'}
+                style={singerColor ? { borderColor: `${singerColor}50`, backgroundColor: `${singerColor}15`, color: singerColor } : undefined}
+                className={[
+                  'text-[10px] rounded px-1.5 py-0.5 border transition-colors',
+                  singer
+                    ? 'border-accent/30 bg-accent/8 text-accent/80 hover:text-accent'
+                    : 'border-edge text-foreground-subtle/30 opacity-0 group-hover:opacity-100 hover:text-foreground-subtle',
+                ].join(' ')}
+              >
+                {singer || <Mic2 size={9} strokeWidth={2} />}
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Add/edit own annotation */}
         {showAnnotations && !editing && (
@@ -387,6 +509,11 @@ function StructuredLyricsView({
   onEdit,
   activeLineId,
   onSeek,
+  artistColors,
+  showSections,
+  showSingers,
+  onSectionsChange,
+  onSingerChange,
 }: {
   lyrics: SongLyrics
   spotifyId: string
@@ -397,8 +524,15 @@ function StructuredLyricsView({
   onEdit: () => void
   activeLineId?: string | null
   onSeek?: (ms: number) => void
+  artistColors?: Record<string, string> | null
+  showSections?: boolean
+  showSingers?: boolean
+  onSectionsChange?: (sections: { label: string; startLine: number }[]) => void
+  onSingerChange?: (lineNumber: number, singer: string | null) => void
 }) {
   const currentUserId = useAuthStore((s) => s.user?.id ?? '')
+  const [editingSectionId, setEditingSectionId] = useState<string | null>(null)
+  const [sectionLabelDraft, setSectionLabelDraft] = useState('')
 
   const { data: annotations = {} } = useQuery<Record<string, LineAnnotation[]>>({
     queryKey: ['annotations', spotifyId],
@@ -415,6 +549,41 @@ function StructuredLyricsView({
   }
 
   const hasAnyTimestamp = lyrics.lines.some((l) => l.timestampMs != null)
+
+  // Build a map: lineNumber → section that starts here
+  const sectionByLine = new Map<number, LyricsSection>()
+  for (const s of lyrics.sections ?? []) sectionByLine.set(s.startLine, s)
+
+  // All unique singer names (for autocomplete suggestions)
+  const singerSuggestions = Array.from(
+    new Set((lyrics.lines ?? []).map((l) => l.singer).filter((s): s is string => !!s))
+  )
+
+  function handleAddSection(startLine: number) {
+    const updated = [
+      ...(lyrics.sections ?? []).map((s) => ({ label: s.label, startLine: s.startLine })),
+      { label: 'Neuer Teil', startLine },
+    ].sort((a, b) => a.startLine - b.startLine)
+    onSectionsChange?.(updated)
+    // Start editing the newly created section
+    setEditingSectionId(`new-${startLine}`)
+    setSectionLabelDraft('Neuer Teil')
+  }
+
+  function handleRenameSection(section: LyricsSection, newLabel: string) {
+    const updated = (lyrics.sections ?? []).map((s) =>
+      s.id === section.id ? { label: newLabel, startLine: s.startLine } : { label: s.label, startLine: s.startLine }
+    )
+    onSectionsChange?.(updated)
+    setEditingSectionId(null)
+  }
+
+  function handleDeleteSection(section: LyricsSection) {
+    const updated = (lyrics.sections ?? [])
+      .filter((s) => s.id !== section.id)
+      .map((s) => ({ label: s.label, startLine: s.startLine }))
+    onSectionsChange?.(updated)
+  }
 
   return (
     <div className="rounded-xl bg-surface-raised border border-edge overflow-hidden">
@@ -438,21 +607,101 @@ function StructuredLyricsView({
       )}
 
       <div className="px-5 sm:px-7 py-6 space-y-0.5">
-        {(lyrics.lines ?? []).map((line) => (
-          <AnnotatedLine
-            key={line.id}
-            lineId={line.id}
-            spotifyId={spotifyId}
-            text={line.text}
-            annotations={annotations[line.id] ?? []}
-            currentUserId={currentUserId}
-            showAnnotations={showAnnotations}
-            showTimestamps={showTimestamps}
-            timestampMs={line.timestampMs}
-            isActive={activeLineId === line.id}
-            onSeek={onSeek}
-          />
-        ))}
+        {(lyrics.lines ?? []).map((line) => {
+          const section = sectionByLine.get(line.lineNumber)
+          const singerColor = (line.singer && artistColors?.[line.singer]) || undefined
+          return (
+            <div key={line.id}>
+              {/* Section header */}
+              {section && (
+                <div className="flex items-center gap-1.5 mt-4 mb-1 first:mt-0">
+                  {editingSectionId === section.id ? (
+                    <input
+                      autoFocus
+                      value={sectionLabelDraft}
+                      onChange={(e) => setSectionLabelDraft(e.target.value)}
+                      onBlur={() => handleRenameSection(section, sectionLabelDraft)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleRenameSection(section, sectionLabelDraft)
+                        if (e.key === 'Escape') setEditingSectionId(null)
+                      }}
+                      className="text-[11px] font-semibold uppercase tracking-wider bg-surface border border-accent/50
+                                 rounded px-2 py-0.5 focus:outline-none focus:border-accent text-foreground-muted w-36"
+                    />
+                  ) : (
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-foreground-subtle select-none">
+                      {section.label}
+                    </span>
+                  )}
+                  {showSections && (
+                    <>
+                      <button
+                        onClick={() => { setEditingSectionId(section.id); setSectionLabelDraft(section.label) }}
+                        className="text-foreground-subtle/40 hover:text-foreground-subtle transition-colors"
+                        title="Umbenennen"
+                      >
+                        <Pen size={9} strokeWidth={2} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteSection(section)}
+                        className="text-foreground-subtle/40 hover:text-red-400 transition-colors"
+                        title="Abschnitt löschen"
+                      >
+                        <X size={9} strokeWidth={2} />
+                      </button>
+                    </>
+                  )}
+                  <div className="flex-1 h-px bg-edge/50" />
+                </div>
+              )}
+
+              {/* Add section button above this line */}
+              {showSections && !section && line.text.trim() && (
+                <button
+                  onClick={() => handleAddSection(line.lineNumber)}
+                  className="flex items-center gap-1 text-[10px] text-foreground-subtle/30
+                             hover:text-foreground-subtle transition-colors mb-0.5 opacity-0 group/add hover:opacity-100"
+                >
+                  <Plus size={8} strokeWidth={2} />
+                  Abschnitt hier
+                </button>
+              )}
+              {showSections && section && (
+                <button
+                  onClick={() => handleAddSection(line.lineNumber)}
+                  className="sr-only"
+                  aria-label="Abschnitt hinzufügen"
+                />
+              )}
+
+              <AnnotatedLine
+                lineId={line.id}
+                lineNumber={line.lineNumber}
+                spotifyId={spotifyId}
+                text={line.text}
+                annotations={annotations[line.id] ?? []}
+                currentUserId={currentUserId}
+                showAnnotations={showAnnotations}
+                showTimestamps={showTimestamps}
+                timestampMs={line.timestampMs}
+                isActive={activeLineId === line.id}
+                onSeek={onSeek}
+                singer={line.singer}
+                singerColor={singerColor}
+                showSingers={showSingers}
+                onSingerChange={onSingerChange}
+                singerSuggestions={singerSuggestions}
+              />
+            </div>
+          )
+        })}
+
+        {/* Add first section prompt when sections mode is active and no sections exist */}
+        {showSections && (lyrics.sections ?? []).length === 0 && (
+          <p className="text-[11px] text-foreground-subtle/50 mt-2 text-center">
+            Klicke auf eine Zeile, um einen Abschnitt zu beginnen.
+          </p>
+        )}
       </div>
     </div>
   )
@@ -673,9 +922,11 @@ interface Props {
   spotifyId: string
   fetchStatus?: LyricsFetchStatus
   onOpenViewer?: () => void
+  artistColors?: Record<string, string> | null
+  savedLyricId?: string
 }
 
-export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer }: Props) {
+export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer, artistColors, savedLyricId }: Props) {
   const queryClient = useQueryClient()
   const [mode, setMode] = useState<'view' | 'edit'>('view')
   const [draft, setDraft] = useState<string | null>(null)
@@ -684,6 +935,8 @@ export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer }: P
   const [showAnnotations, setShowAnnotations] = useState(true)
   const [showTimestamps, setShowTimestamps] = useState(false)
   const [showLrclib, setShowLrclib] = useState(false)
+  const [showSections, setShowSections] = useState(false)
+  const [showSingers, setShowSingers] = useState(false)
 
   const { data: lyrics = null } = useQuery<SongLyrics | null>({
     queryKey: ['lyrics', spotifyId],
@@ -763,7 +1016,12 @@ export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer }: P
   const save = useMutation({
     mutationFn: (rawText: string) =>
       api
-        .put(`/songs/${spotifyId}/lyrics`, { rawText, version: lyrics?.version })
+        .put<SongLyrics>(`/songs/${spotifyId}/lyrics`, {
+          rawText,
+          version: lyrics?.version,
+          sections: lyrics?.sections?.map((s) => ({ label: s.label, startLine: s.startLine })),
+          lines: lyrics?.lines?.map((l) => ({ lineNumber: l.lineNumber, singer: l.singer ?? null })),
+        })
         .then((r) => r.data),
     onSuccess: (data: SongLyrics) => {
       queryClient.setQueryData(['lyrics', spotifyId], data)
@@ -772,6 +1030,43 @@ export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer }: P
       setTimeout(() => setSaved(false), 2000)
       setMode('view')
     },
+  })
+
+  const updateStatus = useMutation({
+    mutationFn: (status: LyricsStatus) =>
+      api.patch<SongLyrics>(`/songs/${spotifyId}/lyrics/status`, { status }).then((r) => r.data),
+    onSuccess: (data: SongLyrics) => queryClient.setQueryData(['lyrics', spotifyId], data),
+  })
+
+  const updateSections = useMutation({
+    mutationFn: (sections: { label: string; startLine: number }[]) =>
+      api
+        .put<SongLyrics>(`/songs/${spotifyId}/lyrics`, {
+          rawText: lyrics?.rawText ?? '',
+          version: lyrics?.version,
+          sections,
+          lines: lyrics?.lines?.map((l) => ({ lineNumber: l.lineNumber, singer: l.singer ?? null })),
+        })
+        .then((r) => r.data),
+    onSuccess: (data: SongLyrics) => queryClient.setQueryData(['lyrics', spotifyId], data),
+  })
+
+  const updateSinger = useMutation({
+    mutationFn: ({ lineNumber, singer }: { lineNumber: number; singer: string | null }) => {
+      const lines = (lyrics?.lines ?? []).map((l) => ({
+        lineNumber: l.lineNumber,
+        singer: l.lineNumber === lineNumber ? singer : (l.singer ?? null),
+      }))
+      return api
+        .put<SongLyrics>(`/songs/${spotifyId}/lyrics`, {
+          rawText: lyrics?.rawText ?? '',
+          version: lyrics?.version,
+          sections: lyrics?.sections?.map((s) => ({ label: s.label, startLine: s.startLine })),
+          lines,
+        })
+        .then((r) => r.data)
+    },
+    onSuccess: (data: SongLyrics) => queryClient.setQueryData(['lyrics', spotifyId], data),
   })
 
   return (
@@ -791,6 +1086,12 @@ export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer }: P
             <span className="text-[10px] text-foreground-subtle">
               · {timeAgo(lyrics.updatedAt)}
             </span>
+          )}
+          {lyrics && (
+            <StatusBadge
+              status={lyrics.status ?? 'DRAFT'}
+              onChange={(s) => updateStatus.mutate(s)}
+            />
           )}
           {fetchStatus === 'FETCHING' && !lyrics && (
             <span className="flex items-center gap-1 text-[10px] text-foreground-subtle">
@@ -857,6 +1158,38 @@ export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer }: P
             >
               <Clock size={11} strokeWidth={2} />
               Sync
+            </button>
+          )}
+
+          {mode === 'view' && lyrics && (lyrics.lines?.length ?? 0) > 0 && (
+            <button
+              onClick={() => setShowSections((v) => !v)}
+              title={showSections ? 'Abschnitte ausblenden' : 'Abschnitte bearbeiten'}
+              className={[
+                'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors border',
+                showSections
+                  ? 'bg-accent/10 border-accent/30 text-accent'
+                  : 'border-edge text-foreground-subtle hover:text-foreground-muted',
+              ].join(' ')}
+            >
+              <Pilcrow size={11} strokeWidth={2} />
+              Teile
+            </button>
+          )}
+
+          {mode === 'view' && lyrics && (lyrics.lines?.length ?? 0) > 0 && (
+            <button
+              onClick={() => setShowSingers((v) => !v)}
+              title={showSingers ? 'Singer ausblenden' : 'Singer zuweisen'}
+              className={[
+                'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors border',
+                showSingers
+                  ? 'bg-accent/10 border-accent/30 text-accent'
+                  : 'border-edge text-foreground-subtle hover:text-foreground-muted',
+              ].join(' ')}
+            >
+              <Mic2 size={11} strokeWidth={2} />
+              Singer
             </button>
           )}
 
@@ -933,6 +1266,11 @@ export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer }: P
             onEdit={() => setMode('edit')}
             activeLineId={activeLineId}
             onSeek={(ms) => seek.mutate(ms)}
+            artistColors={artistColors}
+            showSections={showSections}
+            showSingers={showSingers}
+            onSectionsChange={(s) => updateSections.mutate(s)}
+            onSingerChange={(lineNumber, singer) => updateSinger.mutate({ lineNumber, singer })}
           />
         ) : (
           <LyricsView

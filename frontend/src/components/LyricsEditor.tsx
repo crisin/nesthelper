@@ -926,7 +926,7 @@ interface Props {
   savedLyricId?: string
 }
 
-export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer, artistColors, savedLyricId }: Props) {
+export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer, artistColors }: Props) {
   const queryClient = useQueryClient()
   const [mode, setMode] = useState<'view' | 'edit'>('view')
   const [draft, setDraft] = useState<string | null>(null)

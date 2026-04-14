@@ -38,9 +38,10 @@ export class SongTagsController {
   @Delete(':spotifyId/tags/:tag')
   @HttpCode(HttpStatus.NO_CONTENT)
   removeTag(
+    @Req() req: AuthedRequest,
     @Param('spotifyId') spotifyId: string,
     @Param('tag') tag: string,
   ) {
-    return this.service.removeTag(spotifyId, tag)
+    return this.service.removeTag(req.user.id, spotifyId, tag)
   }
 }

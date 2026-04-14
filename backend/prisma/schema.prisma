@@ -155,6 +155,7 @@ model SavedLyric {
 
   @@unique([userId, spotifyId])
   @@unique([userId, songId])
+  @@index([songId])
 }
 
 model SearchHistory {
@@ -170,6 +171,8 @@ model SearchHistory {
 
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   savedLyrics SavedLyric[]
+
+  @@index([userId])
 }
 
 model LibraryTrack {
@@ -288,6 +291,7 @@ model SongNote {
 
   @@unique([userId, songId])
   @@index([songId])
+  @@index([userId])
 }
 
 // ─── Phase 3: Listening Context ──────────────────────────────────────────────
@@ -366,7 +370,7 @@ model PlayHistory {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, playedAt(sort: Desc)])
-  @@index([spotifyId])
+  @@index([userId, spotifyId])
 }
 
 // ─── Feature Requests ─────────────────────────────────────────────────────────

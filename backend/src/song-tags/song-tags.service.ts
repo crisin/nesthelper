@@ -44,7 +44,7 @@ export class SongTagsService {
     });
   }
 
-  async removeTag(spotifyId: string, tag: string): Promise<void> {
+  async removeTag(userId: string, spotifyId: string, tag: string): Promise<void> {
     const song = await this.prisma.song.findUnique({
       where: { spotifyId },
       select: { id: true },
@@ -52,7 +52,7 @@ export class SongTagsService {
     if (!song) throw new NotFoundException('Song not found');
 
     await this.prisma.songTag.deleteMany({
-      where: { songId: song.id, tag: tag.toLowerCase() },
+      where: { songId: song.id, tag: tag.toLowerCase(), addedBy: userId },
     });
   }
 }

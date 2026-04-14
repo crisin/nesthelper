@@ -35,9 +35,11 @@ export class FeatureRequestsService {
 
   async update(
     id: string,
+    userId: string,
     data: { title?: string | null; content?: string; page?: string | null },
   ): Promise<FeatureRequestWithMeta> {
-    await this.findOrThrow(id);
+    const req = await this.findOrThrow(id);
+    if (req.userId !== userId) throw new NotFoundException('Not your request');
     return this.prisma.featureRequest.update({
       where: { id },
       data,

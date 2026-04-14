@@ -39,10 +39,10 @@ export class FeatureRequestsController {
     return this.service.create(req.user.id, dto);
   }
 
-  /** PATCH /feature-requests/:id — any user can edit */
+  /** PATCH /feature-requests/:id — only creator can edit */
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateFeatureRequestDto) {
-    return this.service.update(id, dto);
+  update(@Req() req: AuthedRequest, @Param('id') id: string, @Body() dto: UpdateFeatureRequestDto) {
+    return this.service.update(id, req.user.id, dto);
   }
 
   /** PATCH /feature-requests/:id/status */

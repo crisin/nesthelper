@@ -107,6 +107,31 @@ File: [`src/spotify/spotify.service.ts`](src/spotify/spotify.service.ts)
 | [`digest`](src/digest/) | `/digest` | Weekly digest (cron Mon 08:00 + read endpoint) |
 | [`feature-requests`](src/feature-requests/) | `/feature-requests` | Bugs + feature wishes (`kind` field) |
 
+## Shared Song model (feat/saved-songs-rework)
+
+The codebase is mid-migration from per-user lyrics to a shared canonical `Song` entity.
+
+**Architecture goal:** `n users → n SavedLyric bookmarks → 1 Song → 1 SongLyrics`
+
+**Rule for new code:** write to `Song`/`SongLyrics` — not to `SavedLyric.lyricsStructured` (legacy `Lyrics` model). Both models co-exist during migration; legacy data is still read where `Song`/`SongLyrics` hasn't been populated yet.
+
+```
+Song (1 per spotifyId, shared by all users)
+  ├─ SongLyrics?        ← shared lyrics document (rawText + version + status)
+  │    ├─ LyricsSection[]   ← label + startLine + position (verse/chorus/bridge)
+  │    ├─ LyricsLine[]      ← shared; LineAnnotation[] is still per-user
+  │    └─ LyricsVersion[]
+  ├─ SongTag[]          ← shared community tags (addedBy: userId)
+  └─ SongNote[]         ← per-user notes on the shared Song (replaces SavedLyric.note)
+
+SavedLyric (user bookmark)
+  ├─ songId → Song      ← NEW link (nullable during migration)
+  ├─ note / isFavorite / visibility / listeningContext  ← stay per-user
+  └─ lyricsStructured Lyrics?  ← LEGACY, do not write here in new code
+```
+
+See [REFACTORING_SHARED_LYRICS.md](../REFACTORING_SHARED_LYRICS.md) for full migration plan.
+
 ## Schema quick reference ([prisma/schema.prisma](prisma/schema.prisma))
 
 ### Enums
@@ -114,6 +139,28 @@ File: [`src/spotify/spotify.service.ts`](src/spotify/spotify.service.ts)
 - `Visibility`: `PRIVATE | FRIENDS | PUBLIC`
 - `LyricsFetchStatus`: `IDLE | FETCHING | DONE | FAILED`
 - `FeatureStatus`: `DRAFT | MUST_HAVE | WORKING_ON_IT | DONE | DECLINED`
+- `LyricsStatus`: `DRAFT | WORK_IN_PROGRESS | FINISHED` (on `SongLyrics`)
+
+### Models — shared Song layer (new)
+| Model | Key fields | Notes |
+|---|---|---|
+| `Song` | `spotifyId` (unique), `title`, `artist`, `artists[]`, `fetchStatus`, `audioFeatures Json?` | One per Spotify track |
+| `SongLyrics` | `songId` (unique), `rawText`, `version`, `lastEditedBy`, `status`, `lrclibSource` | One per Song |
+| `LyricsSection` | `songLyricsId`, `label`, `startLine`, `position` | Verse/chorus/bridge markers |
+| `SongTag` | `songId?`, `savedLyricId?`, `tag`, `type`, `addedBy?` | Either shared (songId) or legacy (savedLyricId) |
+| `SongNote` | `songId`, `userId`, `text` — `@@unique([userId, songId])` | Per-user notes on shared Song |
+
+### Models — per-user / legacy
+| Model | Key fields | Notes |
+|---|---|---|
+| `SavedLyric` | `userId`, `songId?`, `spotifyId?` | Bookmark; `songId` link added in rework |
+| `Lyrics` | `savedLyricId` | Legacy per-user structured lyrics — read-only in new code |
+| `LyricsLine` | `lyricsId?`, `songLyricsId?`, `lineNumber`, `timestampMs?`, `singer?` | Works with both models |
+| `LyricsVersion` | `lyricsId?`, `songLyricsId?` | Works with both models |
+| `LineAnnotation` | `lineId`, `userId` — `@@unique([userId, lineId])` | Always per-user |
+| `PlayHistory` | `userId`, `spotifyId`, `track`, `artist`, `artists[]`, `playedAt` | Index on `[userId, playedAt(sort: Desc)]` |
+| `FeatureRequest` | `userId`, `kind` (`'feature'|'bug'`), `status FeatureStatus`, `page?` | Has `votes FeatureRequestVote[]` |
+| `FeatureRequestVote` | `userId`, `requestId` — `@@unique([userId, requestId])` | Upvotes on feature requests |
 
 ### Artist fields pattern (SavedLyric, SearchHistory, LibraryTrack, Song, PlayHistory)
 - `artist String` — primary/first artist (used for lyrics.ovh, analytics, sort)

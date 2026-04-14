@@ -7,7 +7,9 @@
       "Bash(timeout 5 npx vite:*)",
       "Bash(curl:*)",
       "Bash(timeout 5 bash -c 'while ! curl -s http://localhost:5174 > /dev/null 2>&1; do echo waiting...; done; echo ready')",
-      "Bash(taskkill:*)"
+      "Bash(taskkill:*)",
+      "Skill(update-config)",
+      "Skill(update-config:*)"
     ]
   }
 }

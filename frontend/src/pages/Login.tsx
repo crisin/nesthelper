@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../stores/authStore'
 import api from '../services/api'
 import type { AuthResponse } from '../types'
@@ -8,16 +8,18 @@ export default function Login() {
   const navigate = useNavigate()
   const setAuth = useAuthStore((s) => s.setAuth)
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  // Set when a session ended on its own — being dumped here without a word is
+  // the most confusing moment an admin password reset can create.
+  const logoutReason = useAuthStore((s) => s.logoutReason)
 
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [error, setError]       = useState<string | null>(null)
   const [loading, setLoading]   = useState(false)
 
-  if (isAuthenticated) {
-    navigate('/dashboard')
-    return null
-  }
+  // Redirect declaratively — navigate() during render warns in React 19.
+  if (isAuthenticated) return <Navigate to="/dashboard" replace />
+
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -26,11 +28,14 @@ export default function Login() {
     try {
       const { data } = await api.post<AuthResponse>('/auth/login', { email, password })
       setAuth(data.user, data.access_token)
-      navigate('/dashboard')
+      // Straight to onboarding on a first login, no dashboard flash in between.
+      navigate(data.user.mustChangePassword ? '/set-password' : '/dashboard', {
+        replace: true,
+      })
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })
         .response?.data?.message
-      setError(msg ?? 'Login failed')
+      setError(msg ?? 'Anmeldung fehlgeschlagen. Versuch es noch mal.')
     } finally {
       setLoading(false)
     }
@@ -48,14 +53,19 @@ export default function Login() {
         {/* Logo */}
         <div className="text-center mb-8">
           <span className="text-accent font-bold text-xl tracking-tight">Lyrics Helper</span>
-          <p className="text-foreground-muted text-sm mt-1.5">Sign in to your account</p>
+          <p className="text-foreground-muted text-sm mt-1.5">Melde dich an</p>
         </div>
 
         <div className="bg-surface-raised border border-edge rounded-2xl p-8 shadow-card">
+          {logoutReason && !error && (
+            <p className="mb-5 text-sm text-foreground-muted bg-surface-overlay rounded-lg px-3 py-2 text-center">
+              {logoutReason}
+            </p>
+          )}
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
               <label htmlFor="email" className="text-sm font-medium text-foreground">
-                Email
+                E-Mail
               </label>
               <input
                 id="email"
@@ -71,7 +81,7 @@ export default function Login() {
 
             <div className="flex flex-col gap-1.5">
               <label htmlFor="password" className="text-sm font-medium text-foreground">
-                Password
+                Passwort
               </label>
               <input
                 id="password"
@@ -97,7 +107,7 @@ export default function Login() {
               className="mt-1 py-2.5 rounded-lg bg-accent text-black font-semibold text-sm
                          hover:opacity-90 active:scale-[0.98] disabled:opacity-50 transition-all"
             >
-              {loading ? 'Signing in…' : 'Sign in'}
+              {loading ? 'Wird angemeldet…' : 'Anmelden'}
             </button>
           </form>
         </div>
@@ -107,6 +117,10 @@ export default function Login() {
           <Link to="/login" className="text-foreground font-medium hover:text-accent transition-colors">
             nur für coole kids, sorry
           </Link>
+        </p>
+        {/* There is no reset email — an admin generating a new one is the only path. */}
+        <p className="mt-2 text-center text-xs text-foreground-subtle">
+          Passwort vergessen? Schreib crisin, er kann dir ein neues erzeugen.
         </p>
       </div>
     </div>

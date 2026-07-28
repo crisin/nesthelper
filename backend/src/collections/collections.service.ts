@@ -21,7 +21,13 @@ export class CollectionsService {
             savedLyric: {
               include: {
                 song: {
-                  select: { spotifyId: true, title: true, artist: true, artists: true, imgUrl: true },
+                  select: {
+                    spotifyId: true,
+                    title: true,
+                    artist: true,
+                    artists: true,
+                    imgUrl: true,
+                  },
                 },
               },
             },
@@ -51,12 +57,23 @@ export class CollectionsService {
       },
       include: {
         items: {
+          // savedLyricId/lineId are SetNull, so deleting a user leaves items
+          // that point at nothing behind in other people's collections.
+          where: {
+            OR: [{ savedLyricId: { not: null } }, { lineId: { not: null } }],
+          },
           orderBy: { position: 'asc' },
           include: {
             savedLyric: {
               include: {
                 song: {
-                  select: { spotifyId: true, title: true, artist: true, artists: true, imgUrl: true },
+                  select: {
+                    spotifyId: true,
+                    title: true,
+                    artist: true,
+                    artists: true,
+                    imgUrl: true,
+                  },
                 },
                 tags: true,
               },

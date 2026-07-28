@@ -68,9 +68,19 @@ npx prisma generate   # REQUIRED — updates generated TS types
 ```
 
 ## Auth pattern
-- [`src/auth/jwt-auth.guard.ts`](src/auth/jwt-auth.guard.ts) validates Bearer token, attaches `req.user = { id: string }`
+- [`src/auth/jwt-auth.guard.ts`](src/auth/jwt-auth.guard.ts) validates Bearer token, attaches `req.user` = the `USER_SELECT` shape from [`src/users/user.select.ts`](src/users/user.select.ts) (`id`, `email`, `name`, `role`, `isActive`, `isProtected`, `mustChangePassword`, …)
 - Apply at controller class level: `@UseGuards(JwtAuthGuard)`
 - Access user: `@Req() req: AuthedRequest` — define `type AuthedRequest = { user: { id: string } }` in each controller file
+- Admin-only routes: `@UseGuards(JwtAuthGuard, AdminGuard)` ([`src/auth/admin.guard.ts`](src/auth/admin.guard.ts))
+
+### Things JwtAuthGuard / JwtStrategy enforce globally
+Both run on every guarded route in every module — changing them changes the whole app.
+- **Deactivated users** (`isActive: false`) get 401 on the next request, no waiting for token expiry
+- **Password changes invalidate old tokens**: `JwtStrategy` rejects any token whose `iat` predates `User.passwordChangedAt`. Any endpoint that changes a password MUST return a fresh token or it logs the caller out
+- **Forced password change**: while `mustChangePassword` is true, everything except `/auth/me`, `/auth/password` and `/auth/complete-onboarding` returns 403 with `code: 'PASSWORD_CHANGE_REQUIRED'`
+
+### Owner account
+[`UsersBootstrapService`](src/users/users-bootstrap.service.ts) runs on every boot: creates the `ADMIN_EMAIL` account if missing (password from `ADMIN_INITIAL_PASSWORD` or generated + logged once), and always repairs it to `role: ADMIN`, `isActive: true`, `isProtected: true`. A protected account cannot be demoted, deactivated, deleted, or password-reset by anyone else — it is the way back in. Lockout recovery: `npm run user:reset -- <email>`.
 
 ## BullMQ queue pattern (optional Redis)
 ```typescript
@@ -89,7 +99,8 @@ File: [`src/spotify/spotify.service.ts`](src/spotify/spotify.service.ts)
 ## Module → route map
 | Module | Base route | Key responsibility |
 |---|---|---|
-| [`auth`](src/auth/) | `/auth` | Register, login, JWT, Spotify OAuth |
+| [`auth`](src/auth/) | `/auth` | Login, JWT, forced first-login password change |
+| [`users`](src/users/) | `/admin/users` | Admin-only account provisioning + owner bootstrap |
 | [`spotify`](src/spotify/) | `/spotify` | Currently playing, search, audio-features, seek |
 | [`saved-lyrics`](src/saved-lyrics/) | `/saved-lyrics` | User's saved songs (CRUD, visibility, tags) |
 | [`songs`](src/songs/) | `/songs` | Shared canonical Song entities |

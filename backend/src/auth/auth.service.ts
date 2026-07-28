@@ -1,15 +1,22 @@
 import {
-  Injectable,
-  ConflictException,
-  UnauthorizedException,
   BadRequestException,
+  Injectable,
+  UnauthorizedException,
 } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import * as bcrypt from 'bcryptjs';
+import { JwtService, type JwtSignOptions } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
-import { RegisterDto } from './dto/register.dto';
+import { USER_SELECT, type PublicUser } from '../users/user.select';
 import { LoginDto } from './dto/login.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { hashPassword, normalizeEmail, verifyPassword } from './password.util';
+
+export type AuthResult = { user: PublicUser; access_token: string };
+
+// bcrypt hash of a value nobody will ever submit. Verifying against it burns
+// the same ~250ms a real check costs, so an unknown email can't be told apart
+// from a wrong password by response time.
+const DUMMY_HASH =
+  '$2a$12$C6UzMDM.H6dfI/f/IKcEe.6rL5hvHOI5T3JlHtP5PZjNTPCX0TT2K';
 
 @Injectable()
 export class AuthService {
@@ -18,72 +25,109 @@ export class AuthService {
     private readonly jwt: JwtService,
   ) {}
 
-  async register(dto: RegisterDto) {
-    const existing = await this.prisma.user.findUnique({
-      where: { email: dto.email },
-    });
-    if (existing) {
-      throw new ConflictException('Email already in use');
-    }
-
-    const hashed = await bcrypt.hash(dto.password, 12);
-    const user = await this.prisma.user.create({
-      data: { email: dto.email, password: hashed, name: dto.name },
-      select: { id: true, email: true, name: true },
+  async login(dto: LoginDto): Promise<AuthResult> {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        email: { equals: normalizeEmail(dto.email), mode: 'insensitive' },
+      },
     });
 
-    const access_token = this.signToken(user.id, user.email);
-    return { user, access_token };
-  }
-
-  async login(dto: LoginDto) {
-    const user = await this.prisma.user.findUnique({
-      where: { email: dto.email },
-    });
+    // Same error and the same latency for unknown email and wrong password —
+    // no account enumeration, by message or by stopwatch.
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      await verifyPassword(dto.password, DUMMY_HASH);
+      throw new UnauthorizedException('Email oder Passwort ist falsch');
+    }
+    if (!(await verifyPassword(dto.password, user.password))) {
+      throw new UnauthorizedException('Email oder Passwort ist falsch');
+    }
+    // Only revealed to someone who already proved they own the account.
+    if (!user.isActive) {
+      throw new UnauthorizedException(
+        'Dieser Account ist deaktiviert. Melde dich bei deinem Admin.',
+      );
     }
 
-    const valid = await bcrypt.compare(dto.password, user.password);
-    if (!valid) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
+    const updated = await this.prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() },
+      select: USER_SELECT,
+    });
 
-    const access_token = this.signToken(user.id, user.email);
-    return {
-      user: { id: user.id, email: user.email, name: user.name },
-      access_token,
-    };
+    return { user: updated, access_token: this.signToken(updated) };
   }
 
+  /**
+   * Returns a fresh token: the password change invalidates every token issued
+   * before it, including the one the caller is holding right now.
+   */
   async changePassword(
     userId: string,
     currentPassword: string,
     newPassword: string,
-  ) {
+  ): Promise<AuthResult> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new UnauthorizedException();
 
-    const valid = await bcrypt.compare(currentPassword, user.password);
-    if (!valid) throw new BadRequestException('Aktuelles Passwort ist falsch');
+    if (!(await verifyPassword(currentPassword, user.password))) {
+      throw new BadRequestException('Aktuelles Passwort ist falsch');
+    }
 
-    const hashed = await bcrypt.hash(newPassword, 12);
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { password: hashed },
-    });
+    return this.applyNewPassword(userId, newPassword);
   }
 
-  async updateProfile(userId: string, dto: UpdateProfileDto) {
+  /** First-login flow: no current password needed, the temp one just got used. */
+  async completeOnboarding(
+    userId: string,
+    newPassword: string,
+  ): Promise<AuthResult> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { mustChangePassword: true },
+    });
+    if (!user) throw new UnauthorizedException();
+    if (!user.mustChangePassword) {
+      throw new BadRequestException(
+        'Für diesen Account ist kein Passwortwechsel offen',
+      );
+    }
+
+    return this.applyNewPassword(userId, newPassword);
+  }
+
+  async updateProfile(
+    userId: string,
+    dto: UpdateProfileDto,
+  ): Promise<PublicUser> {
     return this.prisma.user.update({
       where: { id: userId },
       data: { name: dto.name },
-      select: { id: true, email: true, name: true },
+      select: USER_SELECT,
     });
   }
 
-  private signToken(userId: string, email: string): string {
-    const expiresIn = process.env.JWT_EXPIRES_IN ?? '7d';
-    return this.jwt.sign({ sub: userId, email }, { expiresIn } as object);
+  private async applyNewPassword(
+    userId: string,
+    newPassword: string,
+  ): Promise<AuthResult> {
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        password: await hashPassword(newPassword),
+        mustChangePassword: false,
+        passwordChangedAt: new Date(),
+      },
+      select: USER_SELECT,
+    });
+
+    return { user, access_token: this.signToken(user) };
+  }
+
+  private signToken(user: Pick<PublicUser, 'id' | 'email'>): string {
+    // JWT_EXPIRES_IN is an untyped env string; assert it into the ms-style
+    // literal type the signer expects instead of widening the whole options object.
+    const expiresIn = (process.env.JWT_EXPIRES_IN ??
+      '7d') as JwtSignOptions['expiresIn'];
+    return this.jwt.sign({ sub: user.id, email: user.email }, { expiresIn });
   }
 }

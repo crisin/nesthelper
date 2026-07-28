@@ -53,6 +53,8 @@ Keep this updated when adding new queries. These are the canonical keys — inva
 | `['digest-latest']` | Latest unread weekly digest | [src/components/DigestBanner.tsx](src/components/DigestBanner.tsx) |
 | `['feature-requests', mode]` | Bugs or feature wishes | [src/components/FeatureRequestPanel.tsx](src/components/FeatureRequestPanel.tsx) |
 | `['play-history']` | Recently heard tracks | [src/components/RecentlyHeard.tsx](src/components/RecentlyHeard.tsx) |
+| `['auth-me']` | Current user, re-synced from server (`staleTime: 30s`) | [src/components/PrivateRoute.tsx](src/components/PrivateRoute.tsx) |
+| `['admin-users']` | User list for the admin page | [src/pages/Admin.tsx](src/pages/Admin.tsx) |
 
 **staleTime conventions:**
 - Audio features, analytics: `Infinity` or 5 min (rarely changes)
@@ -62,7 +64,10 @@ Keep this updated when adding new queries. These are the canonical keys — inva
 ## Zustand stores
 
 ### [`authStore`](src/stores/authStore.ts)
-JWT token + user identity. `{ token, user, setToken, logout }`
+JWT token + user identity, persisted to localStorage under `auth`. `{ token, user, isAuthenticated, setAuth, updateUser, clearAuth }`
+- The persisted `user` goes stale when an admin changes a role or resets a password — [PrivateRoute](src/components/PrivateRoute.tsx) re-syncs it from `/auth/me` on every mount
+- `user.mustChangePassword` → PrivateRoute redirects to `/set-password`; the backend independently 403s every other route
+- **Any response carrying a new `access_token` must go through `setAuth`** (password change, onboarding) — the old token is dead server-side
 
 ### [`visualStore`](src/stores/visualStore.ts)
 Dynamic background + visualizer settings — persisted to localStorage as `visual-settings`.

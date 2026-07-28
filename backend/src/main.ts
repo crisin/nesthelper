@@ -3,6 +3,17 @@ import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
+  // Forging a token now means handing out ADMIN, so refuse to boot on a weak
+  // or missing secret. docker-compose passes JWT_SECRET with no default, and an
+  // unset host variable arrives as '' — which is "defined" enough to slip past
+  // ConfigService.getOrThrow.
+  const jwtSecret = process.env.JWT_SECRET;
+  if (!jwtSecret || jwtSecret.length < 32) {
+    throw new Error(
+      'JWT_SECRET must be set and at least 32 characters long — refusing to start',
+    );
+  }
+
   const app = await NestFactory.create(AppModule);
 
   app.useGlobalPipes(
@@ -24,7 +35,9 @@ async function bootstrap() {
   await app.listen(port);
   console.log(`Backend running on http://localhost:${port}`);
 }
-bootstrap().catch(() => {
-  console.log('Backend error during startup');
+bootstrap().catch((err) => {
+  // Print the actual error — the owner-account bootstrap and the schema now run
+  // at startup, and "Backend error during startup" hides exactly what broke.
+  console.error('Backend error during startup:', err);
   process.exit(1);
 });

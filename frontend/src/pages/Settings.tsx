@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ExternalLink, LogOut, Moon, Sun, Eye, EyeOff, Check, Sparkles } from "lucide-react";
+import { ChevronRight, ExternalLink, LogOut, Moon, Sun, Eye, EyeOff, Check, Sparkles, Users } from "lucide-react";
 import api from "../services/api";
 import { useAuthStore } from "../stores/authStore";
+import type { AuthResponse } from "../types";
 import UsernameEdit from "../components/UsernameEdit";
 import { useTheme } from "../hooks/useTheme";
 import { useVisualStore } from "../stores/visualStore";
@@ -24,6 +25,7 @@ const STRENGTH_LABELS = ["", "Sehr schwach", "Schwach", "Okay", "Gut", "Stark", 
 const STRENGTH_COLORS = ["#3f3f46", "#ef4444", "#f97316", "#eab308", "#84cc16", "#22c55e", "#22c55e"]
 
 function ChangePassword() {
+  const setAuth = useAuthStore((s) => s.setAuth)
   const [current,  setCurrent]  = useState("")
   const [next,     setNext]     = useState("")
   const [confirm,  setConfirm]  = useState("")
@@ -39,8 +41,13 @@ function ChangePassword() {
 
   const change = useMutation({
     mutationFn: () =>
-      api.patch("/auth/password", { currentPassword: current, newPassword: next }),
-    onSuccess: () => {
+      api
+        .patch<AuthResponse>("/auth/password", { currentPassword: current, newPassword: next })
+        .then((r) => r.data),
+    onSuccess: (data) => {
+      // The change kills every token issued before it — including this tab's.
+      // Swapping in the fresh one keeps the session alive here and only here.
+      setAuth(data.user, data.access_token)
       setDone(true)
       setCurrent(""); setNext(""); setConfirm("")
       setServerErr("")
@@ -194,6 +201,7 @@ function ChangePassword() {
           <Sparkles size={12} className="text-foreground-subtle flex-shrink-0 mt-0.5" strokeWidth={1.75} />
           <p className="text-[11px] text-foreground-subtle leading-relaxed">
             Sonderzeichen wie <span className="font-mono text-foreground-muted">!@#$%^&*</span> machen dein Passwort deutlich sicherer.
+            Andere Geräte werden nach dem Ändern abgemeldet.
           </p>
         </div>
 
@@ -287,6 +295,30 @@ export default function Settings() {
           </div>
         </div>
       </section>
+
+      {/* Admin section — the only entry point on mobile, where the bottom nav is full */}
+      {user?.role === "ADMIN" && (
+        <section className="space-y-3">
+          <p className="text-xs font-semibold text-foreground-subtle uppercase tracking-widest">
+            Admin
+          </p>
+          <Link
+            to="/admin"
+            className="flex items-center justify-between gap-3 px-4 py-3.5 rounded-xl bg-surface-raised border border-edge hover:bg-surface-overlay transition-colors"
+          >
+            <span className="flex items-center gap-3 min-w-0">
+              <Users size={16} strokeWidth={1.75} className="text-accent flex-shrink-0" />
+              <span className="min-w-0">
+                <span className="block text-sm text-foreground">Nutzerverwaltung</span>
+                <span className="block text-xs text-foreground-muted mt-0.5">
+                  Accounts anlegen, Passwörter zurücksetzen
+                </span>
+              </span>
+            </span>
+            <ChevronRight size={15} strokeWidth={1.75} className="text-foreground-subtle flex-shrink-0" />
+          </Link>
+        </section>
+      )}
 
       {/* Password section */}
       <section className="space-y-3">

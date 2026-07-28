@@ -1,6 +1,7 @@
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom'
 import Login from './pages/Login'
-import Register from './pages/Register'
+import SetPassword from './pages/SetPassword'
+import Admin from './pages/Admin'
 import Dashboard from './pages/Dashboard'
 import Discover from './pages/Discover'
 import Favorites from './pages/Favorites'
@@ -12,6 +13,7 @@ import Timeline from './pages/Timeline'
 import Settings from './pages/Settings'
 import SpotifyLibrary from './pages/SpotifyLibrary'
 import PrivateRoute from './components/PrivateRoute'
+import RequireAdmin from './components/RequireAdmin'
 import AppLayout from './components/AppLayout'
 import { CoverViewerProvider } from './contexts/CoverViewerContext'
 
@@ -26,7 +28,26 @@ function AppPage({ children }: { children: React.ReactNode }) {
 const router = createBrowserRouter([
   { path: '/', element: <Navigate to="/dashboard" replace /> },
   { path: '/login', element: <Login /> },
-  { path: '/register', element: <Register /> },
+  // Authenticated but deliberately outside AppLayout — nothing to navigate to
+  // until the password is set.
+  {
+    path: '/set-password',
+    element: (
+      <PrivateRoute>
+        <SetPassword />
+      </PrivateRoute>
+    ),
+  },
+  {
+    path: '/admin',
+    element: (
+      <AppPage>
+        <RequireAdmin>
+          <Admin />
+        </RequireAdmin>
+      </AppPage>
+    ),
+  },
   {
     path: '/dashboard',
     element: <AppPage><Dashboard /></AppPage>,

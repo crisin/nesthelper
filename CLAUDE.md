@@ -33,12 +33,13 @@ cd backend && npx prisma generate
 ```
 
 ## Environment
-- Backend: [backend/.env.example](backend/.env.example) → `DATABASE_URL`, `JWT_SECRET`, `SPOTIFY_CLIENT_ID/SECRET/REDIRECT_URI`, `REDIS_HOST/PORT`
+- Backend: [backend/.env.example](backend/.env.example) → `DATABASE_URL`, `JWT_SECRET`, `SPOTIFY_CLIENT_ID/SECRET/REDIRECT_URI`, `REDIS_HOST/PORT`, `ADMIN_EMAIL`/`ADMIN_INITIAL_PASSWORD`
 - Frontend: [frontend/.env.example](frontend/.env.example) → `VITE_API_URL=http://localhost:3001`, `VITE_SPOTIFY_CLIENT_ID`
 
 ## Hard rules
 - **Always run `prisma generate` after `prisma migrate dev`** — generated types won't reflect schema changes otherwise
 - **Never skip `JwtAuthGuard`** on any controller that handles user data
+- **Registration is closed** — accounts are created by an admin at `/admin`; the `ADMIN_EMAIL` owner account is provisioned on boot and cannot be locked out
 - **Never commit `.env` files** — only `.env.example`
 - **Never use `as any`** — use Prisma type patterns (see [backend/CLAUDE.md](backend/CLAUDE.md))
 - **Mobile-first for new UI** — use `sm:` breakpoint (640px) for desktop-only features

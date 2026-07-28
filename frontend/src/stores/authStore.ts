@@ -6,22 +6,52 @@ interface AuthState {
   user: User | null
   token: string | null
   isAuthenticated: boolean
+  /** Why the last session ended — shown once on the login page. */
+  logoutReason: string | null
   setAuth: (user: User, token: string) => void
   updateUser: (patch: Partial<User>) => void
-  clearAuth: () => void
+  clearAuth: (reason?: string) => void
+  consumeLogoutReason: () => string | null
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       token: null,
       isAuthenticated: false,
-      setAuth: (user, token) => set({ user, token, isAuthenticated: true }),
+      logoutReason: null,
+      setAuth: (user, token) =>
+        set({ user, token, isAuthenticated: true, logoutReason: null }),
       updateUser: (patch) =>
         set((s) => ({ user: s.user ? { ...s.user, ...patch } : s.user })),
-      clearAuth: () => set({ user: null, token: null, isAuthenticated: false }),
+      clearAuth: (reason) =>
+        set({
+          user: null,
+          token: null,
+          isAuthenticated: false,
+          logoutReason: reason ?? null,
+        }),
+      consumeLogoutReason: () => {
+        const reason = get().logoutReason
+        if (reason) set({ logoutReason: null })
+        return reason
+      },
     }),
-    { name: 'auth' },
+    {
+      name: 'auth',
+      version: 1,
+      // Never persist the logout reason — it belongs to one redirect, not to
+      // the next time the browser is opened.
+      partialize: ({ user, token, isAuthenticated }) => ({
+        user,
+        token,
+        isAuthenticated,
+      }),
+      // v0 users predate role/mustChangePassword and would render as non-admins
+      // until the first /auth/me lands. Dropping the cached user removes that
+      // flash; the token survives, so nobody gets logged out.
+      migrate: (state) => ({ ...(state as AuthState), user: null }),
+    },
   ),
 )

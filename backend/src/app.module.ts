@@ -4,6 +4,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
 import { SpotifyModule } from './spotify/spotify.module';
 import { SearchHistoryModule } from './search-history/search-history.module';
 import { SavedLyricsModule } from './saved-lyrics/saved-lyrics.module';
@@ -37,6 +38,7 @@ import { FeatureRequestsModule } from './feature-requests/feature-requests.modul
     }),
     PrismaModule,
     AuthModule,
+    UsersModule,
     SpotifyModule,
     SearchHistoryModule,
     SavedLyricsModule,

@@ -53,6 +53,13 @@ services:
       SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET}
       SPOTIFY_REDIRECT_URI: ${SPOTIFY_REDIRECT_URI}
       JWT_SECRET: ${JWT_SECRET}
+      # Owner account, provisioned + repaired on every boot. Without these the
+      # bootstrap does nothing and nobody can reach /admin.
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_INITIAL_PASSWORD: ${ADMIN_INITIAL_PASSWORD:-}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      # Without this main.ts allows no CORS origin at all in production.
+      FRONTEND_URL: ${FRONTEND_URL}
       PORT: 3001
       NODE_ENV: production
     ports:

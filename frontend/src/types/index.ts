@@ -1,7 +1,27 @@
+export type Role = 'USER' | 'ADMIN'
+
 export interface User {
   id: string
   email: string
   name?: string
+  role: Role
+  isActive: boolean
+  /** The ADMIN_EMAIL owner account — cannot be demoted, deactivated or deleted. */
+  isProtected: boolean
+  mustChangePassword: boolean
+  lastLoginAt?: string | null
+  createdAt: string
+}
+
+/** A row in the admin user list. */
+export interface AdminUser extends User {
+  savedSongs: number
+}
+
+/** Response of create/reset — `tempPassword` is shown exactly once. */
+export interface ProvisionedUser {
+  user: User
+  tempPassword: string
 }
 
 export interface SpotifyCurrentlyPlayingResponse {

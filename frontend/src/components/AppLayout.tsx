@@ -11,10 +11,12 @@ import {
   Lightbulb,
   Music2,
   Settings,
+  Users,
 } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import api from "../services/api";
+import { useAuthStore } from "../stores/authStore";
 import { useVisualStore } from "../stores/visualStore";
 import type { SpotifyCurrentlyPlayingResponse } from "../types";
 import DynamicBackground from "./DynamicBackground";
@@ -88,12 +90,19 @@ const NAV = [
   { path: "/settings", label: "Einstellungen", Icon: Settings },
 ];
 
+const ADMIN_NAV = { path: "/admin", label: "Nutzer", Icon: Users };
+
 export default function AppLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [panelMode, setPanelMode] = useState<PanelMode | null>(null);
   const visualEnabled = useVisualStore((s) => s.enabled);
+  const isAdmin = useAuthStore((s) => s.user?.role) === "ADMIN";
   const pageKey = getPageKey(location.pathname);
+
+  // Sidebar only — the mobile bottom nav is already at eight items, so admins
+  // reach the page through Settings on a phone.
+  const sidebarNav = isAdmin ? [...NAV, ADMIN_NAV] : NAV;
 
   return (
     <div
@@ -120,7 +129,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
-          {NAV.map(({ path, label, Icon }) => {
+          {sidebarNav.map(({ path, label, Icon }) => {
             const active =
               path === "/favorites" || path === "/collections"
                 ? location.pathname.startsWith(path)

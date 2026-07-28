@@ -1,7 +1,6 @@
 import {
   Body,
   Controller,
-  ForbiddenException,
   Get,
   HttpCode,
   HttpStatus,
@@ -10,22 +9,19 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import type { PublicUser } from '../users/user.select';
 import { AuthService } from './auth.service';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { CompleteOnboardingDto } from './dto/complete-onboarding.dto';
 import { LoginDto } from './dto/login.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
-import { ChangePasswordDto } from './dto/change-password.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 
-type AuthedRequest = { user: { id: string; email: string; name?: string } };
+type AuthedRequest = { user: PublicUser };
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
-
-  @Post('register')
-  register() {
-    throw new ForbiddenException('Registration is closed');
-  }
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
@@ -45,17 +41,26 @@ export class AuthController {
     return this.authService.updateProfile(req.user.id, dto);
   }
 
+  /** Returns a new token — the old one is invalidated by the change. */
   @Patch('password')
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
-  async changePassword(
-    @Req() req: AuthedRequest,
-    @Body() dto: ChangePasswordDto,
-  ) {
-    await this.authService.changePassword(
+  changePassword(@Req() req: AuthedRequest, @Body() dto: ChangePasswordDto) {
+    return this.authService.changePassword(
       req.user.id,
       dto.currentPassword,
       dto.newPassword,
     );
+  }
+
+  /** First login after an admin handed out a temporary password. */
+  @Post('complete-onboarding')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  completeOnboarding(
+    @Req() req: AuthedRequest,
+    @Body() dto: CompleteOnboardingDto,
+  ) {
+    return this.authService.completeOnboarding(req.user.id, dto.newPassword);
   }
 }

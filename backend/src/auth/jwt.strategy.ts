@@ -8,8 +8,8 @@ import { USER_SELECT, type PublicUser } from '../users/user.select';
 interface JwtPayload {
   sub: string;
   email: string;
-  /** Issued-at in seconds, added by @nestjs/jwt. */
-  iat?: number;
+  /** User.tokenVersion at signing time. Absent in tokens issued before it existed. */
+  v?: number;
 }
 
 @Injectable()
@@ -30,7 +30,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   async validate(payload: JwtPayload): Promise<PublicUser> {
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
-      select: { ...USER_SELECT, passwordChangedAt: true },
+      select: { ...USER_SELECT, tokenVersion: true },
     });
     if (!user) throw new UnauthorizedException();
 
@@ -41,18 +41,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Dieser Account ist deaktiviert');
     }
 
-    const { passwordChangedAt, ...publicUser } = user;
+    const { tokenVersion, ...publicUser } = user;
 
-    // Tokens issued before the last password change are dead. `iat` is a
-    // whole-second value, so compare against the truncated timestamp —
-    // otherwise the token handed out by the change itself rejects itself.
-    if (passwordChangedAt && payload.iat !== undefined) {
-      const changedAt = Math.floor(passwordChangedAt.getTime() / 1000);
-      if (payload.iat < changedAt) {
-        throw new UnauthorizedException(
-          'Sitzung abgelaufen, bitte neu anmelden',
-        );
-      }
+    // Every password change bumps tokenVersion, so tokens signed before it stop
+    // matching. Tokens minted before this field existed carry no `v` and count
+    // as 0 — the same value every existing account starts at, so nobody gets
+    // logged out by the deploy itself.
+    if ((payload.v ?? 0) !== tokenVersion) {
+      throw new UnauthorizedException('Sitzung abgelaufen, bitte neu anmelden');
     }
 
     return publicUser;

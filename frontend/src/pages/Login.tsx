@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../stores/authStore'
 import api from '../services/api'
@@ -6,6 +7,7 @@ import type { AuthResponse } from '../types'
 
 export default function Login() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const setAuth = useAuthStore((s) => s.setAuth)
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   // Set when a session ended on its own — being dumped here without a word is
@@ -28,6 +30,9 @@ export default function Login() {
     try {
       const { data } = await api.post<AuthResponse>('/auth/login', { email, password })
       setAuth(data.user, data.access_token)
+      // Seed the cache PrivateRoute reads, so it can't hand back the previous
+      // account's user object on the first render after a switch.
+      queryClient.setQueryData(['auth-me'], data.user)
       // Straight to onboarding on a first login, no dashboard flash in between.
       navigate(data.user.mustChangePassword ? '/set-password' : '/dashboard', {
         replace: true,

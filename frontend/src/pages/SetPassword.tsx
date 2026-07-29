@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { Check, Eye, EyeOff, KeyRound } from 'lucide-react'
 import api from '../services/api'
@@ -14,6 +14,7 @@ const MIN_LENGTH = 6
  */
 export default function SetPassword() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const user = useAuthStore((s) => s.user)
   const setAuth = useAuthStore((s) => s.setAuth)
   const clearAuth = useAuthStore((s) => s.clearAuth)
@@ -36,6 +37,10 @@ export default function SetPassword() {
     // response has to replace it before anything else fires a request.
     onSuccess: (data) => {
       setAuth(data.user, data.access_token)
+      // PrivateRoute keeps /auth/me cached for 30s and writes it back into the
+      // store. Without this the stale copy — still carrying
+      // mustChangePassword: true — would bounce us straight back here.
+      queryClient.setQueryData(['auth-me'], data.user)
       navigate('/dashboard', { replace: true })
     },
     onError: (err: { response?: { data?: { message?: string } } }) => {

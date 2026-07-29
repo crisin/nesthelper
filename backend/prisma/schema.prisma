@@ -59,8 +59,12 @@ model User {
   isProtected Boolean @default(false)
 
   mustChangePassword Boolean   @default(false)
-  // Tokens issued before this instant are rejected (see JwtStrategy), so an
-  // admin password reset kills the user's existing sessions.
+  // Bumped on every password change. The JWT carries the value it was signed
+  // with, so a mismatch kills the token (see JwtStrategy). A timestamp can't do
+  // this job: `iat` only has second resolution, so a token issued in the same
+  // second as the change would survive it.
+  tokenVersion       Int       @default(0)
+  // Informational only — "when did this account last change its password".
   passwordChangedAt  DateTime?
   lastLoginAt        DateTime?
 

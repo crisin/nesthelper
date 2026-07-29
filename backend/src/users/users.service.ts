@@ -79,6 +79,8 @@ export class UsersService {
         password: await hashPassword(tempPassword),
         mustChangePassword: true,
         passwordChangedAt: new Date(),
+        // Whoever is logged in as this person right now gets kicked out.
+        tokenVersion: { increment: 1 },
       },
       select: USER_SELECT,
     });
@@ -99,16 +101,18 @@ export class UsersService {
     const nextRole = patch.role ?? target.role;
     const nextActive = patch.isActive ?? target.isActive;
 
-    if (nextRole === Role.ADMIN && !nextActive) {
-      throw new BadRequestException(
-        'Ein deaktivierter Account kann kein Admin sein',
-      );
-    }
+    // Who-may-touch-whom first, so a blocked action explains itself with
+    // "geschützter Account" instead of some downstream consistency rule.
     if (patch.isActive === false) {
       this.assertDemotable(target, actorId, 'deaktivieren');
     }
     if (nextRole === Role.USER && target.role === Role.ADMIN) {
       this.assertDemotable(target, actorId, 'zum Nutzer zurückstufen');
+    }
+    if (nextRole === Role.ADMIN && !nextActive) {
+      throw new BadRequestException(
+        'Ein deaktivierter Account kann kein Admin sein',
+      );
     }
 
     const losesAdmin =

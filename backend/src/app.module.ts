@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
 import { BullModule } from '@nestjs/bullmq';
 import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './prisma/prisma.module';
@@ -53,5 +55,9 @@ import { FeatureRequestsModule } from './feature-requests/feature-requests.modul
     DigestModule,
     FeatureRequestsModule,
   ],
+  // AppController was never registered, so GET /health 404'd — which is the
+  // path railway.json points its healthcheck at. Unguarded on purpose.
+  controllers: [AppController],
+  providers: [AppService],
 })
 export class AppModule {}

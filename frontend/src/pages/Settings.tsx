@@ -26,6 +26,7 @@ const STRENGTH_COLORS = ["#3f3f46", "#ef4444", "#f97316", "#eab308", "#84cc16", 
 
 function ChangePassword() {
   const setAuth = useAuthStore((s) => s.setAuth)
+  const queryClient = useQueryClient()
   const [current,  setCurrent]  = useState("")
   const [next,     setNext]     = useState("")
   const [confirm,  setConfirm]  = useState("")
@@ -48,6 +49,7 @@ function ChangePassword() {
       // The change kills every token issued before it — including this tab's.
       // Swapping in the fresh one keeps the session alive here and only here.
       setAuth(data.user, data.access_token)
+      queryClient.setQueryData(["auth-me"], data.user)
       setDone(true)
       setCurrent(""); setNext(""); setConfirm("")
       setServerErr("")

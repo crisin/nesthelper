@@ -21,7 +21,13 @@ async function bootstrap() {
   );
 
   const isProd = process.env.NODE_ENV === 'production';
-  const devOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173'];
+  // 5174 is what .claude/launch.json starts vite on; 5173 is the vite default.
+  const devOrigins = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'http://localhost:5174',
+    'http://127.0.0.1:5174',
+  ];
   // Use a plain string/array (not a callback) so the cors package always
   // handles OPTIONS preflights itself with a proper 204 response.
   // With a callback returning false, OPTIONS falls through to the NestJS

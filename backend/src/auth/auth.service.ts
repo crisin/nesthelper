@@ -51,10 +51,10 @@ export class AuthService {
     const updated = await this.prisma.user.update({
       where: { id: user.id },
       data: { lastLoginAt: new Date() },
-      select: USER_SELECT,
+      select: { ...USER_SELECT, tokenVersion: true },
     });
 
-    return { user: updated, access_token: this.signToken(updated) };
+    return this.issue(updated);
   }
 
   /**
@@ -116,18 +116,36 @@ export class AuthService {
         password: await hashPassword(newPassword),
         mustChangePassword: false,
         passwordChangedAt: new Date(),
+        // Kills every token signed with the previous version, including the one
+        // the caller is holding — which is why this returns a fresh one.
+        tokenVersion: { increment: 1 },
       },
-      select: USER_SELECT,
+      select: { ...USER_SELECT, tokenVersion: true },
     });
 
-    return { user, access_token: this.signToken(user) };
+    return this.issue(user);
   }
 
-  private signToken(user: Pick<PublicUser, 'id' | 'email'>): string {
+  /** Splits the internal tokenVersion off the user object the client gets. */
+  private issue(user: PublicUser & { tokenVersion: number }): AuthResult {
+    const { tokenVersion, ...publicUser } = user;
+    return {
+      user: publicUser,
+      access_token: this.signToken(publicUser, tokenVersion),
+    };
+  }
+
+  private signToken(
+    user: Pick<PublicUser, 'id' | 'email'>,
+    tokenVersion: number,
+  ): string {
     // JWT_EXPIRES_IN is an untyped env string; assert it into the ms-style
     // literal type the signer expects instead of widening the whole options object.
     const expiresIn = (process.env.JWT_EXPIRES_IN ??
       '7d') as JwtSignOptions['expiresIn'];
-    return this.jwt.sign({ sub: user.id, email: user.email }, { expiresIn });
+    return this.jwt.sign(
+      { sub: user.id, email: user.email, v: tokenVersion },
+      { expiresIn },
+    );
   }
 }

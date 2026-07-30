@@ -13,7 +13,7 @@ import {
   Settings,
   Users,
 } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useNowPlaying } from "../hooks/useNowPlaying";
 import { useAuthStore } from "../stores/authStore";
@@ -75,6 +75,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   // layout needs to know whether the mobile bar takes up space.
   const { data: currentTrack } = useNowPlaying();
   const hasNowPlaying = !!currentTrack?.item;
+
+  // Without this, tapping the 20th song in a list opens its page already
+  // scrolled into the middle of the lyrics.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
 
   const secondaryNav = isAdmin ? [...SECONDARY_NAV, ADMIN_NAV] : SECONDARY_NAV;
   // The sidebar has the room to stay flat; only the phone needs the split.

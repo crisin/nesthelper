@@ -7,16 +7,7 @@ import type { SavedLyric, SearchHistoryItem } from "../types";
 import BottomSheet from "./BottomSheet";
 import SwipeToDelete from "./SwipeToDelete";
 import SongCard from "./SongCard";
-
-function timeAgo(dateStr: string) {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
-}
+import { timeAgo } from '../lib/format'
 
 export default function LyricsSearch() {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
@@ -122,7 +113,7 @@ export default function LyricsSearch() {
             <span className="flex-1">{error}</span>
             <button
               onClick={clearError}
-              className="flex-shrink-0 text-red-400 hover:text-red-600 transition-colors"
+              className="flex-shrink-0 text-red-600 dark:text-red-400 hover:text-red-600 transition-colors"
               aria-label="Dismiss error"
             >
               <X size={14} />
@@ -188,7 +179,7 @@ export default function LyricsSearch() {
                           <button
                             onClick={() => setPendingDeleteId(item.id)}
                             disabled={removeHistory.isPending}
-                            aria-label="Remove from history"
+                            aria-label="Aus dem Verlauf entfernen"
                             className="hidden sm:flex flex-shrink-0 items-center justify-center text-foreground-subtle disabled:opacity-30 hover:text-foreground transition-colors opacity-0 group-hover:opacity-100"
                           >
                             <X size={14} />

@@ -79,7 +79,7 @@ function CollectionCard({
                 <Lock size={10} className="text-foreground-subtle flex-shrink-0" strokeWidth={1.75} />
               )}
               <span className="text-[11px] text-foreground-subtle">
-                {itemCount} {itemCount === 1 ? 'song' : 'songs'}
+                {itemCount} {itemCount === 1 ? 'Song' : 'Songs'}
               </span>
             </div>
           </div>
@@ -88,7 +88,7 @@ function CollectionCard({
               onClick={(e) => { e.stopPropagation(); setConfirmDelete(true) }}
               className="sm:opacity-0 sm:group-hover:opacity-100 p-1 rounded text-foreground-subtle
                          hover:text-red-400 transition-all"
-              aria-label="Delete collection"
+              aria-label="Sammlung löschen"
             >
               <Trash2 size={12} strokeWidth={1.75} />
             </button>
@@ -100,7 +100,7 @@ function CollectionCard({
       <BottomSheet open={confirmDelete} onClose={() => setConfirmDelete(false)}>
         <div className="space-y-4">
           <div>
-            <h3 className="text-base font-semibold text-foreground">Collection löschen</h3>
+            <h3 className="text-base font-semibold text-foreground">Sammlung löschen</h3>
             <p className="text-sm text-foreground-muted mt-1">
               Bist du sicher, dass du <strong>{collection.name}</strong> löschen willst?
             </p>
@@ -169,7 +169,7 @@ function PublicCollectionCard({ collection }: { collection: Collection }) {
         <div className="flex items-center gap-1.5 mt-0.5">
           <Globe size={10} className="text-foreground-subtle flex-shrink-0" strokeWidth={1.75} />
           <span className="text-[11px] text-foreground-subtle truncate">
-            {collection.user?.name ?? 'Anonym'} · {itemCount} {itemCount === 1 ? 'song' : 'songs'}
+            {collection.user?.name ?? 'Anonym'} · {itemCount} {itemCount === 1 ? 'Song' : 'Songs'}
           </span>
         </div>
       </div>
@@ -254,9 +254,9 @@ export default function Collections() {
       <div className="flex items-end justify-between gap-4">
         <div>
           <p className="text-[11px] font-semibold text-foreground-subtle uppercase tracking-widest mb-1">
-            Library
+            Sammlungen
           </p>
-          <h1 className="text-xl font-semibold text-foreground">Collections</h1>
+          <h1 className="text-xl font-semibold text-foreground">Sammlungen</h1>
         </div>
         {tab === 'mine' && (
           <button
@@ -286,7 +286,7 @@ export default function Collections() {
             {t === 'mine' ? (
               <><Lock size={10} strokeWidth={2} />Meine</>
             ) : (
-              <><Globe size={10} strokeWidth={2} />Entdecken</>
+              <><Globe size={10} strokeWidth={2} />Öffentlich</>
             )}
           </button>
         ))}
@@ -327,7 +327,7 @@ export default function Collections() {
                             border-dashed border-edge gap-3 text-center">
               <BookOpen size={28} className="text-foreground-subtle" strokeWidth={1.25} />
               <div className="space-y-1">
-                <p className="text-sm text-foreground-muted font-medium">Noch keine Collections</p>
+                <p className="text-sm text-foreground-muted font-medium">Noch keine Sammlungen</p>
                 <p className="text-xs text-foreground-subtle">
                   Gruppiere deine Songs in thematischen Playlists.
                 </p>
@@ -364,7 +364,7 @@ export default function Collections() {
             <div className="flex flex-col items-center justify-center py-20 rounded-xl border
                             border-dashed border-edge gap-3 text-center">
               <Globe size={28} className="text-foreground-subtle" strokeWidth={1.25} />
-              <p className="text-sm text-foreground-muted font-medium">Keine öffentlichen Collections</p>
+              <p className="text-sm text-foreground-muted font-medium">Keine öffentlichen Sammlungen</p>
               <p className="text-xs text-foreground-subtle">
                 Noch hat niemand eine Collection veröffentlicht.
               </p>

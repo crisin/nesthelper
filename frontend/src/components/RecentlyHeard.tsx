@@ -4,16 +4,7 @@ import { BookmarkPlus, Check, RefreshCw } from 'lucide-react'
 import api from '../services/api'
 import type { PlayHistoryEntry } from '../types'
 import SongCard from './SongCard'
-
-function timeAgo(iso: string) {
-  const diff = Date.now() - new Date(iso).getTime()
-  const m = Math.floor(diff / 60_000)
-  if (m < 1) return 'gerade eben'
-  if (m < 60) return `vor ${m} Min.`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `vor ${h} Std.`
-  return `vor ${Math.floor(h / 24)} Tagen`
-}
+import { timeAgo } from '../lib/format'
 
 function PlayRow({ entry }: { entry: PlayHistoryEntry }) {
   const queryClient = useQueryClient()

@@ -32,7 +32,7 @@ function Badge({
     neutral: 'bg-surface-overlay text-foreground-muted border-edge',
     accent: 'bg-accent/12 text-accent border-accent/30',
     muted: 'bg-transparent text-foreground-subtle border-edge',
-    danger: 'bg-red-500/10 text-red-400 border-red-500/30',
+    danger: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30',
   }
   return (
     <span
@@ -96,7 +96,7 @@ function ActionButton({
       className={[
         'flex items-center gap-1.5 px-2.5 py-1.5 min-h-[32px] rounded-lg border text-[11px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed',
         tone === 'danger'
-          ? 'border-red-500/30 text-red-400 hover:bg-red-500/10'
+          ? 'border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-500/10'
           : 'border-edge text-foreground-muted hover:text-foreground hover:bg-surface-overlay',
       ].join(' ')}
     >
@@ -324,9 +324,7 @@ function CreateUserDialog({
             }`}
           >
             <span
-              className={`absolute top-0.5 left-0.5 w-4.5 h-4.5 rounded-full bg-white shadow transition-transform ${
-                makeAdmin ? 'translate-x-4.5' : 'translate-x-0'
-              }`}
+              className={`absolute top-0.5 left-0.5 w-4.5 h-4.5 rounded-full shadow transition-transform ${makeAdmin ? 'bg-white translate-x-4.5' : 'bg-foreground-subtle translate-x-0'}`}
             />
           </span>
         </button>
@@ -337,7 +335,7 @@ function CreateUserDialog({
         </p>
 
         {error && (
-          <p className="text-sm text-red-400 bg-red-500/8 rounded-lg px-3 py-2">
+          <p className="text-sm text-red-600 dark:text-red-400 bg-red-500/8 rounded-lg px-3 py-2">
             {error}
           </p>
         )}
@@ -633,7 +631,7 @@ export default function Admin() {
       )}
 
       {isError && (
-        <p className="text-sm text-red-400 bg-red-500/8 rounded-lg px-3 py-2.5">
+        <p className="text-sm text-red-600 dark:text-red-400 bg-red-500/8 rounded-lg px-3 py-2.5">
           Die Nutzerliste konnte nicht geladen werden.
         </p>
       )}

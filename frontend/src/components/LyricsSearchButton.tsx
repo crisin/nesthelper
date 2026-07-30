@@ -18,8 +18,8 @@ export default function LyricsSearchButton() {
 
       {error && (
         <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-red-500/10 border border-red-500/20">
-          <span className="flex-1 text-[11px] text-red-400 leading-snug">{error}</span>
-          <button onClick={clearError} className="flex-shrink-0 text-red-400 hover:text-red-300 transition-colors">
+          <span className="flex-1 text-[11px] text-red-600 dark:text-red-400 leading-snug">{error}</span>
+          <button onClick={clearError} className="flex-shrink-0 text-red-600 dark:text-red-400 hover:text-red-300 transition-colors">
             <X size={11} />
           </button>
         </div>

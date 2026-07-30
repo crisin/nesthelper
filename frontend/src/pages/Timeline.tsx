@@ -87,7 +87,7 @@ export default function Timeline() {
           <p className="text-[11px] font-semibold text-foreground-subtle uppercase tracking-widest mb-1">
             Persönlich
           </p>
-          <h1 className="text-xl font-semibold text-foreground">Memory Timeline</h1>
+          <h1 className="text-xl font-semibold text-foreground">Erinnerungen</h1>
         </div>
 
         {/* Year selector */}

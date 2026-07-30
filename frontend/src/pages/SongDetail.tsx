@@ -13,18 +13,9 @@ import TrackCover from '../components/TrackCover'
 import TagSelector from '../components/TagSelector'
 import LyricsEditor from '../components/LyricsEditor'
 import LyricsViewer from '../components/LyricsViewer'
+import { timeAgo } from '../lib/format'
 
 // ─── Song notes section (public thread, own note editable) ───────────────────
-
-function timeAgo(dateStr: string) {
-  const diff = Date.now() - new Date(dateStr).getTime()
-  const m = Math.floor(diff / 60_000)
-  if (m < 1) return 'gerade eben'
-  if (m < 60) return `vor ${m} Min.`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `vor ${h} Std.`
-  return `vor ${Math.floor(h / 24)} Tagen`
-}
 
 function SongNotesSection({ spotifyId }: { spotifyId: string }) {
   const queryClient = useQueryClient()

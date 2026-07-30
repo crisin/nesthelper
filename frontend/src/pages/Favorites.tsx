@@ -16,26 +16,14 @@ import PullToRefresh from "../components/PullToRefresh";
 import SongCard from "../components/SongCard";
 import DigestBanner from "../components/DigestBanner";
 import LyricsViewer from "../components/LyricsViewer";
+import { formatAdded } from '../lib/format'
 
 type SortKey = "recent" | "artist" | "title";
 
-function formatAdded(dateStr: string) {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const days = Math.floor(diff / 86_400_000);
-  if (days === 0) return "Today";
-  if (days === 1) return "Yesterday";
-  if (days < 7) return `${days}d ago`;
-  if (days < 30) return `${Math.floor(days / 7)}w ago`;
-  return new Date(dateStr).toLocaleDateString("en", {
-    month: "short",
-    day: "numeric",
-  });
-}
-
 const SORTS: { key: SortKey; label: string }[] = [
-  { key: "recent", label: "Recent" },
-  { key: "artist", label: "Artist" },
-  { key: "title", label: "Title" },
+  { key: "recent", label: "Neueste" },
+  { key: "artist", label: "Künstler" },
+  { key: "title", label: "Titel" },
 ];
 
 export default function Favorites() {
@@ -111,7 +99,7 @@ export default function Favorites() {
           {/* Header */}
           <div>
             <p className="text-[11px] font-semibold text-foreground-subtle uppercase tracking-widest mb-1">
-              Library
+              Persönlich
             </p>
             <h1 className="text-xl font-semibold text-foreground flex items-baseline gap-2">
               Favoriten
@@ -153,7 +141,7 @@ export default function Favorites() {
           {songs.length > 1 && (
             <div className="flex items-center gap-1.5">
               <span className="text-[11px] text-foreground-subtle font-medium mr-0.5">
-                Sort:
+                Sortieren:
               </span>
               {SORTS.map(({ key, label }) => (
                 <button
@@ -223,7 +211,7 @@ export default function Favorites() {
                             {spotifyId && (
                               <span
                                 role="img"
-                                aria-label="Open on Spotify"
+                                aria-label="In Spotify öffnen"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   window.open(

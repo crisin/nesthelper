@@ -13,7 +13,7 @@ const ICONS: Record<string, React.ReactNode> = {
 
 const COLOR: Record<string, string> = {
   success: 'border-accent/30 bg-accent/10 text-accent',
-  error:   'border-red-500/30 bg-red-500/10 text-red-400',
+  error:   'border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400',
   info:    'border-edge bg-surface-raised text-foreground-muted',
 }
 

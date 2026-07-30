@@ -98,7 +98,7 @@ function ChangePassword() {
             </button>
           </div>
           {serverErr && (
-            <p className="text-[11px] text-red-400">{serverErr}</p>
+            <p className="text-[11px] text-red-600 dark:text-red-400">{serverErr}</p>
           )}
         </div>
 
@@ -194,7 +194,7 @@ function ChangePassword() {
             )}
           </div>
           {mismatch && (
-            <p className="text-[11px] text-red-400">Passwörter stimmen nicht überein</p>
+            <p className="text-[11px] text-red-600 dark:text-red-400">Passwörter stimmen nicht überein</p>
           )}
         </div>
 
@@ -272,26 +272,26 @@ export default function Settings() {
     <div className="px-4 sm:px-8 py-8 max-w-5xl mx-auto space-y-8 overflow-hidden">
       <div>
         <p className="text-[11px] font-semibold text-foreground-subtle uppercase tracking-widest mb-1">
-          Account
+          Konto
         </p>
-        <h1 className="text-xl font-semibold text-foreground">Settings</h1>
+        <h1 className="text-xl font-semibold text-foreground">Einstellungen</h1>
       </div>
 
       {/* Account section */}
       <section className="space-y-3">
         <p className="text-xs font-semibold text-foreground-subtle uppercase tracking-widest">
-          Profile
+          Profil
         </p>
         <div className="rounded-xl bg-surface-raised border border-edge divide-y divide-edge">
           <div className="flex items-center justify-between px-4 py-3">
             <div>
-              <p className="text-xs text-foreground-subtle mb-0.5">Email</p>
+              <p className="text-xs text-foreground-subtle mb-0.5">E-Mail</p>
               <p className="text-sm text-foreground">{user?.email}</p>
             </div>
           </div>
           <div className="px-4 py-3">
             <p className="text-xs text-foreground-subtle mb-1.5">
-              Display name
+              Anzeigename
             </p>
             <UsernameEdit />
           </div>
@@ -321,7 +321,7 @@ export default function Settings() {
                 <div className="flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-accent flex-shrink-0" />
                   <p className="text-sm font-medium text-foreground">
-                    Connected
+                    Verbunden
                   </p>
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -347,13 +347,13 @@ export default function Settings() {
                 className="text-xs text-foreground-subtle hover:text-foreground-muted disabled:opacity-40
                            transition-colors flex-shrink-0 pt-0.5"
               >
-                {disconnect.isPending ? "Disconnecting…" : "Disconnect"}
+                {disconnect.isPending ? "Wird getrennt…" : "Trennen"}
               </button>
             </div>
           ) : (
             <div className="px-4 py-4 flex items-center justify-between gap-4">
               <div>
-                <p className="text-sm text-foreground mb-0.5">Not connected</p>
+                <p className="text-sm text-foreground mb-0.5">Nicht verbunden</p>
                 <p className="text-xs text-foreground-subtle">
                   Verbinde dich um deine aktive Wiedergabe zu suchen.
                 </p>
@@ -390,9 +390,7 @@ export default function Settings() {
             }`}
           >
             <span
-              className={`absolute top-0.5 left-0.5 w-4.5 h-4.5 rounded-full bg-white shadow transition-transform ${
-                visual.enabled ? "translate-x-4.5" : "translate-x-0"
-              }`}
+              className={`absolute top-0.5 left-0.5 w-4.5 h-4.5 rounded-full shadow transition-transform ${visual.enabled ? "bg-white translate-x-4.5" : "bg-foreground-subtle translate-x-0"}`}
             />
           </button>
         </div>
@@ -423,9 +421,7 @@ export default function Settings() {
                     }`}
                   >
                     <span
-                      className={`absolute top-0.5 left-0.5 w-3.5 h-3.5 rounded-full bg-white shadow transition-transform ${
-                        visual.pages[key] ? "translate-x-3.5" : "translate-x-0"
-                      }`}
+                      className={`absolute top-0.5 left-0.5 w-3.5 h-3.5 rounded-full shadow transition-transform ${visual.pages[key] ? "bg-white translate-x-3.5" : "bg-foreground-subtle translate-x-0"}`}
                     />
                   </button>
                 </div>
@@ -508,9 +504,7 @@ export default function Settings() {
                   }`}
                 >
                   <span
-                    className={`absolute top-0.5 left-0.5 w-4.5 h-4.5 rounded-full bg-white shadow transition-transform ${
-                      visual.showVisualizer ? "translate-x-4.5" : "translate-x-0"
-                    }`}
+                    className={`absolute top-0.5 left-0.5 w-4.5 h-4.5 rounded-full shadow transition-transform ${visual.showVisualizer ? "bg-white translate-x-4.5" : "bg-foreground-subtle translate-x-0"}`}
                   />
                 </button>
               </div>
@@ -519,8 +513,8 @@ export default function Settings() {
                 <div className="flex gap-2">
                   {(
                     [
-                      ["pulse", "Pulse"],
-                      ["breathe", "Breathe"],
+                      ["pulse", "Puls"],
+                      ["breathe", "Atmen"],
                     ] as [VisualizerStyle, string][]
                   ).map(([val, label]) => (
                     <button
@@ -549,7 +543,7 @@ export default function Settings() {
             className="flex items-center gap-1.5 text-xs text-foreground-muted hover:text-foreground transition-colors"
           >
             <LogOut size={12} strokeWidth={1.75} />
-            Sign out
+            Abmelden
           </button>
           <button
             onClick={toggle}

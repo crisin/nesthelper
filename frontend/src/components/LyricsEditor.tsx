@@ -9,25 +9,9 @@ import api from '../services/api'
 import type { SongLyrics, LyricsSection, LyricsStatus, LineAnnotation, LyricsFetchStatus, SpotifyCurrentlyPlayingResponse, LrclibPreview } from '../types'
 import { useAuthStore } from '../stores/authStore'
 import { useNowPlaying } from '../hooks/useNowPlaying'
+import { timeAgo, formatMs } from '../lib/format'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function timeAgo(dateStr: string) {
-  const diff = Date.now() - new Date(dateStr).getTime()
-  const m = Math.floor(diff / 60_000)
-  if (m < 1) return 'just now'
-  if (m < 60) return `${m}m ago`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h ago`
-  return `${Math.floor(h / 24)}d ago`
-}
-
-function formatMs(ms: number) {
-  const totalSec = Math.floor(ms / 1000)
-  const min = Math.floor(totalSec / 60)
-  const sec = totalSec % 60
-  return `${min}:${sec.toString().padStart(2, '0')}`
-}
 
 function msToInput(ms: number | null | undefined): string {
   if (ms == null) return ''
@@ -384,7 +368,7 @@ function AnnotatedLine({
                   }
                   if (e.key === 'Escape') setSingerEditing(false)
                 }}
-                placeholder="Singer…"
+                placeholder="Stimme…"
                 className="w-24 text-[11px] bg-surface border border-accent/50 rounded px-1.5 py-0.5 focus:outline-none focus:border-accent"
               />
             ) : (
@@ -904,7 +888,7 @@ function LrclibPreviewPanel({
                 Ablehnen
               </button>
               {accept.isError && (
-                <span className="text-[11px] text-red-400 ml-auto">Fehler beim Speichern.</span>
+                <span className="text-[11px] text-red-600 dark:text-red-400 ml-auto">Fehler beim Speichern.</span>
               )}
             </div>
           </>

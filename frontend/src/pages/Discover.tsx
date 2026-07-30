@@ -8,6 +8,7 @@ import PullToRefresh from '../components/PullToRefresh'
 import SongCard from '../components/SongCard'
 import QueryError from '../components/QueryError'
 import { queryHasNoData } from '../lib/queryState'
+import { timeAgo, timeAgoShort } from '../lib/format'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -27,23 +28,12 @@ type LibrarySortKey = 'recent' | 'artist' | 'title'
 type LibraryLayout  = 'list' | 'grid'
 
 const LIBRARY_SORTS: { key: LibrarySortKey; label: string }[] = [
-  { key: 'recent', label: 'Recent' },
-  { key: 'artist', label: 'Artist' },
-  { key: 'title',  label: 'Title' },
+  { key: 'recent', label: 'Neueste' },
+  { key: 'artist', label: 'Künstler' },
+  { key: 'title',  label: 'Titel' },
 ]
 
 // ── Helpers ────────────────────────────────────────────────────────────────
-
-function timeAgo(dateStr: string) {
-  const diff = Date.now() - new Date(dateStr).getTime()
-  const mins = Math.floor(diff / 60_000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
-  const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h ago`
-  return `${Math.floor(hrs / 24)}d ago`
-}
-
 
 // ── Artist section divider ─────────────────────────────────────────────────
 
@@ -59,16 +49,6 @@ function ArtistDivider({ name }: { name: string }) {
 }
 
 // ── History row ────────────────────────────────────────────────────────────
-
-function timeAgoShort(iso: string) {
-  const diff = Date.now() - new Date(iso).getTime()
-  const m = Math.floor(diff / 60_000)
-  if (m < 1) return 'gerade eben'
-  if (m < 60) return `${m}m`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h`
-  return `${Math.floor(h / 24)}d`
-}
 
 function HistoryRow({
   entry,
@@ -301,7 +281,7 @@ export default function Discover() {
                         href={`https://open.spotify.com/track/${s.spotifyId}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        aria-label="Open on Spotify"
+                        aria-label="In Spotify öffnen"
                         onClick={(e) => e.stopPropagation()}
                         className="pointer-events-auto absolute top-2 left-2 w-7 h-7 rounded-full flex items-center justify-center
                                    bg-black/40 backdrop-blur-sm text-white hover:text-accent transition-all
@@ -356,7 +336,7 @@ export default function Discover() {
                     )}
                     {s.saveCount != null && s.saveCount > 0 && (
                       <span className="text-[11px] text-foreground-subtle tabular-nums">
-                        {s.saveCount}× saved
+                        {s.saveCount}× gespeichert
                       </span>
                     )}
                     <span className="text-[11px] text-foreground-subtle">
@@ -372,7 +352,7 @@ export default function Discover() {
                       rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
                       className="w-8 h-8 flex items-center justify-center text-foreground-subtle hover:text-accent transition-colors"
-                      aria-label="Open on Spotify"
+                      aria-label="In Spotify öffnen"
                     >
                       <ExternalLink size={13} strokeWidth={1.75} />
                     </a>
@@ -413,7 +393,7 @@ export default function Discover() {
           <p className="text-[11px] font-semibold text-foreground-subtle uppercase tracking-widest mb-1">
             Community
           </p>
-          <h1 className="text-xl font-semibold text-foreground">Discover</h1>
+          <h1 className="text-xl font-semibold text-foreground">Entdecken</h1>
         </div>
 
         {/* Tab switcher */}
@@ -429,7 +409,7 @@ export default function Discover() {
                   : 'text-foreground-muted hover:text-foreground',
               ].join(' ')}
             >
-              {t === 'library' ? 'Song Library' : t === 'activity' ? 'Activity' : 'Verlauf'}
+              {t === 'library' ? 'Songs' : t === 'activity' ? 'Aktivität' : 'Verlauf'}
             </button>
           ))}
         </div>
@@ -465,7 +445,7 @@ export default function Discover() {
         {tab === 'library' && songs.length > 1 && (
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1.5 flex-1">
-              <span className="text-[11px] text-foreground-subtle font-medium mr-0.5">Sort:</span>
+              <span className="text-[11px] text-foreground-subtle font-medium mr-0.5">Sortieren:</span>
               {LIBRARY_SORTS.map(({ key, label }) => (
                 <button
                   key={key}
@@ -486,7 +466,7 @@ export default function Discover() {
             <div className="flex items-center rounded-lg border border-edge bg-surface-raised p-0.5 gap-0.5 flex-shrink-0">
               <button
                 onClick={() => toggleLayout('list')}
-                title="List view"
+                title="Listenansicht"
                 className={[
                   'p-1.5 rounded-md transition-colors',
                   layout === 'list'
@@ -498,7 +478,7 @@ export default function Discover() {
               </button>
               <button
                 onClick={() => toggleLayout('grid')}
-                title="Grid view"
+                title="Rasteransicht"
                 className={[
                   'p-1.5 rounded-md transition-colors',
                   layout === 'grid'
@@ -543,7 +523,7 @@ export default function Discover() {
         {!isLoading && !isError && tab === 'library' && (
           songs.length === 0 ? (
             <p className="text-sm text-foreground-subtle py-4">
-              No songs yet — search lyrics on the Home page to populate the library.
+              Noch keine Songs — such Lyrics auf dem Dashboard, dann füllt sich die Bibliothek.
             </p>
           ) : filteredSongs.length === 0 ? (
             <p className="text-sm text-foreground-subtle py-4">
@@ -636,7 +616,7 @@ export default function Discover() {
                       actions={
                         <div className="flex items-center gap-3 flex-shrink-0">
                           <div className="hidden sm:flex flex-col items-end gap-0.5">
-                            <span className="text-xs text-foreground-muted">{item.user.name ?? 'Anonymous'}</span>
+                            <span className="text-xs text-foreground-muted">{item.user.name ?? 'Anonym'}</span>
                             <span className="text-[11px] text-foreground-subtle tabular-nums">{timeAgo(item.createdAt)}</span>
                           </div>
                           <span className="sm:hidden text-[11px] text-foreground-subtle tabular-nums">

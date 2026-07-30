@@ -23,7 +23,7 @@ const STATUS_META: Record<FeatureStatus, { label: string; color: string }> = {
   MUST_HAVE:     { label: 'Must Have', color: 'bg-orange-500/10 text-orange-400 border-orange-500/20' },
   WORKING_ON_IT: { label: 'In Arbeit', color: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
   DONE:          { label: 'Erledigt',  color: 'bg-green-500/10 text-green-400 border-green-500/20' },
-  DECLINED:      { label: 'Abgelehnt', color: 'bg-red-500/10 text-red-400 border-red-500/20' },
+  DECLINED:      { label: 'Abgelehnt', color: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20' },
 }
 
 const ALL_STATUSES = Object.keys(STATUS_META) as FeatureStatus[]
@@ -233,7 +233,7 @@ function RequestCard({ req, currentUserId }: { req: FeatureRequest; currentUserI
             <button
               onClick={() => remove.mutate()}
               disabled={remove.isPending}
-              className="flex items-center gap-1 px-2 py-1 rounded-md border border-red-500/20 text-[11px] text-red-400
+              className="flex items-center gap-1 px-2 py-1 rounded-md border border-red-500/20 text-[11px] text-red-600 dark:text-red-400
                          hover:bg-red-500/10 transition-colors ml-auto disabled:opacity-50"
             >
               {remove.isPending ? <Loader2 size={10} className="animate-spin" /> : <Trash2 size={10} strokeWidth={1.75} />}

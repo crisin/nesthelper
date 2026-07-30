@@ -31,6 +31,24 @@ export const useVisualStore = create<VisualStore>()(
       setPageEnabled: (page, v) => set((s) => ({ pages: { ...s.pages, [page]: v } })),
       set: (patch) => set(patch),
     }),
-    { name: 'visual-settings' },
+    {
+      name: 'visual-settings',
+      // No `version` bump on purpose: without a `migrate` function Zustand
+      // discards mismatched persisted state outright, which would reset
+      // everyone's visual settings. `merge` alone fixes the actual problem.
+      //
+      // Zustand shallow-merges, so a persisted `pages` object from before
+      // `settings`/`song` existed replaces the defaults wholesale — those two
+      // keys come back as undefined and their backgrounds stay off no matter
+      // what the toggle shows. Merge the nested object explicitly.
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<VisualStore>
+        return {
+          ...current,
+          ...p,
+          pages: { ...current.pages, ...(p.pages ?? {}) },
+        }
+      },
+    },
   ),
 )

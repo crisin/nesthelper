@@ -94,7 +94,7 @@ function WeekGrid({ weeks }: { weeks: WeekCount[] }) {
         {weeks.map(({ week, count }) => (
           <div
             key={week}
-            title={`${week}: ${count} ${count === 1 ? 'song' : 'songs'}`}
+            title={`${week}: ${count} ${count === 1 ? 'Song' : 'Songs'}`}
             className={['w-3.5 h-3.5 rounded-sm transition-colors', intensity(count)].join(' ')}
           />
         ))}
@@ -236,7 +236,7 @@ function AnalyticsSections({
           )}
         </Section>
 
-        <Section icon={User} title="Top Artists" isLoading={loading}>
+        <Section icon={User} title="Top-Künstler" isLoading={loading}>
           {topArtists.length === 0 ? (
             <EmptyState message="Noch keine Songs" />
           ) : (

@@ -15,15 +15,9 @@ import {
 } from '../hooks/useViewerSettings'
 import ViewerSettingsPanel from './ViewerSettingsPanel'
 import { useNowPlaying } from '../hooks/useNowPlaying'
+import { formatMs } from '../lib/format'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function formatMs(ms: number) {
-  const totalSec = Math.floor(ms / 1000)
-  const min = Math.floor(totalSec / 60)
-  const sec = totalSec % 60
-  return `${min}:${sec.toString().padStart(2, '0')}`
-}
 
 // Module-level const — evaluated once at import (intentional, matches project convention)
 const isDesktop = typeof window !== 'undefined' && window.matchMedia('(min-width: 640px)').matches

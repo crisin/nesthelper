@@ -139,7 +139,7 @@ export default function SetPassword() {
                 </button>
               </div>
               <p
-                className={`text-[11px] ${tooShort ? 'text-red-400' : 'text-foreground-subtle'}`}
+                className={`text-[11px] ${tooShort ? 'text-red-600 dark:text-red-400' : 'text-foreground-subtle'}`}
               >
                 Mindestens {MIN_LENGTH} Zeichen. Sonst keine Regeln — nimm was du
                 dir merken kannst.
@@ -179,7 +179,7 @@ export default function SetPassword() {
                 )}
               </div>
               {mismatch && (
-                <p className="text-[11px] text-red-400">
+                <p className="text-[11px] text-red-600 dark:text-red-400">
                   Die beiden stimmen noch nicht überein
                 </p>
               )}

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Music, Check, Plus, ChevronDown, ChevronRight, Loader2, ListMusic, Heart } from 'lucide-react'
 import api from '../services/api'
@@ -27,15 +27,10 @@ function TrackRow({
   onImport: (tracks: SpotifyLibraryTrack[]) => void
   isPending: boolean
 }) {
-  const { data: dbSong } = useQuery<Song | null>({
-    queryKey: ['song', track.id],
-    queryFn: () =>
-      api.get<Song>(`/songs/${track.id}`).then((r) => r.data).catch(() => null),
-    staleTime: 60_000,
-    retry: false,
-  })
-
-  const inDb = !!dbSong || addedSpotifyIds.has(track.id)
+  // The saved-ids set comes from one page-level query. This used to be a
+  // useQuery per row — 50 requests per page, mostly 404s, each dragging the
+  // full song payload along just to decide whether to draw a checkmark.
+  const inDb = addedSpotifyIds.has(track.id)
   const imgUrl = track.album.images[0]?.url
   const artists = track.artists.map((a) => a.name).join(', ')
 
@@ -134,7 +129,7 @@ function LikedSongsTab({
       ) : queryHasNoData(status, fetchStatus) ? (
         <QueryError queryKey={['spotify-liked', offset]} />
       ) : tracks.length === 0 ? (
-        <p className="text-sm text-foreground-muted text-center py-12">Keine Liked Songs gefunden.</p>
+        <p className="text-sm text-foreground-muted text-center py-12">Keine Lieblingssongs gefunden.</p>
       ) : (
         <div className="rounded-xl border border-edge bg-surface-raised overflow-hidden divide-y divide-edge/50">
           {tracks.map((track) => (
@@ -398,6 +393,19 @@ export default function SpotifyLibrary() {
   const [tab, setTab] = useState<Tab>('playlists')
   const [addedSpotifyIds, setAddedSpotifyIds] = useState<Set<string>>(new Set())
 
+  // One request for the whole page instead of one per row. `/songs` is already
+  // the slim list shape, so this is cheap.
+  const { data: librarySongs = [] } = useQuery<Song[]>({
+    queryKey: ['songs'],
+    queryFn: () => api.get<Song[]>('/songs').then((r) => r.data),
+    staleTime: 60_000,
+  })
+
+  const savedSpotifyIds = useMemo(
+    () => new Set([...librarySongs.map((s) => s.spotifyId), ...addedSpotifyIds]),
+    [librarySongs, addedSpotifyIds],
+  )
+
   const importMutation = useMutation({
     mutationFn: (tracks: SpotifyLibraryTrack[]) =>
       api
@@ -413,12 +421,13 @@ export default function SpotifyLibrary() {
       if (result.alreadyExisted > 0) parts.push(`${result.alreadyExisted} bereits vorhanden`)
       notify.success(parts.join(' · '))
       queryClient.invalidateQueries({ queryKey: ['saved-lyrics'] })
+      queryClient.invalidateQueries({ queryKey: ['songs'] })
     },
     onError: () => notify.error('Import fehlgeschlagen'),
   })
 
   return (
-    <div className="px-4 sm:px-8 py-6 max-w-2xl mx-auto space-y-6">
+    <div className="px-4 sm:px-8 py-8 max-w-5xl mx-auto space-y-6">
       {/* Page header */}
       <div>
         <h1 className="text-xl font-semibold text-foreground">Spotify-Bibliothek</h1>
@@ -439,7 +448,7 @@ export default function SpotifyLibrary() {
           ].join(' ')}
         >
           <Heart size={14} strokeWidth={tab === 'liked' ? 2.25 : 1.75} />
-          Liked Songs
+          Lieblingssongs
         </button>
         <button
           onClick={() => setTab('playlists')}
@@ -458,13 +467,13 @@ export default function SpotifyLibrary() {
       {/* Tab content */}
       {tab === 'liked' ? (
         <LikedSongsTab
-          addedSpotifyIds={addedSpotifyIds}
+          addedSpotifyIds={savedSpotifyIds}
           onImport={(tracks) => importMutation.mutate(tracks)}
           importPending={importMutation.isPending}
         />
       ) : (
         <PlaylistsTab
-          addedSpotifyIds={addedSpotifyIds}
+          addedSpotifyIds={savedSpotifyIds}
           onImport={(tracks) => importMutation.mutate(tracks)}
           importPending={importMutation.isPending}
         />

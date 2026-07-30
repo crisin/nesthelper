@@ -1,8 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
-import { Radio } from "lucide-react";
+import { ChevronRight, Maximize2, Radio } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import api from "../services/api";
-import type { SpotifyCurrentlyPlayingResponse } from "../types";
+import { useNowPlaying } from "../hooks/useNowPlaying";
 import LyricsViewer from "./LyricsViewer";
 import TrackCover from "./TrackCover";
 
@@ -20,16 +20,8 @@ export default function NowPlayingWidget() {
   const fetchedAt = useRef(0);
   const prevTrackId = useRef<string | null>(null);
 
-  const { data: track } = useQuery<SpotifyCurrentlyPlayingResponse | null>({
-    queryKey: ["spotify-current-track"],
-    queryFn: () =>
-      api
-        .get<SpotifyCurrentlyPlayingResponse>("/spotify/current-track")
-        .then((r) => r.data),
-    refetchInterval: 5_000,
-    staleTime: 0,
-    retry: false,
-  });
+  // AppLayout owns the 5s poll; progress in between comes from interpolation.
+  const { data: track } = useNowPlaying({ poll: false });
 
   // Record play on track change (fire-and-forget)
   useEffect(() => {
@@ -77,11 +69,8 @@ export default function NowPlayingWidget() {
 
   return (
     <>
-      <button
-        onClick={() => setViewerOpen(true)}
-        className="w-full rounded-xl border border-edge bg-surface overflow-hidden text-left hover:border-foreground-muted/40 transition-colors"
-      >
-        {/* Full-width cover — click opens fullscreen overlay, rest of button opens LyricsViewer */}
+      <div className="w-full rounded-xl border border-edge bg-surface overflow-hidden hover:border-foreground-muted/40 transition-colors">
+        {/* Cover keeps its own job: clicking it opens the fullscreen cover view */}
         <TrackCover
           src={imgUrl}
           track={item.name}
@@ -90,10 +79,14 @@ export default function NowPlayingWidget() {
           iconSize={28}
         />
 
-        {/* Track info + progress */}
-        <div className="px-3 pt-2.5 pb-2 space-y-2">
+        {/* Track info — the primary action, straight to the song page */}
+        <Link
+          to={`/songs/${item.id}`}
+          className="block w-full px-3 pt-2.5 pb-2 space-y-2 text-left hover:bg-surface-overlay/50
+                     transition-colors"
+        >
           <div className="flex items-start gap-1.5">
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold text-foreground leading-tight truncate">
                 {item.name}
               </p>
@@ -108,6 +101,11 @@ export default function NowPlayingWidget() {
                 strokeWidth={2}
               />
             )}
+            <ChevronRight
+              size={13}
+              strokeWidth={1.75}
+              className="text-foreground-subtle flex-shrink-0 mt-0.5"
+            />
           </div>
 
           {/* Progress bar + time */}
@@ -122,8 +120,19 @@ export default function NowPlayingWidget() {
               {formatMs(localProgressMs)}
             </span>
           </div>
-        </div>
-      </button>
+        </Link>
+
+        {/* Fullscreen lyrics — used to be the primary click, now explicit */}
+        <button
+          onClick={() => setViewerOpen(true)}
+          className="w-full flex items-center justify-center gap-1.5 py-1.5 border-t border-edge
+                     text-[10px] font-medium text-foreground-subtle hover:text-foreground
+                     hover:bg-surface-overlay/50 transition-colors"
+        >
+          <Maximize2 size={11} strokeWidth={1.75} />
+          Lyrics im Vollbild
+        </button>
+      </div>
 
       {viewerOpen && (
         <LyricsViewer

@@ -140,7 +140,7 @@ function SongNotesSection({ spotifyId }: { spotifyId: string }) {
             <span className="text-[10px] text-foreground-subtle">{timeAgo(myNote.updatedAt)}</span>
             <button
               onClick={openEditor}
-              className="ml-auto opacity-0 group-hover:opacity-100 text-foreground-subtle hover:text-foreground
+              className="ml-auto sm:opacity-0 sm:group-hover:opacity-100 text-foreground-subtle hover:text-foreground
                          transition-all p-0.5 rounded"
             >
               <Pencil size={11} strokeWidth={1.75} />

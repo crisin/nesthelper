@@ -6,6 +6,8 @@ import api from '../services/api'
 import type { PlayHistoryEntry, SavedLyric, Song } from '../types'
 import PullToRefresh from '../components/PullToRefresh'
 import SongCard from '../components/SongCard'
+import QueryError from '../components/QueryError'
+import { queryHasNoData } from '../lib/queryState'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -156,12 +158,12 @@ export default function Discover() {
     localStorage.setItem('discoverLayout', next)
   }
 
-  const { data: songs = [], isLoading: songsLoading } = useQuery<Song[]>({
+  const { data: songs = [], isLoading: songsLoading, status: songsStatus, fetchStatus: songsFetchStatus } = useQuery<Song[]>({
     queryKey: ['songs'],
     queryFn: () => api.get<Song[]>('/songs').then((r) => r.data),
   })
 
-  const { data: feed = [], isLoading: feedLoading } = useQuery<GlobalFeedItem[]>({
+  const { data: feed = [], isLoading: feedLoading, status: feedStatus, fetchStatus: feedFetchStatus } = useQuery<GlobalFeedItem[]>({
     queryKey: ['global-feed'],
     queryFn: () => api.get<GlobalFeedItem[]>('/search-history/global').then((r) => r.data),
     enabled: tab === 'activity',
@@ -183,7 +185,7 @@ export default function Discover() {
 
   const [libraryQuery, setLibraryQuery] = useState('')
 
-  const { data: history = [], isLoading: historyLoading } = useQuery<PlayHistoryEntry[]>({
+  const { data: history = [], isLoading: historyLoading, status: historyStatus, fetchStatus: historyFetchStatus } = useQuery<PlayHistoryEntry[]>({
     queryKey: ['play-history'],
     queryFn: () => api.get<PlayHistoryEntry[]>('/spotify/plays?limit=200').then((r) => r.data),
     enabled: tab === 'history' || (tab === 'library' && libraryQuery.trim().length > 0),
@@ -258,6 +260,12 @@ export default function Discover() {
   }, [queryClient, tab])
 
   const isLoading = tab === 'library' ? songsLoading : tab === 'activity' ? feedLoading : historyLoading
+  const isError =
+    tab === 'library'
+      ? queryHasNoData(songsStatus, songsFetchStatus)
+      : tab === 'activity'
+        ? queryHasNoData(feedStatus, feedFetchStatus)
+        : queryHasNoData(historyStatus, historyFetchStatus)
 
   function renderLibrarySongs(list: Song[]) {
     if (layout === 'grid') {
@@ -297,7 +305,7 @@ export default function Discover() {
                         onClick={(e) => e.stopPropagation()}
                         className="pointer-events-auto absolute top-2 left-2 w-7 h-7 rounded-full flex items-center justify-center
                                    bg-black/40 backdrop-blur-sm text-white hover:text-accent transition-all
-                                   opacity-0 group-hover:opacity-100"
+                                   sm:opacity-0 sm:group-hover:opacity-100"
                       >
                         <ExternalLink size={12} strokeWidth={2} />
                       </a>
@@ -527,8 +535,12 @@ export default function Discover() {
           )
         )}
 
+        {!isLoading && isError && (
+          <QueryError queryKey={tab === 'library' ? ['songs'] : tab === 'activity' ? ['global-feed'] : ['play-history']} />
+        )}
+
         {/* ── Song Library tab ──────────────────────────────────── */}
-        {!isLoading && tab === 'library' && (
+        {!isLoading && !isError && tab === 'library' && (
           songs.length === 0 ? (
             <p className="text-sm text-foreground-subtle py-4">
               No songs yet — search lyrics on the Home page to populate the library.
@@ -573,7 +585,7 @@ export default function Discover() {
         )}
 
         {/* ── History tab ───────────────────────────────────────── */}
-        {!isLoading && tab === 'history' && (
+        {!isLoading && !isError && tab === 'history' && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <p className="text-xs text-foreground-subtle">{history.length} Songs aufgezeichnet</p>
@@ -605,7 +617,7 @@ export default function Discover() {
         )}
 
         {/* ── Activity tab ──────────────────────────────────────── */}
-        {!isLoading && tab === 'activity' && (
+        {!isLoading && !isError && tab === 'activity' && (
           feed.length === 0 ? (
             <p className="text-sm text-foreground-subtle py-4">
               No searches yet — be the first!

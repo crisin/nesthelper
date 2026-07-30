@@ -6,6 +6,8 @@ import api from '../services/api'
 import type { Collection } from '../types'
 import TrackCover from '../components/TrackCover'
 import BottomSheet from '../components/BottomSheet'
+import QueryError from '../components/QueryError'
+import { queryHasNoData } from '../lib/queryState'
 
 // ─── Collection card ──────────────────────────────────────────────────────────
 
@@ -84,7 +86,7 @@ function CollectionCard({
           <div className="flex items-center gap-1 flex-shrink-0">
             <button
               onClick={(e) => { e.stopPropagation(); setConfirmDelete(true) }}
-              className="opacity-0 group-hover:opacity-100 p-1 rounded text-foreground-subtle
+              className="sm:opacity-0 sm:group-hover:opacity-100 p-1 rounded text-foreground-subtle
                          hover:text-red-400 transition-all"
               aria-label="Delete collection"
             >
@@ -184,12 +186,17 @@ export default function Collections() {
   const [newName, setNewName] = useState('')
   const [query, setQuery] = useState('')
 
-  const { data: collections = [], isLoading } = useQuery<Collection[]>({
+  const { data: collections = [], isLoading, status, fetchStatus } = useQuery<Collection[]>({
     queryKey: ['collections'],
     queryFn: () => api.get<Collection[]>('/collections').then((r) => r.data),
   })
 
-  const { data: publicCollections = [], isLoading: isLoadingPublic } = useQuery<Collection[]>({
+  const {
+    data: publicCollections = [],
+    isLoading: isLoadingPublic,
+    status: statusPublic,
+    fetchStatus: fetchStatusPublic,
+  } = useQuery<Collection[]>({
     queryKey: ['collections-public'],
     queryFn: () => api.get<Collection[]>('/collections/public').then((r) => r.data),
     enabled: tab === 'discover',
@@ -313,7 +320,9 @@ export default function Collections() {
       {/* My collections tab */}
       {tab === 'mine' && (
         <>
-          {isLoading ? skeletonGrid : collections.length === 0 ? (
+          {isLoading ? skeletonGrid : queryHasNoData(status, fetchStatus) ? (
+            <QueryError queryKey={['collections']} />
+          ) : collections.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 rounded-xl border
                             border-dashed border-edge gap-3 text-center">
               <BookOpen size={28} className="text-foreground-subtle" strokeWidth={1.25} />
@@ -349,7 +358,9 @@ export default function Collections() {
       {/* Discover tab */}
       {tab === 'discover' && (
         <>
-          {isLoadingPublic ? skeletonGrid : publicCollections.length === 0 ? (
+          {isLoadingPublic ? skeletonGrid : queryHasNoData(statusPublic, fetchStatusPublic) ? (
+            <QueryError queryKey={['collections-public']} />
+          ) : publicCollections.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 rounded-xl border
                             border-dashed border-edge gap-3 text-center">
               <Globe size={28} className="text-foreground-subtle" strokeWidth={1.25} />

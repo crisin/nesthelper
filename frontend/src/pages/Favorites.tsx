@@ -10,6 +10,8 @@ import {
 import api from "../services/api";
 import type { SavedLyric } from "../types";
 import SwipeToDelete from "../components/SwipeToDelete";
+import QueryError from "../components/QueryError"
+import { queryHasNoData } from "../lib/queryState";
 import PullToRefresh from "../components/PullToRefresh";
 import SongCard from "../components/SongCard";
 import DigestBanner from "../components/DigestBanner";
@@ -42,11 +44,12 @@ export default function Favorites() {
   const [viewingSong, setViewing] = useState<SavedLyric | null>(null);
   const queryClient = useQueryClient();
 
-  const { data: songs = [], isLoading } = useQuery<SavedLyric[]>({
+  const { data: songs = [], isLoading, status, fetchStatus } = useQuery<SavedLyric[]>({
     queryKey: ["saved-lyrics-favorites"],
     queryFn: () =>
       api.get<SavedLyric[]>("/saved-lyrics/favorites").then((r) => r.data),
   });
+  const loadFailed = queryHasNoData(status, fetchStatus);
 
   const unfavoriteSong = useMutation({
     mutationFn: (spotifyId: string) =>
@@ -170,7 +173,9 @@ export default function Favorites() {
           )}
 
           {/* List */}
-          {songs.length === 0 ? (
+          {loadFailed ? (
+            <QueryError queryKey={["saved-lyrics-favorites"]} />
+          ) : songs.length === 0 ? (
             <p className="text-sm text-foreground-subtle py-4">
               Noch keine Favoriten — drücke ♡ auf einem Song.
             </p>

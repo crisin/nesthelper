@@ -14,7 +14,14 @@ const VERSIONS_TO_KEEP = 20;
 
 const LYRICS_INCLUDE = {
   lines: { orderBy: { lineNumber: 'asc' as const } },
-  versions: { orderBy: { version: 'desc' as const }, take: VERSIONS_TO_KEEP },
+  // Without the rawText: each snapshot is a full copy of the lyrics, and the
+  // history list only shows the version number and its age. Restoring goes
+  // through the version number, not the text.
+  versions: {
+    select: { id: true, version: true, createdAt: true },
+    orderBy: { version: 'desc' as const },
+    take: VERSIONS_TO_KEEP,
+  },
   sections: { orderBy: { position: 'asc' as const } },
 } satisfies Prisma.SongLyricsInclude;
 

@@ -10,6 +10,8 @@ import type { Collection, CollectionItem, SavedLyric } from '../types'
 import TrackCover from '../components/TrackCover'
 import SongCard from '../components/SongCard'
 import BottomSheet from '../components/BottomSheet'
+import QueryError from '../components/QueryError'
+import { queryHasNoData } from '../lib/queryState'
 
 // ─── Rename sheet ─────────────────────────────────────────────────────────────
 
@@ -221,7 +223,7 @@ function ItemRow({
           artist={(song.song?.artists?.join(', ') || song.song?.artist) ?? ''}
           spotifyId={song.song?.spotifyId ?? song.id}
           actions={
-            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="flex items-center gap-0.5 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
               <button onClick={onMoveUp} disabled={isFirst} className="p-1 rounded text-foreground-subtle hover:text-foreground disabled:opacity-20 transition-colors" aria-label="Nach oben">
                 <ChevronUp size={13} strokeWidth={2} />
               </button>
@@ -257,7 +259,7 @@ function ItemRow({
           onClick={() => removeMutation.mutate()}
           disabled={removeMutation.isPending}
           className="flex-shrink-0 p-1 rounded text-foreground-subtle hover:text-red-400
-                     opacity-0 group-hover:opacity-100 transition-all"
+                     sm:opacity-0 sm:group-hover:opacity-100 transition-all"
           aria-label="Entfernen"
         >
           <X size={13} strokeWidth={2} />
@@ -279,7 +281,7 @@ export default function CollectionDetail() {
   const [addOpen, setAddOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
-  const { data: collection, isLoading } = useQuery<Collection>({
+  const { data: collection, isLoading, status, fetchStatus } = useQuery<Collection>({
     queryKey: ['collection', id],
     queryFn: () => api.get<Collection>(`/collections/${id}`).then((r) => r.data),
     enabled: !!id,
@@ -314,6 +316,16 @@ export default function CollectionDetail() {
         {[1, 2, 3].map((i) => (
           <div key={i} className="h-16 rounded-xl bg-surface-raised border border-edge animate-pulse" />
         ))}
+      </div>
+    )
+  }
+
+  // A failed request is not the same as "this collection does not exist" —
+  // without this the next branch claims it was deleted.
+  if (queryHasNoData(status, fetchStatus)) {
+    return (
+      <div className="px-4 sm:px-8 py-8 max-w-5xl mx-auto">
+        <QueryError queryKey={['collection', id]} />
       </div>
     )
   }

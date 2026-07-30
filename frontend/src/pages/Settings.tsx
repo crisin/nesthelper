@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronRight, ExternalLink, LogOut, Moon, Sun, Eye, EyeOff, Check, Sparkles, Users } from "lucide-react";
+import { ExternalLink, LogOut, Moon, Sun, Eye, EyeOff, Check, Sparkles } from "lucide-react";
 import api from "../services/api";
 import { useAuthStore } from "../stores/authStore";
 import type { AuthResponse } from "../types";
@@ -297,30 +297,6 @@ export default function Settings() {
           </div>
         </div>
       </section>
-
-      {/* Admin section — the only entry point on mobile, where the bottom nav is full */}
-      {user?.role === "ADMIN" && (
-        <section className="space-y-3">
-          <p className="text-xs font-semibold text-foreground-subtle uppercase tracking-widest">
-            Admin
-          </p>
-          <Link
-            to="/admin"
-            className="flex items-center justify-between gap-3 px-4 py-3.5 rounded-xl bg-surface-raised border border-edge hover:bg-surface-overlay transition-colors"
-          >
-            <span className="flex items-center gap-3 min-w-0">
-              <Users size={16} strokeWidth={1.75} className="text-accent flex-shrink-0" />
-              <span className="min-w-0">
-                <span className="block text-sm text-foreground">Nutzerverwaltung</span>
-                <span className="block text-xs text-foreground-muted mt-0.5">
-                  Accounts anlegen, Passwörter zurücksetzen
-                </span>
-              </span>
-            </span>
-            <ChevronRight size={15} strokeWidth={1.75} className="text-foreground-subtle flex-shrink-0" />
-          </Link>
-        </section>
-      )}
 
       {/* Password section */}
       <section className="space-y-3">

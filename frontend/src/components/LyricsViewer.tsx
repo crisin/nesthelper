@@ -6,7 +6,7 @@ import {
 } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import api from '../services/api'
-import type { SongLyrics, LyricsSection, SpotifyCurrentlyPlayingResponse } from '../types'
+import type { SongLyrics, LyricsSection } from '../types'
 import {
   useViewerSettings,
   computeViewerStyle,
@@ -14,6 +14,7 @@ import {
   savePanelWidth,
 } from '../hooks/useViewerSettings'
 import ViewerSettingsPanel from './ViewerSettingsPanel'
+import { useNowPlaying } from '../hooks/useNowPlaying'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -102,13 +103,11 @@ export default function LyricsViewer({
     staleTime: 60_000,
   })
 
-  const { data: currentTrack } = useQuery<SpotifyCurrentlyPlayingResponse | null>({
-    queryKey: ['spotify-current-track'],
-    queryFn:  () => api.get<SpotifyCurrentlyPlayingResponse>('/spotify/current-track').then((r) => r.data),
-    enabled:  !!spotifyId,
-    refetchInterval: syncMode ? 500 : 1_000,
-    staleTime: 0,
-    retry: false,
+  // Sync mode follows the playhead line by line, so it earns its own fast timer;
+  // otherwise fall back to the shared 5s poll AppLayout already runs.
+  const { data: currentTrack } = useNowPlaying({
+    intervalMs: syncMode ? 500 : 1_000,
+    poll: !!spotifyId && syncMode,
   })
 
   const saveTimestamps = useMutation({
@@ -363,7 +362,10 @@ export default function LyricsViewer({
                 to={`/songs/${spotifyId}`}
                 onClick={onClose}
                 title="Song ansehen"
-                className="hidden sm:flex flex-shrink-0 w-7 h-7 items-center justify-center rounded-lg hover:opacity-80 transition-opacity"
+                aria-label="Song ansehen"
+                /* Was desktop-only, but on a phone the fullscreen viewer covers
+                   everything — this is the only way out to the song page. */
+                className="flex flex-shrink-0 w-9 h-9 sm:w-7 sm:h-7 items-center justify-center rounded-lg hover:opacity-80 transition-opacity"
                 style={headerBtnStyle}
               >
                 <ArrowUpRight size={14} strokeWidth={1.75} />

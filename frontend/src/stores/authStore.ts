@@ -11,12 +11,11 @@ interface AuthState {
   setAuth: (user: User, token: string) => void
   updateUser: (patch: Partial<User>) => void
   clearAuth: (reason?: string) => void
-  consumeLogoutReason: () => string | null
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       user: null,
       token: null,
       isAuthenticated: false,
@@ -32,11 +31,6 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: false,
           logoutReason: reason ?? null,
         }),
-      consumeLogoutReason: () => {
-        const reason = get().logoutReason
-        if (reason) set({ logoutReason: null })
-        return reason
-      },
     }),
     {
       name: 'auth',

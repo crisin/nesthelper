@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Music, Check, Plus, ChevronDown, ChevronRight, Loader2, ListMusic, Heart } from 'lucide-react'
 import api from '../services/api'
 import { useNotify } from '../stores/notificationStore'
+import QueryError from '../components/QueryError'
+import { queryHasNoData } from '../lib/queryState'
 import type {
   SpotifyLibraryTrack,
   SpotifyLibraryPage,
@@ -59,7 +61,7 @@ function TrackRow({
           'flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full transition-all',
           inDb
             ? 'bg-accent/10 text-accent cursor-default'
-            : 'bg-surface-overlay text-foreground-muted hover:bg-accent hover:text-black opacity-0 group-hover:opacity-100',
+            : 'bg-surface-overlay text-foreground-muted hover:bg-accent hover:text-black sm:opacity-0 sm:group-hover:opacity-100',
         ].join(' ')}
         title={inDb ? 'Bereits gespeichert' : 'Zu Favoriten hinzufügen'}
       >
@@ -88,7 +90,7 @@ function LikedSongsTab({
   const [offset, setOffset] = useState(0)
   const limit = 50
 
-  const { data, isLoading, isFetching } = useQuery<SpotifyLibraryPage<SpotifySavedTrackItem>>({
+  const { data, isLoading, isFetching, status, fetchStatus } = useQuery<SpotifyLibraryPage<SpotifySavedTrackItem>>({
     queryKey: ['spotify-liked', offset],
     queryFn: () =>
       api
@@ -129,6 +131,8 @@ function LikedSongsTab({
         <div className="flex items-center justify-center py-12">
           <Loader2 size={20} className="animate-spin text-foreground-subtle" />
         </div>
+      ) : queryHasNoData(status, fetchStatus) ? (
+        <QueryError queryKey={['spotify-liked', offset]} />
       ) : tracks.length === 0 ? (
         <p className="text-sm text-foreground-muted text-center py-12">Keine Liked Songs gefunden.</p>
       ) : (
@@ -189,7 +193,7 @@ function PlaylistTracks({
   const [offset, setOffset] = useState(0)
   const limit = 50
 
-  const { data, isLoading, isFetching } = useQuery<SpotifyLibraryPage<SpotifyPlaylistTrackItem>>({
+  const { data, isLoading, isFetching, status, fetchStatus } = useQuery<SpotifyLibraryPage<SpotifyPlaylistTrackItem>>({
     queryKey: ['spotify-playlist-tracks', playlistId, offset],
     queryFn: () =>
       api
@@ -213,6 +217,8 @@ function PlaylistTracks({
       </div>
     )
   }
+
+  if (queryHasNoData(status, fetchStatus)) return <QueryError queryKey={['spotify-playlist-tracks', playlistId, offset]} />
 
   return (
     <div className="space-y-2">
@@ -282,7 +288,7 @@ function PlaylistsTab({
   const [offset, setOffset] = useState(0)
   const limit = 50
 
-  const { data, isLoading, isFetching } = useQuery<SpotifyLibraryPage<SpotifyPlaylist>>({
+  const { data, isLoading, isFetching, status, fetchStatus } = useQuery<SpotifyLibraryPage<SpotifyPlaylist>>({
     queryKey: ['spotify-playlists', offset],
     queryFn: () =>
       api
@@ -303,6 +309,8 @@ function PlaylistsTab({
       </div>
     )
   }
+
+  if (queryHasNoData(status, fetchStatus)) return <QueryError queryKey={['spotify-playlists', offset]} />
 
   return (
     <div className="space-y-2">

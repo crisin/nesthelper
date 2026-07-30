@@ -88,21 +88,30 @@ export default function BottomSheet({
         aria-modal="true"
         className="absolute inset-x-0 bottom-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2
                    bg-surface-raised rounded-t-2xl sm:rounded-2xl border border-edge shadow-card
-                   max-h-[80vh] sm:max-w-sm sm:w-full overflow-hidden"
+                   sm:max-w-sm sm:w-full overflow-hidden"
         style={{
           transform: `translateY(${dragOffset}px)`,
           transition: dragging ? "none" : "transform 0.25s ease-out",
         }}
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
       >
-        {/* Drag handle — mobile only */}
-        <div className="sm:hidden flex justify-center pt-3 pb-1">
+        {/* Drag handle — mobile only. The touch handlers live here rather than
+            on the whole sheet, so scrolling the content can't dismiss it. */}
+        <div
+          className="sm:hidden flex justify-center pt-3 pb-1 touch-none"
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+        >
           <div className="w-8 h-1 rounded-full bg-foreground-subtle/40" />
         </div>
-        <div className="pb-2">
-          <div className="p-5 pb-safe">{children}</div>
+        {/* The height cap belongs on the scroll container — on the sheet itself
+            it just clipped anything taller than 80vh out of reach. */}
+        <div className="max-h-[80vh] overflow-y-auto overscroll-contain">
+          {/* Not `pb-safe`: that utility sits after Tailwind's p-5 in the same
+              layer and would replace the padding with 0 on Android. */}
+          <div className="p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
+            {children}
+          </div>
         </div>
       </div>
     </div>

@@ -1,73 +1,32 @@
-import { useQuery } from "@tanstack/react-query";
 import {
-  ArrowRight,
   BarChart2,
   BookOpen,
   Bug,
+  ChevronRight,
   Clock,
   Compass,
   Home,
   Library,
   Lightbulb,
+  MoreHorizontal,
   Music2,
   Settings,
   Users,
 } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import api from "../services/api";
+import { useNowPlaying } from "../hooks/useNowPlaying";
 import { useAuthStore } from "../stores/authStore";
 import { useVisualStore } from "../stores/visualStore";
-import type { SpotifyCurrentlyPlayingResponse } from "../types";
+import BottomSheet from "./BottomSheet";
 import DynamicBackground from "./DynamicBackground";
 import FeatureRequestPanel, { type PanelMode } from "./FeatureRequestPanel";
 import LyricsSearchButton from "./LyricsSearchButton";
 import Notifications from "./Notifications";
+import NowPlayingBar from "./NowPlayingBar";
 import NowPlayingWidget from "./NowPlayingWidget";
 import SpotifyConnect from "./SpotifyConnect";
 import UsernameEdit from "./UsernameEdit";
-
-/** Shows "View Song" if the currently playing track is in the DB, else falls back to LyricsSearchButton */
-function SongAction() {
-  // Subscribe to the same key NowPlayingWidget polls — React Query deduplicates the fetch
-  const { data: currentTrack } =
-    useQuery<SpotifyCurrentlyPlayingResponse | null>({
-      queryKey: ["spotify-current-track"],
-      queryFn: () =>
-        api
-          .get<SpotifyCurrentlyPlayingResponse>("/spotify/current-track")
-          .then((r) => r.data),
-      refetchInterval: 5_000,
-      staleTime: 0,
-      retry: false,
-    });
-  const spotifyId = currentTrack?.item?.id;
-
-  const { data } = useQuery<{ exists: boolean }>({
-    queryKey: ["song-exists", spotifyId],
-    queryFn: () =>
-      api
-        .get<{ exists: boolean }>(`/songs/${spotifyId}/exists`)
-        .then((r) => r.data),
-    enabled: !!spotifyId,
-    staleTime: 60_000,
-    retry: false,
-  });
-
-  if (data?.exists) {
-    return (
-      <Link
-        to={`/songs/${spotifyId}`}
-        className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-accent text-black font-semibold text-sm hover:opacity-90 transition-opacity active:scale-[0.98]"
-      >
-        Song ansehen
-        <ArrowRight size={14} strokeWidth={2.25} />
-      </Link>
-    );
-  }
-
-  return <LyricsSearchButton />;
-}
 
 function getPageKey(pathname: string): string | null {
   if (pathname === '/dashboard') return 'dashboard'
@@ -79,30 +38,48 @@ function getPageKey(pathname: string): string | null {
   return null
 }
 
-const NAV = [
-  { path: "/dashboard", label: "Dashboard", Icon: Home },
+type NavItem = { path: string; label: string; Icon: typeof Home };
+
+/** The four that earn a slot in the mobile bar. */
+const PRIMARY_NAV: NavItem[] = [
+  { path: "/dashboard", label: "Start", Icon: Home },
   { path: "/discover", label: "Entdecken", Icon: Compass },
   { path: "/favorites", label: "Favoriten", Icon: Library },
-  { path: "/collections", label: "Collections", Icon: BookOpen },
-  { path: "/library", label: "Bibliothek", Icon: Music2 },
-  { path: "/analytics", label: "Analytics", Icon: BarChart2 },
-  { path: "/timeline", label: "Timeline", Icon: Clock },
+  { path: "/collections", label: "Sammlungen", Icon: BookOpen },
+];
+
+/** Everything else — behind "Mehr" on mobile, inline in the desktop sidebar. */
+const SECONDARY_NAV: NavItem[] = [
+  { path: "/library", label: "Spotify-Import", Icon: Music2 },
+  { path: "/analytics", label: "Statistiken", Icon: BarChart2 },
+  { path: "/timeline", label: "Erinnerungen", Icon: Clock },
   { path: "/settings", label: "Einstellungen", Icon: Settings },
 ];
 
-const ADMIN_NAV = { path: "/admin", label: "Nutzer", Icon: Users };
+const ADMIN_NAV: NavItem = { path: "/admin", label: "Nutzer", Icon: Users };
+
+/** `/favorites/x` should light up `/favorites`, but `/` must not light up everything. */
+function isActive(pathname: string, path: string): boolean {
+  return pathname === path || pathname.startsWith(`${path}/`);
+}
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [panelMode, setPanelMode] = useState<PanelMode | null>(null);
   const visualEnabled = useVisualStore((s) => s.enabled);
   const isAdmin = useAuthStore((s) => s.user?.role) === "ADMIN";
   const pageKey = getPageKey(location.pathname);
+  // Same shared query the widget and the bar use — no extra request, but the
+  // layout needs to know whether the mobile bar takes up space.
+  const { data: currentTrack } = useNowPlaying();
+  const hasNowPlaying = !!currentTrack?.item;
 
-  // Sidebar only — the mobile bottom nav is already at eight items, so admins
-  // reach the page through Settings on a phone.
-  const sidebarNav = isAdmin ? [...NAV, ADMIN_NAV] : NAV;
+  const secondaryNav = isAdmin ? [...SECONDARY_NAV, ADMIN_NAV] : SECONDARY_NAV;
+  // The sidebar has the room to stay flat; only the phone needs the split.
+  const sidebarNav = [...PRIMARY_NAV, ...secondaryNav];
+  const moreActive = secondaryNav.some((n) => isActive(location.pathname, n.path));
 
   return (
     <div
@@ -130,10 +107,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         {/* Nav */}
         <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
           {sidebarNav.map(({ path, label, Icon }) => {
-            const active =
-              path === "/favorites" || path === "/collections"
-                ? location.pathname.startsWith(path)
-                : location.pathname === path;
+            const active = isActive(location.pathname, path);
             return (
               <Link
                 key={path}
@@ -153,7 +127,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         </nav>
         <div className="px-4 py-4 flex-shrink-0 space-y-3">
           <NowPlayingWidget />
-          <SongAction />
+          {/* The widget above is the way to the song page now; this is only
+              here for when nothing is playing at all. */}
+          {!hasNowPlaying && <LyricsSearchButton />}
         </div>
         {/* User controls */}
         <div className="px-4 py-4 border-t border-edge flex-shrink-0 space-y-3">
@@ -179,14 +155,16 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       </div>
 
       {/* ── Content ──────────────────────────────────────────────── */}
-      <main className="flex-1 sm:ml-56 pb-24 sm:pb-0 mb-safe sm:mb-0 min-h-screen overflow-x-hidden">
+      <main
+        className={`flex-1 sm:ml-56 ${hasNowPlaying ? "pb-40" : "pb-24"} sm:pb-0 mb-safe sm:mb-0 min-h-screen overflow-x-hidden`}
+      >
         {children}
       </main>
 
       {/* ── FAB ─────────────────────────────────────────────────────── */}
       <button
         onClick={() => setPickerOpen((v) => !v)}
-        className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-40 w-12 h-12 rounded-full bg-accent text-black flex items-center justify-center shadow-lg hover:opacity-90 transition-opacity"
+        className={`fixed ${hasNowPlaying ? "bottom-36" : "bottom-20"} right-4 sm:bottom-6 sm:right-6 z-40 w-12 h-12 rounded-full bg-accent text-black flex items-center justify-center shadow-lg hover:opacity-90 transition-opacity`}
         title="Feedback"
       >
         <Lightbulb size={20} strokeWidth={2} />
@@ -199,7 +177,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             className="fixed inset-0 z-40 sm:hidden"
             onClick={() => setPickerOpen(false)}
           />
-          <div className="fixed bottom-36 right-4 sm:bottom-[88px] sm:right-6 z-50 flex flex-col gap-2 items-end">
+          <div
+            className={`fixed ${hasNowPlaying ? "bottom-52" : "bottom-36"} right-4 sm:bottom-[88px] sm:right-6 z-50 flex flex-col gap-2 items-end`}
+          >
             <button
               onClick={() => {
                 setPanelMode("bug");
@@ -233,12 +213,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
       {/* ── Bottom nav (mobile only) ──────────────────────────────── */}
       <nav className="sm:hidden fixed bottom-0 inset-x-0 z-40 flex flex-col bg-surface-raised border-t border-edge">
+        {/* Sits inside the nav so it stacks above it without magic offsets */}
+        <NowPlayingBar />
         <div className="h-16 flex">
-          {NAV.map(({ path, label, Icon }) => {
-            const active =
-              path === "/favorites" || path === "/collections"
-                ? location.pathname.startsWith(path)
-                : location.pathname === path;
+          {PRIMARY_NAV.map(({ path, label, Icon }) => {
+            const active = isActive(location.pathname, path);
             return (
               <Link
                 key={path}
@@ -253,10 +232,58 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               </Link>
             );
           })}
+
+          {/* Fifth slot. Eight items meant ~47px each on a 375px screen, which
+              is below the tap-target minimum and clipped the longer labels. */}
+          <button
+            onClick={() => setMoreOpen(true)}
+            aria-expanded={moreOpen}
+            aria-label="Weitere Bereiche"
+            className={[
+              "flex-1 flex flex-col items-center justify-center gap-1 min-h-[48px] transition-colors active:scale-95",
+              moreActive ? "text-accent" : "text-foreground-muted",
+            ].join(" ")}
+          >
+            <MoreHorizontal size={20} strokeWidth={moreActive ? 2.25 : 1.75} />
+            <span className="text-[10px] font-medium">Mehr</span>
+          </button>
         </div>
         {/* Safe area spacer for notched devices */}
         <div className="pb-safe" />
       </nav>
+
+      {/* ── "Mehr" sheet (mobile only) ────────────────────────────── */}
+      <BottomSheet open={moreOpen} onClose={() => setMoreOpen(false)}>
+        <p className="text-[11px] font-semibold text-foreground-subtle uppercase tracking-widest mb-3">
+          Mehr
+        </p>
+        <div className="space-y-0.5 -mx-2">
+          {secondaryNav.map(({ path, label, Icon }) => {
+            const active = isActive(location.pathname, path);
+            return (
+              <Link
+                key={path}
+                to={path}
+                onClick={() => setMoreOpen(false)}
+                className={[
+                  "flex items-center gap-3 px-2 py-3 min-h-[48px] rounded-lg text-sm font-medium transition-colors active:bg-surface-overlay",
+                  active
+                    ? "bg-surface-overlay text-foreground"
+                    : "text-foreground-muted",
+                ].join(" ")}
+              >
+                <Icon size={17} strokeWidth={active ? 2.25 : 1.75} />
+                <span className="flex-1">{label}</span>
+                <ChevronRight
+                  size={15}
+                  strokeWidth={1.75}
+                  className="text-foreground-subtle"
+                />
+              </Link>
+            );
+          })}
+        </div>
+      </BottomSheet>
     </div>
   );
 }

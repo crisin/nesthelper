@@ -81,10 +81,10 @@ export interface LyricsSection {
 
 export type LyricsStatus = 'DRAFT' | 'WORK_IN_PROGRESS' | 'FINISHED'
 
+/** The snapshot's text is not sent along — restoring goes by version number. */
 export interface LyricsVersion {
   id: string
   version: number
-  rawText: string
   createdAt: string
 }
 

@@ -8,6 +8,7 @@ import {
 import api from '../services/api'
 import type { SongLyrics, LyricsSection, LyricsStatus, LineAnnotation, LyricsFetchStatus, SpotifyCurrentlyPlayingResponse, LrclibPreview } from '../types'
 import { useAuthStore } from '../stores/authStore'
+import { useNowPlaying } from '../hooks/useNowPlaying'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -347,7 +348,7 @@ function AnnotatedLine({
               'flex-shrink-0 mt-2 p-0.5 rounded transition-colors',
               isActive
                 ? 'text-accent'
-                : 'text-foreground-subtle opacity-0 group-hover:opacity-100 hover:text-accent',
+                : 'text-foreground-subtle sm:opacity-0 sm:group-hover:opacity-100 hover:text-accent',
             ].join(' ')}
           >
             <Timer size={10} strokeWidth={1.75} />
@@ -395,7 +396,7 @@ function AnnotatedLine({
                   'text-[10px] rounded px-1.5 py-0.5 border transition-colors',
                   singer
                     ? 'border-accent/30 bg-accent/8 text-accent/80 hover:text-accent'
-                    : 'border-edge text-foreground-subtle/30 opacity-0 group-hover:opacity-100 hover:text-foreground-subtle',
+                    : 'border-edge text-foreground-subtle/30 sm:opacity-0 sm:group-hover:opacity-100 hover:text-foreground-subtle',
                 ].join(' ')}
               >
                 {singer || <Mic2 size={9} strokeWidth={2} />}
@@ -413,7 +414,7 @@ function AnnotatedLine({
               'flex-shrink-0 mt-1.5 p-0.5 rounded transition-colors',
               myAnnotation
                 ? 'text-accent/70 hover:text-accent'
-                : 'text-foreground-subtle opacity-0 group-hover:opacity-100 hover:text-foreground-muted',
+                : 'text-foreground-subtle sm:opacity-0 sm:group-hover:opacity-100 hover:text-foreground-muted',
             ].join(' ')}
           >
             <MessageSquarePlus size={12} strokeWidth={1.75} />
@@ -753,9 +754,6 @@ function VersionHistory({
               <div>
                 <span className="text-xs font-medium text-foreground-muted">v{v.version}</span>
                 <span className="ml-2 text-[11px] text-foreground-subtle">{timeAgo(v.createdAt)}</span>
-                <p className="text-[11px] text-foreground-subtle mt-0.5 line-clamp-1 max-w-xs">
-                  {v.rawText.split('\n')[0]}
-                </p>
               </div>
               <button
                 onClick={() => restore.mutate(v.version)}
@@ -946,13 +944,11 @@ export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer, art
     refetchInterval: fetchStatus === 'FETCHING' ? 5_000 : false,
   })
 
-  const { data: currentTrack } = useQuery<SpotifyCurrentlyPlayingResponse | null>({
-    queryKey: ['spotify-current-track'],
-    queryFn: () =>
-      api.get<SpotifyCurrentlyPlayingResponse>('/spotify/current-track').then((r) => r.data),
-    enabled: karaoke || mode === 'edit' || showTimestamps,
-    refetchInterval: 1_000,
-    staleTime: 0,
+  // Only karaoke and timestamping need second-resolution; otherwise AppLayout's
+  // 5s poll is enough and this observer adds no timer of its own.
+  const { data: currentTrack } = useNowPlaying({
+    intervalMs: 1_000,
+    poll: karaoke || mode === 'edit' || showTimestamps,
   })
 
   // When lyrics fetch is pending but nothing has arrived yet, periodically refresh
@@ -1071,8 +1067,9 @@ export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer, art
 
   return (
     <div className="space-y-3">
-      {/* Section header */}
-      <div className="flex items-center justify-between gap-3">
+      {/* Section header — wraps, otherwise the trailing controls (including the
+          view/edit switch) get clipped by SongDetail's container on a phone */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <p className="text-[11px] font-semibold text-foreground-subtle uppercase tracking-widest">
             Lyrics
@@ -1101,7 +1098,7 @@ export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer, art
           )}
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap justify-end items-center gap-1.5">
           {mode === 'view' && lyrics && onOpenViewer && (
             <button
               onClick={onOpenViewer}

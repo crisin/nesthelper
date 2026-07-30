@@ -4,6 +4,8 @@ import { ChevronRight, Eye } from 'lucide-react'
 import api from '../services/api'
 import SongCard from '../components/SongCard'
 import LyricsViewer from '../components/LyricsViewer'
+import QueryError from '../components/QueryError'
+import { queryHasNoData } from '../lib/queryState'
 import type { TimelineMonth, TimelineSong } from '../types'
 
 // ─── Mood → emoji map (best-effort on free-text tags) ─────────────────────────
@@ -66,12 +68,14 @@ export default function Timeline() {
   const [year, setYear] = useState(currentYear)
   const [viewing, setViewing] = useState<TimelineSong | null>(null)
 
-  const { data: months = [], isLoading } = useQuery<TimelineMonth[]>({
+  const { data: months = [], isLoading, status, fetchStatus } = useQuery<TimelineMonth[]>({
     queryKey: ['timeline-monthly', year],
     queryFn: () =>
       api.get<TimelineMonth[]>(`/analytics/me/monthly?year=${year}`).then((r) => r.data),
     staleTime: 5 * 60_000,
   })
+
+  const loadFailed = queryHasNoData(status, fetchStatus)
 
   const years = Array.from({ length: 3 }, (_, i) => currentYear - i)
 
@@ -108,6 +112,8 @@ export default function Timeline() {
       {/* Content */}
       {isLoading ? (
         <Skeleton />
+      ) : loadFailed ? (
+        <QueryError queryKey={['timeline-monthly', year]} />
       ) : months.length === 0 ? (
         <p className="text-sm text-foreground-subtle py-4">
           Keine Songs in {year} gespeichert.
@@ -151,7 +157,7 @@ export default function Timeline() {
                               onClick={(e) => { e.stopPropagation(); setViewing(song) }}
                               aria-label="Lyrics anzeigen"
                               className="w-7 h-7 flex items-center justify-center text-foreground-subtle
-                                         hover:text-foreground transition-colors opacity-0 group-hover:opacity-100"
+                                         hover:text-foreground transition-colors sm:opacity-0 sm:group-hover:opacity-100"
                             >
                               <Eye size={13} strokeWidth={1.75} />
                             </button>

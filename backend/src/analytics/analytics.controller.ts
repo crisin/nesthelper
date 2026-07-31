@@ -14,6 +14,26 @@ export class AnalyticsController {
     return this.analytics.getTopWords(req.user.id);
   }
 
+  @Get('me/language')
+  getLanguageProfile(@Req() req: AuthedRequest) {
+    return this.analytics.getLanguageProfile(req.user.id);
+  }
+
+  @Get('global/language')
+  getGlobalLanguageProfile() {
+    return this.analytics.getLanguageProfile();
+  }
+
+  @Get('me/artist-graph')
+  getArtistGraph(@Req() req: AuthedRequest) {
+    return this.analytics.getArtistGraph(req.user.id);
+  }
+
+  @Get('global/artist-graph')
+  getGlobalArtistGraph() {
+    return this.analytics.getArtistGraph();
+  }
+
   @Get('me/emotions')
   getEmotions(@Req() req: AuthedRequest) {
     return this.analytics.getEmotions(req.user.id);
@@ -35,10 +55,7 @@ export class AnalyticsController {
   }
 
   @Get('me/monthly')
-  getMonthlyTimeline(
-    @Req() req: AuthedRequest,
-    @Query('year') year?: string,
-  ) {
+  getMonthlyTimeline(@Req() req: AuthedRequest, @Query('year') year?: string) {
     const y = year ? parseInt(year, 10) : new Date().getFullYear();
     return this.analytics.getMonthlyTimeline(req.user.id, y);
   }

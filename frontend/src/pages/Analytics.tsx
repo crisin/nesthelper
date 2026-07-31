@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { BarChart2, Music, Tag, User, Calendar, Sparkles } from 'lucide-react'
+import { BarChart2, Music, Tag, User, Calendar, Sparkles, Share2, Languages } from 'lucide-react'
 import api from '../services/api'
-import type { WordFrequency, TagCount, ArtistCount, WeekCount, LrclibStats } from '../types'
+import type { WordFrequency, TagCount, ArtistCount, WeekCount, LrclibStats, ArtistGraph, LanguageProfile as LanguageProfileData } from '../types'
+import ArtistNetwork from '../components/analytics/ArtistNetwork'
+import LanguageProfile from '../components/analytics/LanguageProfile'
 
 type Tab = 'me' | 'global'
 
@@ -203,14 +205,22 @@ function AnalyticsSections({
   artists,
   themes,
   timeline,
+  language,
+  graph,
   loading,
+  loadingLanguage,
+  loadingGraph,
 }: {
   words: WordFrequency[]
   emotions: TagCount[]
   artists: ArtistCount[]
   themes: TagCount[]
   timeline: WeekCount[]
+  language?: LanguageProfileData
+  graph?: ArtistGraph
   loading: boolean
+  loadingLanguage: boolean
+  loadingGraph: boolean
 }) {
   const topWords   = words.slice(0, 20)
   const topArtists = artists.slice(0, 15)
@@ -224,6 +234,22 @@ function AnalyticsSections({
           <EmptyState message="Noch keine Daten" />
         ) : (
           <WeekGrid weeks={timeline} />
+        )}
+      </Section>
+
+      <Section icon={Share2} title="Das Künstler-Netz" isLoading={loadingGraph}>
+        <p className="text-[11px] text-foreground-subtle mb-4">
+          Wer mit wem — aus gemeinsamen Songs, zusammen Gehörtem, geteilten Tags
+          und Sammlungen.
+        </p>
+        {graph ? <ArtistNetwork data={graph} /> : <EmptyState message="Noch keine Daten" />}
+      </Section>
+
+      <Section icon={Languages} title="Deine Sprache" isLoading={loadingLanguage}>
+        {language ? (
+          <LanguageProfile data={language} />
+        ) : (
+          <EmptyState message="Noch keine Lyrics" />
         )}
       </Section>
 
@@ -297,6 +323,34 @@ export default function Analytics() {
     queryFn: () => api.get<WeekCount[]>('/analytics/me/timeline').then((r) => r.data),
     staleTime: 5 * 60_000,
   })
+  const { data: myLanguage, isLoading: loadingMyLanguage } = useQuery<LanguageProfileData>({
+    queryKey: ['analytics-language'],
+    queryFn: () => api.get<LanguageProfileData>('/analytics/me/language').then((r) => r.data),
+    staleTime: 5 * 60_000,
+    enabled: tab === 'me',
+  })
+
+  const { data: myGraph, isLoading: loadingMyGraph } = useQuery<ArtistGraph>({
+    queryKey: ['analytics-artist-graph'],
+    queryFn: () => api.get<ArtistGraph>('/analytics/me/artist-graph').then((r) => r.data),
+    staleTime: 5 * 60_000,
+    enabled: tab === 'me',
+  })
+
+  const { data: glLanguage, isLoading: loadingGlLanguage } = useQuery<LanguageProfileData>({
+    queryKey: ['analytics-global-language'],
+    queryFn: () => api.get<LanguageProfileData>('/analytics/global/language').then((r) => r.data),
+    staleTime: 5 * 60_000,
+    enabled: tab === 'global',
+  })
+
+  const { data: glGraph, isLoading: loadingGlGraph } = useQuery<ArtistGraph>({
+    queryKey: ['analytics-global-artist-graph'],
+    queryFn: () => api.get<ArtistGraph>('/analytics/global/artist-graph').then((r) => r.data),
+    staleTime: 5 * 60_000,
+    enabled: tab === 'global',
+  })
+
 
   // ── Global queries (fetched only when tab is active) ──────────────────────
   const { data: glWords = [],    isLoading: loadingGlWords    } = useQuery<WordFrequency[]>({
@@ -394,7 +448,11 @@ export default function Analytics() {
           artists={myArtists}
           themes={myThemes}
           timeline={myTimeline}
+          language={myLanguage}
+          graph={myGraph}
           loading={myLoading}
+          loadingLanguage={loadingMyLanguage}
+          loadingGraph={loadingMyGraph}
         />
       ) : (
         <AnalyticsSections
@@ -403,7 +461,11 @@ export default function Analytics() {
           artists={glArtists}
           themes={glThemes}
           timeline={glTimeline}
+          language={glLanguage}
+          graph={glGraph}
           loading={glLoading}
+          loadingLanguage={loadingGlLanguage}
+          loadingGraph={loadingGlGraph}
         />
       )}
 

@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   Optional,
   UnauthorizedException,
@@ -60,10 +61,15 @@ export interface SpotifyCurrentlyPlayingResponse {
 
 @Injectable()
 export class SpotifyService {
+  /** Only log the audio-features restriction once per process. */
+  private static audioFeaturesWarned = false;
+
   private readonly clientId: string;
   private readonly clientSecret: string;
   private readonly redirectUri: string;
 
+  // Every endpoint this service calls needs its scope listed here, or Spotify
+  // answers 403 and the caller sees an empty list instead of an error.
   private readonly scope = [
     'streaming',
     'user-read-email',
@@ -72,6 +78,11 @@ export class SpotifyService {
     'user-modify-playback-state',
     'user-read-recently-played',
     'playlist-modify-public',
+    // getLikedTracks → GET /me/tracks
+    'user-library-read',
+    // getPlaylists → GET /me/playlists (private ones are the point)
+    'playlist-read-private',
+    'playlist-read-collaborative',
   ].join(' ');
 
   constructor(
@@ -421,7 +432,19 @@ export class SpotifyService {
         headers: { Authorization: `Bearer ${token}` },
       },
     );
-    if (!res.ok) return null;
+    if (!res.ok) {
+      // Spotify restricted /audio-features for apps registered after
+      // 2024-11-27. A silent null made this look like "no data yet" forever —
+      // say it once so it is diagnosable instead of invisible.
+      if (!SpotifyService.audioFeaturesWarned) {
+        SpotifyService.audioFeaturesWarned = true;
+        Logger.warn(
+          `/audio-features returned ${res.status}. Spotify restricts this endpoint for apps registered after 2024-11-27; tempo/energy/valence will stay empty.`,
+          'SpotifyService',
+        );
+      }
+      return null;
+    }
 
     const data = (await res.json()) as {
       tempo: number;
@@ -493,14 +516,26 @@ export class SpotifyService {
       },
     );
     if (!res.ok) throw new Error('Failed to fetch playlists');
-    return (await res.json()) as SpotifyPage<{
+
+    // February 2026 renamed the playlist object's `tracks` field to `items`.
+    // Accept either and hand the frontend the shape it already knows.
+    const page = (await res.json()) as SpotifyPage<{
       id: string;
       name: string;
       description: string | null;
       images: { url: string }[];
-      tracks: { total: number };
+      tracks?: { total: number };
+      items?: { total: number };
       owner: { display_name: string };
     }>;
+
+    return {
+      ...page,
+      items: page.items.map(({ items, tracks, ...playlist }) => ({
+        ...playlist,
+        tracks: { total: items?.total ?? tracks?.total ?? 0 },
+      })),
+    };
   }
 
   async getPlaylistTracks(
@@ -516,8 +551,9 @@ export class SpotifyService {
       limit: String(limit),
       offset: String(offset),
     });
+    // `/tracks` is deprecated in favour of `/items` (February 2026 rename).
     const res = await fetch(
-      `https://api.spotify.com/v1/playlists/${playlistId}/tracks?${params}`,
+      `https://api.spotify.com/v1/playlists/${playlistId}/items?${params}`,
       { headers: { Authorization: `Bearer ${token}` } },
     );
     if (!res.ok) throw new Error('Failed to fetch playlist tracks');

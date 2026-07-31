@@ -1,111 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-
-const STOPWORDS = new Set([
-  'the',
-  'a',
-  'an',
-  'and',
-  'or',
-  'but',
-  'in',
-  'on',
-  'at',
-  'to',
-  'for',
-  'of',
-  'with',
-  'by',
-  'from',
-  'is',
-  'it',
-  'as',
-  'be',
-  'was',
-  'are',
-  'were',
-  'been',
-  'has',
-  'have',
-  'had',
-  'do',
-  'does',
-  'did',
-  'will',
-  'would',
-  'could',
-  'should',
-  'may',
-  'might',
-  'can',
-  'that',
-  'this',
-  'these',
-  'those',
-  'i',
-  'you',
-  'he',
-  'she',
-  'we',
-  'they',
-  'me',
-  'him',
-  'her',
-  'us',
-  'them',
-  'my',
-  'your',
-  'his',
-  'its',
-  'our',
-  'their',
-  'what',
-  'which',
-  'who',
-  'when',
-  'where',
-  'how',
-  'all',
-  'so',
-  'if',
-  'no',
-  'not',
-  'up',
-  'out',
-  'just',
-  'like',
-  'get',
-  'got',
-  'go',
-  'im',
-  'oh',
-  'ah',
-  'ooh',
-  'yeah',
-  'yea',
-  'na',
-  'la',
-  'da',
-  'gonna',
-  'wanna',
-  'cause',
-  'em',
-  'bout',
-  'into',
-  'than',
-  'then',
-  'now',
-  'dont',
-  'cant',
-  'wont',
-  'aint',
-  'never',
-  'know',
-  'say',
-  'said',
-  'come',
-  'see',
-]);
+import { countWords, languageBreakdown, signatureWords } from './text.util';
+import { buildArtistGraph } from './artist-graph.util';
 
 type RawSave = {
   id: string;
@@ -142,13 +38,109 @@ export class AnalyticsService {
     return this.countWords(lyrics.map((l) => l.rawText));
   }
 
+  /**
+   * Language split plus the words that belong to each artist rather than to the
+   * collection as a whole. Plain frequency gives everyone the same handful of
+   * words; weighting against the rest of the corpus is what makes it a profile.
+   */
+  async getLanguageProfile(userId?: string) {
+    const lyrics = await this.prisma.songLyrics.findMany({
+      where: {
+        rawText: { not: '' },
+        ...(userId ? { song: { savedBy: { some: { userId } } } } : {}),
+      },
+      select: { rawText: true, song: { select: { artist: true } } },
+    });
+
+    const documents = lyrics.map((entry) => ({
+      text: entry.rawText,
+      group: entry.song?.artist || undefined,
+    }));
+
+    return {
+      songsWithLyrics: documents.length,
+      languages: languageBreakdown(documents),
+      signatures: signatureWords(documents),
+    };
+  }
+
+  /**
+   * The artist network. Four independent signals, because any single one is
+   * too sparse on its own: credited features, artists heard in the same
+   * listening session, artists sharing a tag, and artists sharing a collection.
+   */
+  async getArtistGraph(userId?: string) {
+    const mine = userId ? { savedBy: { some: { userId } } } : {};
+
+    const [saves, plays, tagged, collected] = await Promise.all([
+      this.prisma.savedLyric.findMany({
+        where: userId ? { userId } : {},
+        select: {
+          song: {
+            select: { title: true, artist: true, artists: true, imgUrl: true },
+          },
+        },
+      }),
+      this.prisma.playHistory.findMany({
+        where: { ...(userId ? { userId } : {}), artist: { not: '' } },
+        select: { artist: true, playedAt: true },
+        orderBy: { playedAt: 'asc' },
+        take: 5000,
+      }),
+      this.prisma.songTag.findMany({
+        where: { song: mine },
+        select: { tag: true, song: { select: { artist: true } } },
+      }),
+      this.prisma.collectionItem.findMany({
+        where: userId ? { collection: { userId } } : {},
+        select: {
+          collectionId: true,
+          savedLyric: { select: { song: { select: { artist: true } } } },
+        },
+      }),
+    ]);
+
+    const songCount = new Map<string, number>();
+    const artistImage = new Map<string, string | null>();
+    const songArtists: { artists: string[]; title: string }[] = [];
+
+    for (const save of saves) {
+      const song = save.song;
+      if (!song?.artist) continue;
+      // `artists` holds every credit; `artist` is the primary one and is the
+      // key the rest of the app groups by.
+      const credits = song.artists.length ? song.artists : [song.artist];
+      songArtists.push({ artists: credits, title: song.title });
+      songCount.set(song.artist, (songCount.get(song.artist) ?? 0) + 1);
+      for (const credit of credits) {
+        if (!artistImage.has(credit)) artistImage.set(credit, song.imgUrl);
+        if (!songCount.has(credit)) songCount.set(credit, 1);
+      }
+    }
+
+    return buildArtistGraph({
+      songArtists,
+      songCount,
+      artistImage,
+      plays: plays.map((p) => ({ artist: p.artist, playedAt: p.playedAt })),
+      tagged: tagged
+        .filter((t) => t.song?.artist)
+        .map((t) => ({ tag: t.tag, artist: t.song!.artist })),
+      collected: collected
+        .filter((c) => c.savedLyric?.song?.artist)
+        .map((c) => ({
+          collectionId: c.collectionId,
+          artist: c.savedLyric!.song!.artist,
+        })),
+    });
+  }
+
   async getEmotions(userId: string) {
     const rows = await this.prisma.songTag.groupBy({
       by: ['tag'],
       where: {
         song: { savedBy: { some: { userId } } },
         type: 'MOOD',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any,
       _count: { id: true },
       orderBy: { _count: { id: 'desc' } },
@@ -160,7 +152,7 @@ export class AnalyticsService {
   async getArtists(userId: string) {
     const saves = await this.prisma.savedLyric.findMany({
       where: { userId },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       select: { song: { select: { artist: true } } } as any,
     });
     const freq = new Map<string, number>();
@@ -180,7 +172,6 @@ export class AnalyticsService {
       where: {
         song: { savedBy: { some: { userId } } },
         type: 'CONTEXT',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any,
       _count: { id: true },
       orderBy: { _count: { id: 'desc' } },
@@ -342,23 +333,14 @@ export class AnalyticsService {
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
+  /**
+   * Delegates to text.util, which picks the stopword list per document by
+   * detected language. The previous implementation filtered English stopwords
+   * against a mixed German/English corpus, so German songs contributed nothing
+   * but their own function words.
+   */
   private countWords(rawTexts: string[]) {
-    const freq = new Map<string, number>();
-    for (const rawText of rawTexts) {
-      const words = rawText
-        .toLowerCase()
-        .replace(/['\u2018\u2019\u02bc]/g, '')
-        .replace(/[^\p{L}\p{N}\s]/gu, ' ')
-        .split(/\s+/)
-        .filter((w) => w.length > 2 && !STOPWORDS.has(w));
-      for (const word of words) {
-        freq.set(word, (freq.get(word) ?? 0) + 1);
-      }
-    }
-    return [...freq.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 50)
-      .map(([word, count]) => ({ word, count }));
+    return countWords(rawTexts.map((text) => ({ text })));
   }
 
   private async buildTimeline(userId?: string) {

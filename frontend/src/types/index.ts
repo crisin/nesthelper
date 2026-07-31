@@ -330,3 +330,66 @@ export interface FeatureRequest {
   user: { id: string; name: string | null }
   votes: { userId: string }[]
 }
+
+// ─── Analytics: Sprachprofil ─────────────────────────────────────────────────
+
+export interface LanguageShare {
+  language: 'de' | 'en' | 'unknown'
+  songs: number
+}
+
+export interface SignatureWord {
+  word: string
+  count: number
+  score: number
+}
+
+export interface ArtistSignature {
+  artist: string
+  songs: number
+  words: SignatureWord[]
+}
+
+export interface LanguageProfile {
+  songsWithLyrics: number
+  languages: LanguageShare[]
+  signatures: ArtistSignature[]
+}
+
+// ─── Analytics: Künstler-Netz ────────────────────────────────────────────────
+
+export type EdgeKind = 'feature' | 'session' | 'tag' | 'collection'
+
+export interface GraphNode {
+  id: string
+  name: string
+  songCount: number
+  imgUrl: string | null
+  degree: number
+  betweenness: number
+  community: number
+  x: number
+  y: number
+}
+
+export interface GraphEdge {
+  a: string
+  b: string
+  weight: number
+  by: Record<EdgeKind, number>
+  sampleTitles: string[]
+}
+
+export interface ArtistGraph {
+  nodes: GraphNode[]
+  edges: GraphEdge[]
+  clusters: { id: number; label: string | null; size: number; members: string[] }[]
+  bridges: { id: string; name: string; betweenness: number; connects: string[] }[]
+  stats: {
+    artists: number
+    soloArtists: number
+    components: number
+    largestComponent: number
+    edgesDropped: number
+  }
+}

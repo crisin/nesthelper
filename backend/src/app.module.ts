@@ -21,6 +21,30 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { DigestModule } from './digest/digest.module';
 import { FeatureRequestsModule } from './feature-requests/feature-requests.module';
 
+/**
+ * REDIS_URL (what Railway's Redis plugin provides, password included) wins;
+ * otherwise REDIS_HOST / REDIS_PORT / REDIS_PASSWORD. Without either the
+ * lyrics queue is unavailable and fetches run in-process instead.
+ */
+function redisConnection(config: ConfigService) {
+  const url = config.get<string>('REDIS_URL');
+  if (url) {
+    const u = new URL(url);
+    return {
+      host: u.hostname,
+      port: Number(u.port || 6379),
+      username: u.username ? decodeURIComponent(u.username) : undefined,
+      password: u.password ? decodeURIComponent(u.password) : undefined,
+      tls: u.protocol === 'rediss:' ? {} : undefined,
+    };
+  }
+  return {
+    host: config.get<string>('REDIS_HOST', 'localhost'),
+    port: parseInt(config.get<string>('REDIS_PORT', '6379'), 10),
+    password: config.get<string>('REDIS_PASSWORD') || undefined,
+  };
+}
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -29,8 +53,9 @@ import { FeatureRequestsModule } from './feature-requests/feature-requests.modul
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         connection: {
-          host: config.get('REDIS_HOST', 'localhost'),
-          port: parseInt(config.get('REDIS_PORT', '6379'), 10),
+          ...redisConnection(config),
+          // Railway's private network is IPv6-only; 0 lets ioredis use either.
+          family: 0,
           lazyConnect: true,
           enableReadyCheck: false,
           maxRetriesPerRequest: null,

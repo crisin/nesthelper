@@ -1,5 +1,6 @@
 import { ConfigService } from '@nestjs/config';
 import { ForbiddenException, HttpException } from '@nestjs/common';
+import { LyricsFetchService } from '../lyrics-fetch/lyrics-fetch.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SpotifyService } from './spotify.service';
 
@@ -30,7 +31,7 @@ function setup(expiresInMs: number) {
   const service = new SpotifyService(
     prisma as unknown as PrismaService,
     config as unknown as ConfigService,
-    null,
+    { request: jest.fn() } as unknown as LyricsFetchService,
   );
   return { service, prisma };
 }

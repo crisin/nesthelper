@@ -14,6 +14,7 @@ import TagSelector from '../components/TagSelector'
 import LyricsEditor from '../components/LyricsEditor'
 import LyricsViewer from '../components/LyricsViewer'
 import { timeAgo } from '../lib/format'
+import { describeError } from '../lib/errors'
 
 // ─── Song notes section (public thread, own note editable) ───────────────────
 
@@ -446,9 +447,19 @@ export default function SongDetail() {
     ?? songs.find((s) => s.song?.spotifyId === id)
 
   // Fallback: ensure a bookmark exists for this spotifyId
-  const { data: ensuredSong, isLoading: isEnsuring } = useQuery<SavedLyric>({
+  const {
+    data: ensuredSong,
+    isLoading: isEnsuring,
+    error: ensureError,
+  } = useQuery<SavedLyric>({
     queryKey: ['saved-lyrics-by-spotify', id],
-    queryFn: () => api.get<SavedLyric>(`/saved-lyrics/by-spotify/${id}`).then((r) => r.data),
+    queryFn: async () => {
+      const r = await api.get<SavedLyric>(`/saved-lyrics/by-spotify/${id}`)
+      // The bookmark may be brand new — pull it into the list, which also keeps
+      // its fetchStatus fresh while the lyrics are being fetched.
+      void queryClient.invalidateQueries({ queryKey: ['saved-lyrics'] })
+      return r.data
+    },
     enabled: !isLoading && !songFromList && !!id,
     staleTime: 5 * 60_000,
     retry: false,
@@ -492,6 +503,11 @@ export default function SongDetail() {
           Zurück
         </button>
         <p className="text-sm text-foreground-subtle">Song nicht gefunden.</p>
+        {ensureError && (
+          <p className="mt-2 text-[11px] font-mono text-foreground-subtle break-words select-all">
+            {describeError(ensureError)}
+          </p>
+        )}
       </div>
     )
   }

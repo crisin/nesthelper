@@ -5,17 +5,14 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-  Optional,
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
 import { ConfigService } from '@nestjs/config';
 import { createHmac } from 'crypto';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { LYRICS_FETCH_QUEUE } from '../lyrics-fetch/lyrics-fetch.queue';
+import { LyricsFetchService } from '../lyrics-fetch/lyrics-fetch.service';
 
 // ── Spotify Library types ─────────────────────────────────────────────────────
 
@@ -36,13 +33,15 @@ export interface SpotifyPage<T> {
   next: string | null;
 }
 
+/** As the client sends it — straight from Spotify, so not everything is there. */
 export interface BulkImportTrackDto {
-  id: string;
-  name: string;
-  artists: { name: string }[];
-  album: { name: string; images: { url: string }[] };
-  duration_ms: number;
-  external_urls: { spotify: string };
+  /** null for local files in a playlist */
+  id: string | null;
+  name?: string;
+  artists?: { name: string }[];
+  album?: { name?: string; images?: { url: string }[] };
+  duration_ms?: number;
+  external_urls?: { spotify?: string };
 }
 
 export interface AudioFeatures {
@@ -79,6 +78,13 @@ interface SpotifyFullTrack {
     release_date_precision?: string;
     images?: { url: string }[];
   };
+}
+
+/** `Name: message`, plus the Prisma error code when there is one. */
+function describeError(err: unknown): string {
+  if (!(err instanceof Error)) return String(err);
+  const code = (err as { code?: unknown }).code;
+  return `${err.name}${typeof code === 'string' ? ` [${code}]` : ''}: ${err.message}`;
 }
 
 /** 429 for the client, carrying Spotify's Retry-After so the poll can back off. */
@@ -169,9 +175,7 @@ export class SpotifyService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
-    @Optional()
-    @InjectQueue(LYRICS_FETCH_QUEUE)
-    private readonly lyricsQueue: Queue | null,
+    private readonly lyricsFetch: LyricsFetchService,
   ) {
     this.clientId = config.getOrThrow('SPOTIFY_CLIENT_ID');
     this.clientSecret = config.getOrThrow('SPOTIFY_CLIENT_SECRET');
@@ -434,28 +438,33 @@ export class SpotifyService {
   async getTrackAsSong(
     userId: string,
     spotifyId: string,
-  ): Promise<Prisma.SongCreateInput | null> {
+  ): Promise<{ song: Prisma.SongCreateInput } | { error: string }> {
     try {
       const accessToken = await this.getValidAccessToken(userId);
       const res = await fetch(
         `https://api.spotify.com/v1/tracks/${encodeURIComponent(spotifyId)}`,
         { headers: { Authorization: `Bearer ${accessToken}` } },
       );
-      if (!res.ok) return null;
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        return { error: `Spotify GET /tracks answered ${res.status} ${body}` };
+      }
 
       const track = (await res.json()) as SpotifyFullTrack;
       const artists = track.artists?.map((a) => a.name) ?? [];
       return {
-        spotifyId,
-        title: track.name ?? '',
-        artist: artists[0] ?? '',
-        artists,
-        imgUrl: track.album?.images?.[0]?.url ?? null,
-        spotifyUrl: `https://open.spotify.com/track/${spotifyId}`,
-        ...toSongMetadata(track),
+        song: {
+          spotifyId,
+          title: track.name ?? '',
+          artist: artists[0] ?? '',
+          artists,
+          imgUrl: track.album?.images?.[0]?.url ?? null,
+          spotifyUrl: `https://open.spotify.com/track/${spotifyId}`,
+          ...toSongMetadata(track),
+        },
       };
-    } catch {
-      return null;
+    } catch (err) {
+      return { error: `Spotify lookup failed: ${describeError(err)}` };
     }
   }
 
@@ -647,21 +656,7 @@ export class SpotifyService {
 
     await this.prisma.savedLyric.create({ data: { userId, songId: song.id } });
 
-    if (song.fetchStatus === 'IDLE' && this.lyricsQueue) {
-      await this.prisma.song.update({
-        where: { id: song.id },
-        data: { fetchStatus: 'FETCHING' },
-      });
-      await this.lyricsQueue.add(
-        'fetch',
-        { songId: song.id, spotifyId, track: play.track, artist: play.artist },
-        {
-          attempts: 3,
-          backoff: { type: 'exponential', delay: 5000 },
-          removeOnComplete: true,
-        },
-      );
-    }
+    await this.lyricsFetch.request(song.id);
 
     return { imported: true };
   }
@@ -913,73 +908,76 @@ export class SpotifyService {
 
   // ── Bulk import ─────────────────────────────────────────────────────────────
 
+  /**
+   * Imports tracks one by one. A bad track (local file without id, DB error)
+   * is reported in `failed` instead of aborting the rest — previously the first
+   * error 500'd the whole request after a partial import.
+   */
   async bulkImport(
     userId: string,
     tracks: BulkImportTrackDto[],
-  ): Promise<{ imported: number; alreadyExisted: number }> {
+  ): Promise<{
+    imported: number;
+    alreadyExisted: number;
+    failed: { id: string | null; name: string; error: string }[];
+  }> {
     let imported = 0;
     let alreadyExisted = 0;
+    const failed: { id: string | null; name: string; error: string }[] = [];
 
-    for (const track of tracks) {
-      const artist = track.artists[0]?.name ?? '';
-      const artists = track.artists.map((a) => a.name);
-      const imgUrl = track.album.images[0]?.url ?? null;
+    for (const track of tracks ?? []) {
+      try {
+        if (!track?.id) {
+          throw new Error('track has no Spotify id (local file?)');
+        }
+        const artists = (track.artists ?? []).map((a) => a.name);
+        const artist = artists[0] ?? '';
+        const imgUrl = track.album?.images?.[0]?.url ?? null;
+        const spotifyUrl =
+          track.external_urls?.spotify ??
+          `https://open.spotify.com/track/${track.id}`;
 
-      // Upsert the shared Song record
-      const song = await this.prisma.song.upsert({
-        where: { spotifyId: track.id },
-        create: {
-          spotifyId: track.id,
-          title: track.name,
-          artist,
-          artists,
-          imgUrl,
-          spotifyUrl: track.external_urls.spotify,
-        },
-        update: { artists, imgUrl, spotifyUrl: track.external_urls.spotify },
-        select: { id: true, fetchStatus: true },
-      });
+        const song = await this.prisma.song.upsert({
+          where: { spotifyId: track.id },
+          create: {
+            spotifyId: track.id,
+            title: track.name ?? '',
+            artist,
+            artists,
+            imgUrl,
+            spotifyUrl,
+            durationMs: track.duration_ms ?? null,
+          },
+          update: { artists, imgUrl, spotifyUrl },
+          select: { id: true },
+        });
 
-      // Create per-user bookmark (skip if already saved)
-      const existing = await this.prisma.savedLyric.findUnique({
-        where: { userId_songId: { userId, songId: song.id } },
-        select: { id: true },
-      });
+        const existing = await this.prisma.savedLyric.findUnique({
+          where: { userId_songId: { userId, songId: song.id } },
+          select: { id: true },
+        });
+        if (existing) {
+          alreadyExisted++;
+          continue;
+        }
 
-      if (existing) {
-        alreadyExisted++;
-      } else {
         await this.prisma.savedLyric.create({
           data: { userId, songId: song.id },
         });
         imported++;
-
-        // Queue lyrics fetch if song has no lyrics yet
-        if (song.fetchStatus === 'IDLE' && this.lyricsQueue) {
-          await this.prisma.song.update({
-            where: { id: song.id },
-            data: { fetchStatus: 'FETCHING' },
-          });
-          await this.lyricsQueue.add(
-            'fetch',
-            {
-              songId: song.id,
-              spotifyId: track.id,
-              track: track.name,
-              artist,
-              durationMs: track.duration_ms,
-            },
-            {
-              attempts: 3,
-              backoff: { type: 'exponential', delay: 5000 },
-              removeOnComplete: true,
-            },
-          );
-        }
+        await this.lyricsFetch.request(song.id);
+      } catch (err) {
+        const error = describeError(err);
+        Logger.error(
+          `bulkImport: "${track?.name}" (${track?.id}) failed — ${error}`,
+          err instanceof Error ? err.stack : undefined,
+          'SpotifyService',
+        );
+        failed.push({ id: track?.id ?? null, name: track?.name ?? '?', error });
       }
     }
 
-    return { imported, alreadyExisted };
+    return { imported, alreadyExisted, failed };
   }
 
   // ---------------------------------------------------------------------------

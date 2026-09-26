@@ -1,9 +1,7 @@
-import { Injectable, NotFoundException, Optional } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { SavedLyric, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { LYRICS_FETCH_QUEUE } from '../lyrics-fetch/lyrics-fetch.queue';
+import { LyricsFetchService } from '../lyrics-fetch/lyrics-fetch.service';
 import { SpotifyService } from '../spotify/spotify.service';
 
 const BOOKMARK_INCLUDE = {
@@ -49,10 +47,7 @@ export type BookmarkListItem = Prisma.SavedLyricGetPayload<{
 export class SavedLyricsService {
   constructor(
     private readonly prisma: PrismaService,
-    // Optional so the service still works when Redis isn't configured
-    @Optional()
-    @InjectQueue(LYRICS_FETCH_QUEUE)
-    private readonly lyricsQueue: Queue | null,
+    private readonly lyricsFetch: LyricsFetchService,
     private readonly spotify: SpotifyService,
   ) {}
 
@@ -106,17 +101,25 @@ export class SavedLyricsService {
         orderBy: { playedAt: 'desc' },
         select: { track: true, artist: true, artists: true, imgUrl: true },
       });
-      const create: Prisma.SongCreateInput | null = play
-        ? {
-            spotifyId,
-            title: play.track,
-            artist: play.artist,
-            artists: play.artists,
-            imgUrl: play.imgUrl,
-            spotifyUrl: `https://open.spotify.com/track/${spotifyId}`,
-          }
-        : await this.spotify.getTrackAsSong(userId, spotifyId);
-      if (!create) throw new NotFoundException('Song not found');
+      let create: Prisma.SongCreateInput;
+      if (play) {
+        create = {
+          spotifyId,
+          title: play.track,
+          artist: play.artist,
+          artists: play.artists,
+          imgUrl: play.imgUrl,
+          spotifyUrl: `https://open.spotify.com/track/${spotifyId}`,
+        };
+      } else {
+        const lookup = await this.spotify.getTrackAsSong(userId, spotifyId);
+        if ('error' in lookup) {
+          throw new NotFoundException(
+            `Song ${spotifyId} is not in the DB and not in your play history; ${lookup.error}`,
+          );
+        }
+        create = lookup.song;
+      }
 
       song = await this.prisma.song.upsert({
         where: { spotifyId },
@@ -133,36 +136,8 @@ export class SavedLyricsService {
       include: BOOKMARK_INCLUDE,
     });
 
-    await this.queueLyricsFetch(song.id, spotifyId);
+    await this.lyricsFetch.request(song.id);
     return bookmark;
-  }
-
-  /** Kicks off the lyrics worker the first time a song shows up. No-op without Redis. */
-  private async queueLyricsFetch(
-    songId: string,
-    spotifyId: string,
-  ): Promise<void> {
-    if (!this.lyricsQueue) return;
-
-    const song = await this.prisma.song.findUnique({
-      where: { id: songId },
-      select: { fetchStatus: true, title: true, artist: true },
-    });
-    if (song?.fetchStatus !== 'IDLE') return;
-
-    await this.prisma.song.update({
-      where: { id: songId },
-      data: { fetchStatus: 'FETCHING' },
-    });
-    await this.lyricsQueue.add(
-      'fetch',
-      { songId, spotifyId, track: song.title, artist: song.artist },
-      {
-        attempts: 3,
-        backoff: { type: 'exponential', delay: 5000 },
-        removeOnComplete: true,
-      },
-    );
   }
 
   async setFavorite(

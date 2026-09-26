@@ -2,13 +2,10 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
-  Optional,
 } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { LYRICS_FETCH_QUEUE } from '../lyrics-fetch/lyrics-fetch.queue';
+import { LyricsFetchService } from '../lyrics-fetch/lyrics-fetch.service';
 
 const VERSIONS_TO_KEEP = 20;
 
@@ -33,9 +30,7 @@ export type SongLyricsWithContent = Prisma.SongLyricsGetPayload<{
 export class SongLyricsService {
   constructor(
     private readonly prisma: PrismaService,
-    @Optional()
-    @InjectQueue(LYRICS_FETCH_QUEUE)
-    private readonly lyricsQueue: Queue | null,
+    private readonly lyricsFetch: LyricsFetchService,
   ) {}
 
   async get(spotifyId: string): Promise<SongLyricsWithContent | null> {
@@ -361,33 +356,15 @@ export class SongLyricsService {
   }
 
   async enqueueFetch(spotifyId: string): Promise<{ status: string }> {
-    if (!this.lyricsQueue) {
-      throw new ConflictException('Lyrics fetch queue not available');
-    }
-
     const song = await this.prisma.song.findUnique({
       where: { spotifyId },
-      select: { id: true, title: true, artist: true, fetchStatus: true },
+      select: { id: true },
     });
-    if (!song) throw new NotFoundException('Song not found');
+    if (!song) throw new NotFoundException(`Song ${spotifyId} not found`);
 
-    await this.prisma.song.update({
-      where: { spotifyId },
-      data: { fetchStatus: 'FETCHING' },
-    });
-
-    await this.lyricsQueue.add(
-      'fetch',
-      { songId: song.id, spotifyId, track: song.title, artist: song.artist },
-      {
-        attempts: 3,
-        backoff: { type: 'exponential', delay: 5000 },
-        removeOnComplete: true,
-        removeOnFail: false,
-      },
-    );
-
-    return { status: 'queued' };
+    // Explicit user request — refetch even if a fetch finished or failed before.
+    const status = await this.lyricsFetch.request(song.id, { force: true });
+    return { status };
   }
 
   async updateTimestamps(

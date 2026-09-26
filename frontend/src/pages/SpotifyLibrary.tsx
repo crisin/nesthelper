@@ -5,6 +5,7 @@ import api from '../services/api'
 import { useNotify } from '../stores/notificationStore'
 import QueryError from '../components/QueryError'
 import { queryHasNoData } from '../lib/queryState'
+import { describeError, logError } from '../lib/errors'
 import type {
   SpotifyLibraryTrack,
   SpotifyLibraryPage,
@@ -13,6 +14,12 @@ import type {
   SpotifySavedTrackItem,
   Song,
 } from '../types'
+
+interface ImportResult {
+  imported: number
+  alreadyExisted: number
+  failed: { id: string | null; name: string; error: string }[]
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -409,21 +416,38 @@ export default function SpotifyLibrary() {
   const importMutation = useMutation({
     mutationFn: (tracks: SpotifyLibraryTrack[]) =>
       api
-        .post<{ imported: number; alreadyExisted: number }>('/spotify/library/import', { tracks })
+        .post<ImportResult>('/spotify/library/import', { tracks })
         .then((r) => r.data),
     onSuccess: (result, tracks) => {
+      // Only tracks that actually made it get the check mark.
+      const failedIds = new Set(result.failed.map((f) => f.id))
       setAddedSpotifyIds((prev) => {
         const next = new Set(prev)
-        tracks.forEach((t) => next.add(t.id))
+        tracks.forEach((t) => { if (!failedIds.has(t.id)) next.add(t.id) })
         return next
       })
       const parts = [`${result.imported} importiert`]
       if (result.alreadyExisted > 0) parts.push(`${result.alreadyExisted} bereits vorhanden`)
+      if (result.failed.length > 0) {
+        parts.push(`${result.failed.length} fehlgeschlagen`)
+        console.error('[Spotify-Import] fehlgeschlagene Tracks', result.failed)
+        notify.error(
+          `Import teilweise fehlgeschlagen: ${result.failed
+            .map((f) => `„${f.name}“ (${f.error})`)
+            .join('; ')}`,
+          { lifetime: 0 },
+        )
+      }
       notify.success(parts.join(' · '))
       queryClient.invalidateQueries({ queryKey: ['saved-lyrics'] })
       queryClient.invalidateQueries({ queryKey: ['songs'] })
     },
-    onError: () => notify.error('Import fehlgeschlagen'),
+    onError: (err) => {
+      logError('Spotify-Import', err)
+      notify.error(describeError(err, 'Import fehlgeschlagen'), { lifetime: 0 })
+      // Part of the batch may have landed before the failure.
+      queryClient.invalidateQueries({ queryKey: ['songs'] })
+    },
   })
 
   return (

@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
+import { AllExceptionsFilter } from './common/all-exceptions.filter';
 
 async function bootstrap() {
   // Forging a token now means handing out ADMIN, so refuse to boot on a weak
@@ -19,6 +20,7 @@ async function bootstrap() {
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }),
   );
+  app.useGlobalFilters(new AllExceptionsFilter());
 
   const isProd = process.env.NODE_ENV === 'production';
   // 5174 is what .claude/launch.json starts vite on; 5173 is the vite default.

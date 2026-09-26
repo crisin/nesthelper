@@ -116,7 +116,8 @@ export class SongsService {
       },
     });
 
-    if (!song) return { saveCount: 0, tagDistribution: [], mostAnnotatedLines: [] };
+    if (!song)
+      return { saveCount: 0, tagDistribution: [], mostAnnotatedLines: [] };
 
     const tagMap = new Map<string, number>();
     for (const t of song.tags) {
@@ -131,8 +132,16 @@ export class SongsService {
       .filter((l) => l._count.annotations > 0 && l.text.trim())
       .sort((a, b) => b._count.annotations - a._count.annotations)
       .slice(0, 5)
-      .map((l) => ({ text: l.text, lineNumber: l.lineNumber, count: l._count.annotations }));
+      .map((l) => ({
+        text: l.text,
+        lineNumber: l.lineNumber,
+        count: l._count.annotations,
+      }));
 
-    return { saveCount: song._count.savedBy, tagDistribution, mostAnnotatedLines };
+    return {
+      saveCount: song._count.savedBy,
+      tagDistribution,
+      mostAnnotatedLines,
+    };
   }
 }

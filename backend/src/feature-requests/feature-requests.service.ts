@@ -15,7 +15,10 @@ export type FeatureRequestWithMeta = Prisma.FeatureRequestGetPayload<{
 export class FeatureRequestsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  getAll(requestingUserId: string, kind?: string): Promise<FeatureRequestWithMeta[]> {
+  getAll(
+    requestingUserId: string,
+    kind?: string,
+  ): Promise<FeatureRequestWithMeta[]> {
     return this.prisma.featureRequest.findMany({
       where: kind ? { kind } : undefined,
       include: REQUEST_INCLUDE,
@@ -47,7 +50,10 @@ export class FeatureRequestsService {
     });
   }
 
-  async updateStatus(id: string, status: FeatureStatus): Promise<FeatureRequestWithMeta> {
+  async updateStatus(
+    id: string,
+    status: FeatureStatus,
+  ): Promise<FeatureRequestWithMeta> {
     await this.findOrThrow(id);
     return this.prisma.featureRequest.update({
       where: { id },
@@ -75,12 +81,18 @@ export class FeatureRequestsService {
     });
 
     if (existing) {
-      await this.prisma.featureRequestVote.delete({ where: { id: existing.id } });
+      await this.prisma.featureRequestVote.delete({
+        where: { id: existing.id },
+      });
     } else {
-      await this.prisma.featureRequestVote.create({ data: { userId, requestId } });
+      await this.prisma.featureRequestVote.create({
+        data: { userId, requestId },
+      });
     }
 
-    const count = await this.prisma.featureRequestVote.count({ where: { requestId } });
+    const count = await this.prisma.featureRequestVote.count({
+      where: { requestId },
+    });
     return { voted: !existing, count };
   }
 

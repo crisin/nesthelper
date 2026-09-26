@@ -53,6 +53,8 @@ export class SongNotesService {
       select: { id: true },
     });
     if (!song) return;
-    await this.prisma.songNote.deleteMany({ where: { userId, songId: song.id } });
+    await this.prisma.songNote.deleteMany({
+      where: { userId, songId: song.id },
+    });
   }
 }

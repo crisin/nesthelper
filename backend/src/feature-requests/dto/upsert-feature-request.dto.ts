@@ -4,7 +4,7 @@ import { FeatureStatus } from '@prisma/client';
 export class CreateFeatureRequestDto {
   @IsOptional()
   @IsString()
-  kind?: string;  // "feature" | "bug", defaults to "feature"
+  kind?: string; // "feature" | "bug", defaults to "feature"
 
   @IsOptional()
   @IsString()

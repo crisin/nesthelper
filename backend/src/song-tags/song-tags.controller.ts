@@ -9,12 +9,12 @@ import {
   Post,
   Req,
   UseGuards,
-} from '@nestjs/common'
-import { JwtAuthGuard } from '../auth/jwt-auth.guard'
-import { AddTagDto } from '../saved-lyrics/dto/add-tag.dto'
-import { SongTagsService } from './song-tags.service'
+} from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { AddTagDto } from '../saved-lyrics/dto/add-tag.dto';
+import { SongTagsService } from './song-tags.service';
 
-type AuthedRequest = { user: { id: string } }
+type AuthedRequest = { user: { id: string } };
 
 @Controller('songs')
 @UseGuards(JwtAuthGuard)
@@ -23,7 +23,7 @@ export class SongTagsController {
 
   @Get(':spotifyId/tags')
   getTags(@Param('spotifyId') spotifyId: string) {
-    return this.service.getTags(spotifyId)
+    return this.service.getTags(spotifyId);
   }
 
   @Post(':spotifyId/tags')
@@ -32,7 +32,7 @@ export class SongTagsController {
     @Param('spotifyId') spotifyId: string,
     @Body() dto: AddTagDto,
   ) {
-    return this.service.addTag(req.user.id, spotifyId, dto)
+    return this.service.addTag(req.user.id, spotifyId, dto);
   }
 
   @Delete(':spotifyId/tags/:tag')
@@ -42,6 +42,6 @@ export class SongTagsController {
     @Param('spotifyId') spotifyId: string,
     @Param('tag') tag: string,
   ) {
-    return this.service.removeTag(req.user.id, spotifyId, tag)
+    return this.service.removeTag(req.user.id, spotifyId, tag);
   }
 }

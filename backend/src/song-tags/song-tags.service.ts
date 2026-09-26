@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, SongTag, TagType } from '@prisma/client';
+import { SongTag, TagType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AddTagDto } from '../saved-lyrics/dto/add-tag.dto';
 
@@ -44,7 +44,11 @@ export class SongTagsService {
     });
   }
 
-  async removeTag(userId: string, spotifyId: string, tag: string): Promise<void> {
+  async removeTag(
+    userId: string,
+    spotifyId: string,
+    tag: string,
+  ): Promise<void> {
     const song = await this.prisma.song.findUnique({
       where: { spotifyId },
       select: { id: true },

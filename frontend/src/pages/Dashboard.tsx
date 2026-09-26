@@ -1,15 +1,11 @@
 import { useCallback } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import LyricsSearch from '../components/LyricsSearch'
 import PullToRefresh from '../components/PullToRefresh'
 import RecentlyHeard from '../components/RecentlyHeard'
 import api from '../services/api'
-
-interface SpotifyStatus {
-  connected: boolean
-  spotifyId: string | null
-}
+import { useSpotifyStatus } from '../hooks/useSpotifyStatus'
 
 async function connectSpotify() {
   const { data } = await api.get<{ url: string }>('/spotify/connect')
@@ -20,10 +16,7 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
-  const { data: status, isLoading: statusLoading } = useQuery<SpotifyStatus>({
-    queryKey: ['spotify-status'],
-    queryFn: () => api.get<SpotifyStatus>('/spotify/status').then((r) => r.data),
-  })
+  const { data: status, isLoading: statusLoading } = useSpotifyStatus()
 
   const notConnected = !statusLoading && !status?.connected
 

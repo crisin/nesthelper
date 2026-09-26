@@ -73,7 +73,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const pageKey = getPageKey(location.pathname);
   // Same shared query the widget and the bar use — no extra request, but the
   // layout needs to know whether the mobile bar takes up space.
-  const { data: currentTrack } = useNowPlaying();
+  // Slower while paused/idle; the karaoke views poll faster on their own.
+  const { data: currentTrack } = useNowPlaying({ idleIntervalMs: 15_000 });
   const hasNowPlaying = !!currentTrack?.item;
 
   // Without this, tapping the 20th song in a list opens its page already

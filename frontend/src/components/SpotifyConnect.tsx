@@ -1,32 +1,25 @@
 import { useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
-
-interface SpotifyStatus {
-  connected: boolean
-  spotifyId: string | null
-}
+import { SPOTIFY_STATUS_KEY, useSpotifyStatus } from '../hooks/useSpotifyStatus'
 
 export default function SpotifyConnect() {
   const [searchParams, setSearchParams] = useSearchParams()
   const queryClient = useQueryClient()
 
-  const { data: status, isLoading } = useQuery<SpotifyStatus>({
-    queryKey: ['spotify-status'],
-    queryFn: () => api.get<SpotifyStatus>('/spotify/status').then((r) => r.data),
-  })
+  const { data: status, isLoading } = useSpotifyStatus()
 
   const disconnect = useMutation({
     mutationFn: () => api.delete('/spotify/disconnect'),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['spotify-status'] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: SPOTIFY_STATUS_KEY }),
   })
 
   useEffect(() => {
     const result = searchParams.get('spotify')
     if (!result) return
     if (result === 'connected') {
-      queryClient.invalidateQueries({ queryKey: ['spotify-status'] })
+      queryClient.invalidateQueries({ queryKey: SPOTIFY_STATUS_KEY })
     }
     setSearchParams((prev) => { prev.delete('spotify'); return prev })
   }, [searchParams, queryClient, setSearchParams])

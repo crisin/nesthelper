@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ExternalLink, LogOut, Moon, Sun, Eye, EyeOff, Check, Sparkles } from "lucide-react";
 import api from "../services/api";
+import { SPOTIFY_STATUS_KEY, useSpotifyStatus } from "../hooks/useSpotifyStatus";
 import { useAuthStore } from "../stores/authStore";
 import type { AuthResponse } from "../types";
 import UsernameEdit from "../components/UsernameEdit";
@@ -220,11 +221,6 @@ function ChangePassword() {
   )
 }
 
-interface SpotifyStatus {
-  connected: boolean;
-  spotifyId: string | null;
-}
-
 export default function Settings() {
   const user = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
@@ -239,23 +235,19 @@ export default function Settings() {
     navigate("/login");
   }
 
-  const { data: status, isLoading } = useQuery<SpotifyStatus>({
-    queryKey: ["spotify-status"],
-    queryFn: () =>
-      api.get<SpotifyStatus>("/spotify/status").then((r) => r.data),
-  });
+  const { data: status, isLoading } = useSpotifyStatus();
 
   const disconnect = useMutation({
     mutationFn: () => api.delete("/spotify/disconnect"),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["spotify-status"] }),
+      queryClient.invalidateQueries({ queryKey: SPOTIFY_STATUS_KEY }),
   });
 
   useEffect(() => {
     const result = searchParams.get("spotify");
     if (!result) return;
     if (result === "connected") {
-      queryClient.invalidateQueries({ queryKey: ["spotify-status"] });
+      queryClient.invalidateQueries({ queryKey: SPOTIFY_STATUS_KEY });
     }
     setSearchParams((prev) => {
       prev.delete("spotify");

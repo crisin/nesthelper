@@ -1,8 +1,10 @@
 import {
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
   Optional,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
@@ -97,6 +99,18 @@ export class SpotifyService {
   private static audioFeaturesWarned = false;
 
   private readonly clientId: string;
+
+  /**
+   * Access tokens by user, so polling endpoints don't read the DB on every call.
+   * Per process — fine for a single backend instance; with several, each one
+   * just warms its own copy.
+   */
+  private readonly tokenCache = new Map<
+    string,
+    { accessToken: string; expiresAt: number }
+  >();
+  /** One refresh per user at a time; concurrent callers share the promise. */
+  private readonly refreshInFlight = new Map<string, Promise<string>>();
   private readonly clientSecret: string;
   private readonly redirectUri: string;
 
@@ -172,6 +186,9 @@ export class SpotifyService {
     const profileRes = await fetch('https://api.spotify.com/v1/me', {
       headers: { Authorization: `Bearer ${tokens.access_token}` },
     });
+    if (!profileRes.ok) {
+      throw new UnauthorizedException('Spotify profile lookup failed');
+    }
 
     const profile = (await profileRes.json()) as { id: string };
     const expiresAt = new Date(Date.now() + tokens.expires_in * 1000);
@@ -192,6 +209,10 @@ export class SpotifyService {
         expiresAt,
       },
     });
+    this.tokenCache.set(userId, {
+      accessToken: tokens.access_token,
+      expiresAt: expiresAt.getTime(),
+    });
   }
 
   async getStatus(userId: string) {
@@ -203,28 +224,55 @@ export class SpotifyService {
   }
 
   async disconnect(userId: string): Promise<void> {
+    this.tokenCache.delete(userId);
     await this.prisma.spotifyToken.deleteMany({ where: { userId } });
   }
 
+  /** Drops the cached token, e.g. after Spotify rejected it with a 401. */
+  invalidateAccessToken(userId: string): void {
+    this.tokenCache.delete(userId);
+  }
+
   /**
-   * Returns a valid Spotify access token for the user.
-   * Automatically refreshes if the stored token is expired or about to expire.
+   * Returns a valid Spotify access token for the user, refreshing it when it
+   * is about to expire. Served from memory while valid; concurrent refreshes
+   * for the same user collapse into one request.
    */
   async getValidAccessToken(userId: string): Promise<string> {
+    const cached = this.tokenCache.get(userId);
+    if (cached && cached.expiresAt > Date.now() + 60_000) {
+      return cached.accessToken;
+    }
+
+    const inFlight = this.refreshInFlight.get(userId);
+    if (inFlight) return inFlight;
+
+    const pending = this.loadOrRefreshToken(userId).finally(() =>
+      this.refreshInFlight.delete(userId),
+    );
+    this.refreshInFlight.set(userId, pending);
+    return pending;
+  }
+
+  private async loadOrRefreshToken(userId: string): Promise<string> {
     const record = await this.prisma.spotifyToken.findUnique({
       where: { userId },
     });
 
     if (!record) {
+      this.tokenCache.delete(userId);
       throw new NotFoundException('Spotify not connected');
     }
 
-    // Return early if token is still valid (1-minute buffer)
+    // Still valid in the DB (1-minute buffer) — e.g. first call after a restart
     if (record.expiresAt.getTime() > Date.now() + 60_000) {
+      this.tokenCache.set(userId, {
+        accessToken: record.accessToken,
+        expiresAt: record.expiresAt.getTime(),
+      });
       return record.accessToken;
     }
 
-    // Refresh the token
     const refreshRes = await fetch('https://accounts.spotify.com/api/token', {
       method: 'POST',
       headers: {
@@ -238,10 +286,24 @@ export class SpotifyService {
     });
 
     if (!refreshRes.ok) {
-      // Token is unrecoverable — force the user to reconnect
-      await this.prisma.spotifyToken.delete({ where: { userId } });
-      throw new UnauthorizedException(
-        'Spotify session expired — please reconnect',
+      const body = (await refreshRes.json().catch(() => ({}))) as {
+        error?: string;
+      };
+      // Only a revoked/invalid refresh token is unrecoverable. A 429 or 5xx
+      // from Spotify is transient — deleting the row there forced users to
+      // reconnect for nothing.
+      if (body.error === 'invalid_grant') {
+        this.tokenCache.delete(userId);
+        await this.prisma.spotifyToken.deleteMany({ where: { userId } });
+        // 403, not 401: the frontend treats every 401 as an expired *app*
+        // session and logs the user out.
+        throw new ForbiddenException({
+          message: 'Spotify session expired — please reconnect',
+          code: 'SPOTIFY_RECONNECT_REQUIRED',
+        });
+      }
+      throw new ServiceUnavailableException(
+        'Spotify is temporarily unavailable',
       );
     }
 
@@ -263,6 +325,10 @@ export class SpotifyService {
           : {}),
         expiresAt,
       },
+    });
+    this.tokenCache.set(userId, {
+      accessToken: refreshed.access_token,
+      expiresAt: expiresAt.getTime(),
     });
 
     return refreshed.access_token;

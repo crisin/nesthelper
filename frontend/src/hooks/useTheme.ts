@@ -1,29 +1,14 @@
-import { useCallback, useState } from 'react'
+import { useCallback } from 'react'
+import { useSettingsStore } from '../stores/settingsStore'
 
-type Theme = 'light' | 'dark'
-
-function applyTheme(theme: Theme) {
-  const root = document.documentElement
-  if (theme === 'dark') {
-    root.classList.add('dark')
-  } else {
-    root.classList.remove('dark')
-  }
-  localStorage.setItem('theme', theme)
-}
-
-function readTheme(): Theme {
-  return document.documentElement.classList.contains('dark') ? 'dark' : 'light'
-}
-
+/** Light/dark, per user. SettingsSync applies the class to <html>. */
 export function useTheme() {
-  const [theme, setTheme] = useState<Theme>(readTheme)
+  const theme = useSettingsStore((s) => s.theme.mode)
+  const update = useSettingsStore((s) => s.update)
 
   const toggle = useCallback(() => {
-    const next: Theme = theme === 'dark' ? 'light' : 'dark'
-    applyTheme(next)
-    setTheme(next)
-  }, [theme])
+    update('theme', { mode: theme === 'dark' ? 'light' : 'dark' })
+  }, [theme, update])
 
   return { theme, isDark: theme === 'dark', toggle }
 }

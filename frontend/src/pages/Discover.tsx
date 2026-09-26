@@ -9,6 +9,7 @@ import SongCard from '../components/SongCard'
 import QueryError from '../components/QueryError'
 import { queryHasNoData } from '../lib/queryState'
 import { timeAgo, timeAgoShort } from '../lib/format'
+import { useSettingsStore, type LibraryLayout } from '../stores/settingsStore'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -25,7 +26,6 @@ interface GlobalFeedItem {
 }
 
 type LibrarySortKey = 'recent' | 'artist' | 'title'
-type LibraryLayout  = 'list' | 'grid'
 
 const LIBRARY_SORTS: { key: LibrarySortKey; label: string }[] = [
   { key: 'recent', label: 'Neueste' },
@@ -114,9 +114,8 @@ export default function Discover() {
 
   const [tab, setTab]                 = useState<Tab>('library')
   const [librarySort, setLibrarySort] = useState<LibrarySortKey>('recent')
-  const [layout, setLayout]           = useState<LibraryLayout>(
-    () => (localStorage.getItem('discoverLayout') as LibraryLayout) ?? 'list',
-  )
+  const layout       = useSettingsStore((s) => s.discover.layout)
+  const updateSetting = useSettingsStore((s) => s.update)
   const [highlightSpotifyId, setHighlightSpotifyId] = useState<string | null>(
     () => (location.state as { highlightSpotifyId?: string } | null)?.highlightSpotifyId ?? null,
   )
@@ -134,8 +133,7 @@ export default function Discover() {
   }, [highlightSpotifyId, navigate])
 
   function toggleLayout(next: LibraryLayout) {
-    setLayout(next)
-    localStorage.setItem('discoverLayout', next)
+    updateSetting('discover', { layout: next })
   }
 
   const { data: songs = [], isLoading: songsLoading, status: songsStatus, fetchStatus: songsFetchStatus } = useQuery<Song[]>({

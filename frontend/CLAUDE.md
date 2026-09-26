@@ -12,7 +12,7 @@ See also: [Root CLAUDE.md](../CLAUDE.md) | [Backend CLAUDE.md](../backend/CLAUDE
 | Nav + FAB + layout | [src/components/AppLayout.tsx](src/components/AppLayout.tsx) |
 | Global styles + keyframes | [src/index.css](src/index.css) |
 | Auth store | [src/stores/authStore.ts](src/stores/authStore.ts) |
-| Visual/background store | [src/stores/visualStore.ts](src/stores/visualStore.ts) |
+| Per-user settings store | [src/stores/settingsStore.ts](src/stores/settingsStore.ts) |
 
 ## Adding a new page
 1. Create `src/pages/NewPage.tsx`
@@ -88,13 +88,15 @@ JWT token + user identity, persisted to localStorage under `auth`. `{ token, use
 - `user.mustChangePassword` → PrivateRoute redirects to `/set-password`; the backend independently 403s every other route
 - **Any response carrying a new `access_token` must go through `setAuth`** (password change, onboarding) — the old token is dead server-side
 
-### [`visualStore`](src/stores/visualStore.ts)
-Dynamic background + visualizer settings — persisted to localStorage as `visual-settings`.
-`{ enabled, pages, mode, blurAmount, dimAmount, showVisualizer, visualizerStyle, setEnabled, setPageEnabled, set }`
-- `pages` keys: `dashboard`, `discover`, `favorites`, `timeline`, `settings`, `song`
-- `mode`: `'blur' | 'ambient' | 'both'`
-- `visualizerStyle`: `'pulse' | 'breathe'`
-- **Adding a `pages` key needs the custom `merge`** that is already there: Zustand shallow-merges, so an older persisted `pages` object would replace the defaults and the new key would read as `undefined`. Do **not** bump `version` to fix that — without a `migrate` function Zustand discards mismatched state and resets everyone's settings.
+### [`settingsStore`](src/stores/settingsStore.ts) — all UI settings, per user
+Several people share one browser, so settings live on the server (`User.settings` JSON, `GET`/`PATCH /users/me/settings`), not in loose localStorage keys.
+- Sections: `theme`, `search`, `discover`, `visual`, `viewer`, `polling`. Types + `DEFAULT_SETTINGS` live in the store.
+- **Adding a setting:** add the field + default. Stored data is merged over the defaults per section on load, so no migration and no version bump. A new nested object (like `visual.pages`) needs a line in `mergeWithDefaults`.
+- `update(section, patch)` merges into the section, writes the per-user browser cache (`settings:<userId>`, for first paint) and PATCHes the whole section after 500ms.
+- [SettingsSync](src/components/SettingsSync.tsx) (in `App`) loads on login, resets on logout and applies the theme class. Legacy browser keys are adopted once by the first account that has no server settings.
+- Browser-local on purpose: `lyrics-viewer-width` (depends on the screen) and `theme` (pre-paint cache read by `index.html`).
+- Thin wrappers keep their old call sites: `useVisualStore` (`visual`), `useViewerSettings` (`viewer`), `useTheme` (`theme`).
+- Settings page sections are in [components/settings/](src/components/settings/) with shared `Toggle` / `Segmented` / `FieldLabel` / `SettingRow` controls.
 
 ## Mobile/desktop split
 - Breakpoint: `sm:` = 640px (Tailwind)
@@ -113,7 +115,9 @@ Wraps all authenticated pages. Owns the nav, the FAB, the scroll reset on naviga
 - FAB state: `pickerOpen: boolean` + `panelMode: PanelMode | null`. Its `bottom-*` offset shifts when the now-playing bar is up, or it covers the bar's fullscreen button.
 
 ### Now playing
-- [useNowPlaying](src/hooks/useNowPlaying.ts) owns `['spotify-current-track']`. React Query dedupes in-flight *requests* but **not** `refetchInterval` timers — every observer schedules its own. AppLayout polls at 5s; everything that only displays the track passes `poll: false` and reads the shared cache. Only karaoke and timestamp sync turn on their own faster timer.
+- [useNowPlaying](src/hooks/useNowPlaying.ts) owns `['spotify-current-track']`. React Query dedupes in-flight *requests* but **not** `refetchInterval` timers — every observer schedules its own. AppLayout polls (`polling.playingMs` / `polling.idleMs` from settings); everything that only displays the track passes `poll: false` and reads the shared cache. Karaoke and timestamp sync pass `fast: true` (`polling.fastMs`).
+- Between polls, position comes from `interpolateProgress` / `readProgressMs` — never read `progress_ms` raw for display or timestamps.
+- Every request lands in the poll log (`usePollLog`); [PollTick](src/components/PollTick.tsx) visualizes it when `polling.showTick` is on.
 - [NowPlayingBar](src/components/NowPlayingBar.tsx) is the mobile surface, rendered inside the bottom nav so it stacks without magic offsets. [NowPlayingWidget](src/components/NowPlayingWidget.tsx) is the desktop sidebar equivalent. Both link straight to `/songs/:spotifyId`.
 - Opening a song never needs an existence check first: `GET /saved-lyrics/by-spotify/:spotifyId` creates the `Song` from the play history when it is missing.
 
@@ -138,7 +142,7 @@ Wraps all authenticated pages. Owns the nav, the FAB, the scroll reset on naviga
 
 ### [LyricsEditor.tsx](src/components/LyricsEditor.tsx)
 - Handles fetchStatus polling (FETCHING → polls `/lyrics/:id` every 5s)
-- Karaoke mode: `useNowPlaying({ intervalMs: 1000, poll: … })`, highlights active line by `timestampMs`
+- Karaoke mode: `useNowPlaying({ fast: true, poll: … })` (only while this song is playing), highlights active line by `timestampMs`
 - Seek: Timer icon → `POST /spotify/seek?positionMs=`
 
 ## Copy and formatting

@@ -941,7 +941,7 @@ export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer, art
     CURRENT_TRACK_KEY,
   )?.item?.id
   const { data: currentTrack, dataUpdatedAt } = useNowPlaying({
-    intervalMs: 3_000,
+    fast: true,
     poll: (karaoke || mode === 'edit' || showTimestamps) && playingId === spotifyId,
   })
 

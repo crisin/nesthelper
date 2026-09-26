@@ -1,21 +1,54 @@
-import { useEffect, useReducer } from 'react'
+import { useEffect, useReducer, useSyncExternalStore } from 'react'
 import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
 import api from '../services/api'
 import type { SpotifyCurrentlyPlayingResponse } from '../types'
 import { SPOTIFY_STATUS_KEY, useSpotifyStatus } from './useSpotifyStatus'
+import { useSettingsStore } from '../stores/settingsStore'
 
 export const CURRENT_TRACK_KEY = ['spotify-current-track']
 
+// ─── Request log (for the poll tick display) ─────────────────────────────────
+
+export interface PollEntry {
+  /** When the response (or error) arrived. */
+  at: number
+  /** Round trip in ms. */
+  ms: number
+  /** HTTP status, or 0 when the server wasn't reached. */
+  status: number
+}
+
+const LOG_WINDOW_MS = 60_000
+let pollLog: PollEntry[] = []
+const logListeners = new Set<() => void>()
+
+function recordPoll(entry: PollEntry) {
+  const cutoff = entry.at - LOG_WINDOW_MS
+  // New array each time so useSyncExternalStore sees the change.
+  pollLog = [...pollLog.filter((e) => e.at >= cutoff), entry]
+  logListeners.forEach((l) => l())
+}
+
+/** Every current-track request of the last minute, oldest first. */
+export function usePollLog(): PollEntry[] {
+  return useSyncExternalStore(
+    (listener) => {
+      logListeners.add(listener)
+      return () => logListeners.delete(listener)
+    },
+    () => pollLog,
+  )
+}
+
+// ─── Hook ─────────────────────────────────────────────────────────────────────
+
 interface Options {
-  /** How often this consumer needs fresh data. Ignored when `poll` is false. */
-  intervalMs?: number
   /**
-   * Interval while nothing is playing (paused or idle). Defaults to
-   * `intervalMs`; the always-on layout poll sets it higher, since a paused
-   * player doesn't need checking every few seconds.
+   * Use the fast interval from the polling settings (karaoke, sync mode,
+   * timestamp editing) instead of the playing/idle pair.
    */
-  idleIntervalMs?: number
+  fast?: boolean
   /**
    * Whether this consumer schedules its own refetch.
    *
@@ -29,12 +62,11 @@ interface Options {
 }
 
 /** The currently playing track, shared by key across every consumer. */
-export function useNowPlaying({
-  intervalMs = 5_000,
-  idleIntervalMs = intervalMs,
-  poll = true,
-}: Options = {}) {
+export function useNowPlaying({ fast = false, poll = true }: Options = {}) {
   const queryClient = useQueryClient()
+  const polling = useSettingsStore((s) => s.polling)
+  const intervalMs = fast ? polling.fastMs : polling.playingMs
+  const idleIntervalMs = fast ? polling.fastMs : polling.idleMs
   // Without a connection every poll is a guaranteed 404 — don't ask at all.
   const { data: status } = useSpotifyStatus()
   const connected = !!status?.connected
@@ -42,10 +74,15 @@ export function useNowPlaying({
   return useQuery<SpotifyCurrentlyPlayingResponse | null>({
     queryKey: CURRENT_TRACK_KEY,
     queryFn: async () => {
+      const started = performance.now()
+      const log = (status: number) =>
+        recordPoll({ at: Date.now(), ms: Math.round(performance.now() - started), status })
       try {
         const r = await api.get<SpotifyCurrentlyPlayingResponse>('/spotify/current-track')
+        log(r.status)
         return r.data
       } catch (err) {
+        log(isAxiosError(err) ? (err.response?.status ?? 0) : 0)
         // 404 = not connected, 403 = session revoked: the cached status is
         // stale, so refresh it and the poll switches itself off.
         const code = isAxiosError(err) ? err.response?.status : undefined

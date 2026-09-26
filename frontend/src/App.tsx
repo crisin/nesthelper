@@ -13,6 +13,7 @@ import Timeline from './pages/Timeline'
 import Settings from './pages/Settings'
 import SpotifyLibrary from './pages/SpotifyLibrary'
 import PrivateRoute from './components/PrivateRoute'
+import SettingsSync from './components/SettingsSync'
 import RequireAdmin from './components/RequireAdmin'
 import AppLayout from './components/AppLayout'
 import { CoverViewerProvider } from './contexts/CoverViewerContext'
@@ -98,6 +99,7 @@ const router = createBrowserRouter([
 export default function App() {
   return (
     <CoverViewerProvider>
+      <SettingsSync />
       <RouterProvider router={router} />
     </CoverViewerProvider>
   )

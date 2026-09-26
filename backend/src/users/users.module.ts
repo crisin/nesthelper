@@ -4,12 +4,13 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { AdminUsersController } from './admin-users.controller';
 import { UsersController } from './users.controller';
 import { UsersBootstrapService } from './users-bootstrap.service';
+import { UserSettingsService } from './user-settings.service';
 import { UsersService } from './users.service';
 
 @Module({
   imports: [AuthModule, PrismaModule],
   controllers: [AdminUsersController, UsersController],
-  providers: [UsersService, UsersBootstrapService],
+  providers: [UsersService, UsersBootstrapService, UserSettingsService],
   exports: [UsersService],
 })
 export class UsersModule {}

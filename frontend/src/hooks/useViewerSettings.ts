@@ -1,60 +1,27 @@
 // ─── Types ────────────────────────────────────────────────────────────────────
+// The settings themselves live in the per-user settings store (`viewer` section).
 
-export type ViewerFont     = 'sans' | 'serif' | 'mono'
-export type ViewerSpacing  = 'tight' | 'normal' | 'relaxed' | 'loose'
-export type ViewerThemeKey = 'auto' | 'dark' | 'warm' | 'slate'
-export type ViewerBgMode   = 'solid' | 'cover' | 'ambient'
-export type ViewerTextAlign = 'left' | 'center'
+import {
+  useSettingsStore,
+  type ViewerFont,
+  type ViewerSettings,
+  type ViewerSpacing,
+  type ViewerThemeKey,
+} from '../stores/settingsStore'
 
-export interface ViewerSettings {
-  // Typography
-  font:            ViewerFont
-  fontSize:        number        // 0.65 – 2.5 rem
-  fontWeight:      number        // 100 – 900
-  spacing:         ViewerSpacing
-  textAlign:       ViewerTextAlign
-  letterSpacing:   number        // 0 – 0.12 em
-
-  // Color / theme
-  theme:           ViewerThemeKey
-  customBg:        string        // hex, overrides theme bg (solid mode only)
-  customText:      string        // hex, overrides theme text
-
-  // Background effects
-  bgMode:          ViewerBgMode
-  bgBlur:          number        // 0 – 48 px
-  bgDim:           number        // 0 – 0.95 (dim overlay / image intensity)
-
-  // Text / line effects
-  inactiveOpacity: number        // 0 – 1, default 0.35 (when karaoke active)
-  activeGlow:      boolean       // text-shadow on active karaoke line
-  showSections:    boolean       // render section labels (Verse/Chorus/Bridge)
-}
+export type {
+  ViewerBgMode,
+  ViewerFont,
+  ViewerSettings,
+  ViewerSpacing,
+  ViewerTextAlign,
+  ViewerThemeKey,
+} from '../stores/settingsStore'
 
 export type ViewerSettingsSetter = <K extends keyof ViewerSettings>(
   key: K,
   val: ViewerSettings[K],
 ) => void
-
-// ─── Defaults ─────────────────────────────────────────────────────────────────
-
-const DEFAULTS: ViewerSettings = {
-  font:            'sans',
-  fontSize:        1,
-  fontWeight:      400,
-  spacing:         'normal',
-  textAlign:       'left',
-  letterSpacing:   0,
-  theme:           'auto',
-  customBg:        '',
-  customText:      '',
-  bgMode:          'solid',
-  bgBlur:          20,
-  bgDim:           0.5,
-  inactiveOpacity: 0.35,
-  activeGlow:      false,
-  showSections:    true,
-}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -81,19 +48,10 @@ export const VIEWER_SPACINGS: Record<ViewerSpacing, { label: string; lh: number 
   loose:   { label: 'Locker', lh: 2.6  },
 }
 
-// ─── Persistence ──────────────────────────────────────────────────────────────
+// ─── Panel width ──────────────────────────────────────────────────────────────
+// Deliberately browser-local: it depends on the screen, not on the person.
 
-const STORAGE_KEY = 'lyrics-viewer-settings'
 const WIDTH_KEY   = 'lyrics-viewer-width'
-
-/** Merges saved data with current defaults — safe for schema migrations. */
-function loadSettings(): ViewerSettings {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return { ...DEFAULTS, ...JSON.parse(raw) }
-  } catch { /**/ }
-  return { ...DEFAULTS }
-}
 
 export function loadPanelWidth(defaultWidth = 672): number {
   try {
@@ -109,22 +67,15 @@ export function savePanelWidth(w: number) {
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-import { useState } from 'react'
-
 export function useViewerSettings() {
-  const [s, setS] = useState<ViewerSettings>(loadSettings)
+  const s = useSettingsStore((st) => st.viewer)
+  const update = useSettingsStore((st) => st.update)
+  const resetSection = useSettingsStore((st) => st.resetSection)
 
-  const set: ViewerSettingsSetter = (key, val) => {
-    setS((prev) => {
-      const next = { ...prev, [key]: val }
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)) } catch { /**/ }
-      return next
-    })
-  }
+  const set: ViewerSettingsSetter = (key, val) => update('viewer', { [key]: val })
 
   function reset() {
-    setS({ ...DEFAULTS })
-    try { localStorage.removeItem(STORAGE_KEY) } catch { /**/ }
+    resetSection('viewer')
   }
 
   return { s, set, reset }

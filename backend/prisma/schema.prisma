@@ -68,6 +68,12 @@ model User {
   passwordChangedAt  DateTime?
   lastLoginAt        DateTime?
 
+  // UI preferences (theme, visuals, lyrics viewer, polling, ...). Per user
+  // because several people share one browser. Shape is owned by the frontend
+  // (settingsStore), which merges it over its defaults — so no migration is
+  // needed when a setting is added. Top-level keys are sections.
+  settings Json @default("{}")
+
   spotifyTokens       SpotifyToken[]
   savedLyrics         SavedLyric[]
   searchHistory       SearchHistory[]

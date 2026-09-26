@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { ChevronRight, Maximize2, Music } from 'lucide-react'
 import { useNowPlaying } from '../hooks/useNowPlaying'
 import LyricsViewer from './LyricsViewer'
+import PollTick from './PollTick'
+import { useSettingsStore } from '../stores/settingsStore'
 
 /**
  * Mobile now-playing bar, docked directly above the bottom nav.
@@ -16,6 +18,7 @@ export default function NowPlayingBar() {
   // AppLayout owns the 5s poll; this only displays what's already in the cache.
   const { data: track } = useNowPlaying({ poll: false })
   const [viewerOpen, setViewerOpen] = useState(false)
+  const showPollTick = useSettingsStore((s) => s.polling.showTick)
 
   const item = track?.item
   if (!item) return null
@@ -66,6 +69,7 @@ export default function NowPlayingBar() {
             </p>
           </div>
 
+          {showPollTick && <PollTick compact />}
           <ChevronRight
             size={15}
             strokeWidth={1.75}

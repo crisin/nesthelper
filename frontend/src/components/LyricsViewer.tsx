@@ -105,7 +105,7 @@ export default function LyricsViewer({
   // Between polls the position is interpolated locally, so even sync mode only
   // needs a drift check every few seconds; otherwise AppLayout's poll suffices.
   const { data: currentTrack, dataUpdatedAt } = useNowPlaying({
-    intervalMs: 3_000,
+    fast: true,
     poll: !!spotifyId && syncMode,
   })
 

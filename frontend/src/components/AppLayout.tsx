@@ -25,6 +25,9 @@ import LyricsSearchButton from "./LyricsSearchButton";
 import Notifications from "./Notifications";
 import NowPlayingBar from "./NowPlayingBar";
 import NowPlayingWidget from "./NowPlayingWidget";
+import PollTick from "./PollTick";
+import { useSettingsStore } from "../stores/settingsStore";
+import { useSpotifyStatus } from "../hooks/useSpotifyStatus";
 import SpotifyConnect from "./SpotifyConnect";
 import UsernameEdit from "./UsernameEdit";
 
@@ -73,9 +76,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const pageKey = getPageKey(location.pathname);
   // Same shared query the widget and the bar use — no extra request, but the
   // layout needs to know whether the mobile bar takes up space.
-  // Slower while paused/idle; the karaoke views poll faster on their own.
-  const { data: currentTrack } = useNowPlaying({ idleIntervalMs: 15_000 });
+  // Intervals come from the polling settings (playing vs. paused/idle); the
+  // karaoke views add a faster timer of their own.
+  const { data: currentTrack } = useNowPlaying();
   const hasNowPlaying = !!currentTrack?.item;
+  const showPollTick = useSettingsStore((s) => s.polling.showTick);
+  const spotifyConnected = !!useSpotifyStatus().data?.connected;
 
   // Without this, tapping the 20th song in a list opens its page already
   // scrolled into the middle of the lyrics.
@@ -137,6 +143,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           {/* The widget above is the way to the song page now; this is only
               here for when nothing is playing at all. */}
           {!hasNowPlaying && <LyricsSearchButton />}
+          {/* Polling debug strip (Einstellungen → Spotify-Polling). Outside the
+              widget so idle polls are visible too. */}
+          {showPollTick && spotifyConnected && <PollTick />}
         </div>
         {/* User controls */}
         <div className="px-4 py-4 border-t border-edge flex-shrink-0 space-y-3">

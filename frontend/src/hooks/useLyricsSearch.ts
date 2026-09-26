@@ -2,20 +2,19 @@ import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
 import { CURRENT_TRACK_KEY } from './useNowPlaying'
+import { useSettingsStore, type SearchMode } from '../stores/settingsStore'
 import type { SearchHistoryItem, SpotifyCurrentlyPlayingResponse } from '../types'
 
-export type SearchMode = 'open' | 'save'
+export type { SearchMode } from '../stores/settingsStore'
 
 export function useLyricsSearch() {
   const queryClient = useQueryClient()
   const [error, setError] = useState<string | null>(null)
-  const [mode, setMode] = useState<SearchMode>(
-    () => (localStorage.getItem('searchMode') as SearchMode) ?? 'open',
-  )
+  const mode = useSettingsStore((s) => s.search.mode)
+  const update = useSettingsStore((s) => s.update)
 
   function toggleMode(next: SearchMode) {
-    setMode(next)
-    localStorage.setItem('searchMode', next)
+    update('search', { mode: next })
   }
 
   const saveEntry = useMutation({
@@ -26,8 +25,8 @@ export function useLyricsSearch() {
 
   async function handleSearch() {
     setError(null)
-    // Read mode fresh from localStorage so all instances stay in sync
-    const currentMode = (localStorage.getItem('searchMode') as SearchMode) ?? 'open'
+    // Fresh from the store — another instance may have toggled it meanwhile.
+    const currentMode = useSettingsStore.getState().search.mode
     try {
       // The layout polls this anyway — reuse a fresh cached answer if there is one.
       const current = await queryClient.fetchQuery({

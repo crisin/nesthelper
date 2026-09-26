@@ -1,54 +1,30 @@
-import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import {
+  useSettingsStore,
+  type VisualSettings,
+} from './settingsStore'
 
-export type VisualMode = 'blur' | 'ambient' | 'both'
-export type VisualizerStyle = 'pulse' | 'breathe'
+export type { VisualMode, VisualizerStyle } from './settingsStore'
 
-interface VisualStore {
-  enabled: boolean
-  pages: Record<string, boolean>
-  mode: VisualMode
-  blurAmount: number        // 8–40px, default 20
-  dimAmount: number         // 0.5–0.95, default 0.75
-  showVisualizer: boolean
-  visualizerStyle: VisualizerStyle
+export interface VisualStore extends VisualSettings {
   setEnabled: (v: boolean) => void
   setPageEnabled: (page: string, v: boolean) => void
-  set: (patch: Partial<Omit<VisualStore, 'setEnabled' | 'setPageEnabled' | 'set'>>) => void
+  set: (patch: Partial<VisualSettings>) => void
 }
 
-export const useVisualStore = create<VisualStore>()(
-  persist(
-    (set) => ({
-      enabled: false,
-      pages: { dashboard: true, discover: true, favorites: true, timeline: true, settings: true, song: true },
-      mode: 'both',
-      blurAmount: 20,
-      dimAmount: 0.75,
-      showVisualizer: true,
-      visualizerStyle: 'pulse',
-      setEnabled: (v) => set({ enabled: v }),
-      setPageEnabled: (page, v) => set((s) => ({ pages: { ...s.pages, [page]: v } })),
-      set: (patch) => set(patch),
-    }),
-    {
-      name: 'visual-settings',
-      // No `version` bump on purpose: without a `migrate` function Zustand
-      // discards mismatched persisted state outright, which would reset
-      // everyone's visual settings. `merge` alone fixes the actual problem.
-      //
-      // Zustand shallow-merges, so a persisted `pages` object from before
-      // `settings`/`song` existed replaces the defaults wholesale — those two
-      // keys come back as undefined and their backgrounds stay off no matter
-      // what the toggle shows. Merge the nested object explicitly.
-      merge: (persisted, current) => {
-        const p = (persisted ?? {}) as Partial<VisualStore>
-        return {
-          ...current,
-          ...p,
-          pages: { ...current.pages, ...(p.pages ?? {}) },
-        }
-      },
-    },
-  ),
-)
+/**
+ * The dynamic-background settings. Kept as its own hook for the call sites;
+ * the data is the `visual` section of the per-user settings store.
+ */
+export function useVisualStore(): VisualStore
+export function useVisualStore<T>(selector: (s: VisualStore) => T): T
+export function useVisualStore<T>(selector?: (s: VisualStore) => T): T | VisualStore {
+  const visual = useSettingsStore((s) => s.visual)
+  const update = useSettingsStore((s) => s.update)
+  const store: VisualStore = {
+    ...visual,
+    setEnabled: (v) => update('visual', { enabled: v }),
+    setPageEnabled: (page, v) => update('visual', { pages: { ...visual.pages, [page]: v } }),
+    set: (patch) => update('visual', patch),
+  }
+  return selector ? selector(store) : store
+}

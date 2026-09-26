@@ -293,6 +293,53 @@ export class SpotifyService {
         imgUrl: dto.imgUrl ?? null,
       },
     });
+
+    await this.promoteRepeatedPlay(userId, dto);
+  }
+
+  /**
+   * Turns a track you keep coming back to into a shared `Song`.
+   *
+   * Deliberately does NOT create a `SavedLyric`: that is the personal bookmark
+   * and it already suffers from being auto-created on every search, which makes
+   * "my collection" mean "everything I ever glanced at". `Song` is the shared
+   * canonical entity — creating it enriches the library, the artist network and
+   * lyrics lookup without claiming anything belongs to anyone.
+   *
+   * The second play is the filter: a track skipped after ten seconds is
+   * recorded once and never promoted.
+   */
+  private async promoteRepeatedPlay(
+    userId: string,
+    dto: {
+      spotifyId: string;
+      track: string;
+      artist: string;
+      artists: string[];
+      imgUrl?: string | null;
+    },
+  ): Promise<void> {
+    const existing = await this.prisma.song.findUnique({
+      where: { spotifyId: dto.spotifyId },
+      select: { id: true },
+    });
+    if (existing) return;
+
+    const plays = await this.prisma.playHistory.count({
+      where: { userId, spotifyId: dto.spotifyId },
+    });
+    if (plays < 2) return;
+
+    await this.prisma.song.create({
+      data: {
+        spotifyId: dto.spotifyId,
+        title: dto.track,
+        artist: dto.artist,
+        artists: dto.artists,
+        imgUrl: dto.imgUrl ?? null,
+        spotifyUrl: `https://open.spotify.com/track/${dto.spotifyId}`,
+      },
+    });
   }
 
   async syncRecentlyPlayed(userId: string): Promise<{ synced: number }> {
@@ -561,6 +608,119 @@ export class SpotifyService {
       track: SpotifyTrackObject | null;
       added_at: string;
     }>;
+  }
+
+  // ── Track metadata enrichment ───────────────────────────────────────────────
+
+  /** How many songs still have no Spotify metadata. */
+  async getEnrichmentStatus(): Promise<{
+    total: number;
+    enriched: number;
+    remaining: number;
+  }> {
+    const [total, enriched] = await Promise.all([
+      this.prisma.song.count(),
+      this.prisma.song.count({ where: { metadataFetchedAt: { not: null } } }),
+    ]);
+    return { total, enriched, remaining: total - enriched };
+  }
+
+  /**
+   * Fills in release date, duration, album and explicit flag for songs that
+   * have none.
+   *
+   * February 2026 removed the multi-get endpoints, so this is one request per
+   * track — deliberately capped per call and paced, so a few hundred songs
+   * become a handful of quick calls rather than one request that hangs for
+   * minutes. A track that 404s is still marked as fetched; otherwise it would
+   * be retried on every single run forever.
+   */
+  async enrichTrackMetadata(
+    userId: string,
+    batchSize = 100,
+  ): Promise<{ processed: number; failed: number; remaining: number }> {
+    const pending = await this.prisma.song.findMany({
+      where: { metadataFetchedAt: null },
+      select: { id: true, spotifyId: true },
+      orderBy: { firstSeenAt: 'desc' },
+      take: batchSize,
+    });
+    if (!pending.length) {
+      const { remaining } = await this.getEnrichmentStatus();
+      return { processed: 0, failed: 0, remaining };
+    }
+
+    const token = await this.getValidAccessToken(userId);
+    let processed = 0;
+    let failed = 0;
+
+    for (const song of pending) {
+      try {
+        const res = await fetch(
+          `https://api.spotify.com/v1/tracks/${song.spotifyId}`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+
+        if (res.status === 429) {
+          // Respect the backoff and stop this batch — the next call resumes.
+          const retryAfter = Number(res.headers.get('retry-after') ?? '2');
+          Logger.warn(
+            `Rate limited while enriching; stopping batch, retry in ${retryAfter}s`,
+            'SpotifyService',
+          );
+          break;
+        }
+
+        if (!res.ok) {
+          // Unavailable in this market, removed, or a bad id — record the
+          // attempt so the queue drains instead of looping on it.
+          await this.prisma.song.update({
+            where: { id: song.id },
+            data: { metadataFetchedAt: new Date() },
+          });
+          failed++;
+          continue;
+        }
+
+        const track = (await res.json()) as {
+          duration_ms?: number;
+          explicit?: boolean;
+          track_number?: number;
+          album?: {
+            name?: string;
+            album_type?: string;
+            total_tracks?: number;
+            release_date?: string;
+            release_date_precision?: string;
+          };
+        };
+
+        await this.prisma.song.update({
+          where: { id: song.id },
+          data: {
+            durationMs: track.duration_ms ?? null,
+            explicit: track.explicit ?? null,
+            trackNumber: track.track_number ?? null,
+            albumName: track.album?.name ?? null,
+            albumType: track.album?.album_type ?? null,
+            albumTotalTracks: track.album?.total_tracks ?? null,
+            releaseDate: track.album?.release_date ?? null,
+            releaseDatePrecision: track.album?.release_date_precision ?? null,
+            metadataFetchedAt: new Date(),
+          },
+        });
+        processed++;
+      } catch {
+        failed++;
+      }
+
+      // ~4 requests/second keeps a few hundred songs comfortably inside
+      // Spotify's rolling window.
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+
+    const { remaining } = await this.getEnrichmentStatus();
+    return { processed, failed, remaining };
   }
 
   // ── Bulk import ─────────────────────────────────────────────────────────────

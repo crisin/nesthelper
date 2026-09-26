@@ -54,6 +54,10 @@ Keep this updated when adding new queries. These are the canonical keys — inva
 | `['spotify-playlist-tracks', id, offset]` | Tracks inside a playlist | [src/pages/SpotifyLibrary.tsx](src/pages/SpotifyLibrary.tsx) |
 | `['audio-features', spotifyId]` | BPM/energy/valence (`staleTime: Infinity`) | [src/hooks/useAudioFeatures.ts](src/hooks/useAudioFeatures.ts) |
 | `['analytics-*']`, `['analytics-global-*']` | Personal + community analytics | [src/pages/Analytics.tsx](src/pages/Analytics.tsx) |
+| `['analytics-artist-graph']` | Artist network (nodes carry server-computed x/y) | [src/components/analytics/ArtistNetwork.tsx](src/components/analytics/ArtistNetwork.tsx) |
+| `['analytics-language']` | Language split + signature words | [src/components/analytics/LanguageProfile.tsx](src/components/analytics/LanguageProfile.tsx) |
+| `['analytics-era']` | Release years + duration vs. text density | [src/components/analytics/EraProfile.tsx](src/components/analytics/EraProfile.tsx) |
+| `['analytics-together', mode]` | Group comparison — `mode` is `favorites`/`all` | [src/components/analytics/TogetherPanel.tsx](src/components/analytics/TogetherPanel.tsx) |
 | `['timeline-monthly', year]` | Monthly songs (Erinnerungen) | [src/pages/Timeline.tsx](src/pages/Timeline.tsx) |
 | `['digest-latest']` | Latest unread weekly digest | [src/components/DigestBanner.tsx](src/components/DigestBanner.tsx) |
 | `['feature-requests', mode]` | Bugs or feature wishes | [src/components/FeatureRequestPanel.tsx](src/components/FeatureRequestPanel.tsx) |
@@ -153,6 +157,12 @@ Wraps all authenticated pages. Owns the nav, the FAB, the scroll reset on naviga
 - `FeatureRequest` — has `kind: string` (`'feature' | 'bug'`)
 - `Song` — shared canonical entity with `audioFeatures`
 - **Display artists**: `displayArtists(artists, artist)` from `lib/format`
+
+## Charts
+- Hand-rolled SVG, no charting library. The artist network's layout, clustering and centrality are computed **server-side** ([backend/src/analytics/artist-graph.util.ts](../backend/src/analytics/artist-graph.util.ts)) and the client only draws the coordinates — no physics loop, nothing added to the bundle.
+- Categorical colours come from `--chart-1` … `--chart-8` in [index.css](src/index.css), a fixed slot order validated for colour-blind separation and contrast against the real card surfaces (`#ffffff` / `#121212`). **Assign by entity, never cycle, never by rank.** Slots 3–5 sit below 3:1 on the light surface, so anything using them needs a visible label rather than colour alone.
+- For ≥2 series a legend is always present (the cluster list is the network's legend). Never hover-only: tap sets state and the label appears as text.
+- Co-occurrence graphs are near-complete by nature. The network keeps each artist's strongest four links; without that it renders as one hairball with a single cluster and no bridges.
 
 ## CSS keyframes ([src/index.css](src/index.css))
 - `bg-pulse` — scale pulse timed to BPM (used by DynamicBackground visualizer)

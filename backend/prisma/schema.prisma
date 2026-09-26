@@ -104,9 +104,25 @@ model Song {
   spotifyUrl  String?
   videoUrl    String?
   fetchStatus   LyricsFetchStatus @default(IDLE)
-  audioFeatures Json?            // { tempo, energy, valence, danceability } from Spotify audio-features API
+  // Spotify restricted /audio-features for apps registered after 2024-11-27, so
+  // this stays null for this app. Kept for older rows and in case access returns.
+  audioFeatures Json?            // { tempo, energy, valence, danceability }
   firstSeenAt   DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
+
+  // ── Spotify track metadata, filled by the enrichment backfill ──────────────
+  // Only fields that survived the February 2026 API reduction. `popularity`,
+  // `available_markets`, `external_ids` and `album.label` are gone for good.
+  releaseDate          String?   // "1975", "1975-03" or "1975-03-25"
+  releaseDatePrecision String?   // year | month | day
+  durationMs           Int?
+  explicit             Boolean?
+  albumName            String?
+  albumType            String?   // album | single | compilation
+  albumTotalTracks     Int?
+  trackNumber          Int?
+  /** Null means "never enriched" — the backfill uses this as its work queue. */
+  metadataFetchedAt    DateTime?
 
   lyrics  SongLyrics?
   tags    SongTag[]

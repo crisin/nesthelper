@@ -11,30 +11,45 @@ import {
   Put,
   Req,
   UseGuards,
-} from '@nestjs/common'
-import { JwtAuthGuard } from '../auth/jwt-auth.guard'
-import { UpdateSongLyricsDto } from './dto/update-song-lyrics.dto'
-import { UpdateTimestampsDto } from './dto/update-timestamps.dto'
-import { UpdateLyricsStatusDto } from './dto/update-lyrics-status.dto'
-import { SongLyricsService } from './song-lyrics.service'
+} from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { UpdateSongLyricsDto } from './dto/update-song-lyrics.dto';
+import { UpdateTimestampsDto } from './dto/update-timestamps.dto';
+import { UpdateLyricsStatusDto } from './dto/update-lyrics-status.dto';
+import { SongLyricsService } from './song-lyrics.service';
 
-type AuthedRequest = { user: { id: string } }
+type AuthedRequest = { user: { id: string } };
 
 @Controller('songs')
 @UseGuards(JwtAuthGuard)
 export class SongLyricsController {
   constructor(private readonly service: SongLyricsService) {}
 
+  // Declared before the `:spotifyId` routes — Nest matches in declaration
+  // order, and a literal segment must not be shadowed by a parameter.
+
+  /** GET /songs/lyrics/lrclib-batch — how many songs still have no lyrics */
+  @Get('lyrics/lrclib-batch')
+  lrclibBatchStatus(@Req() req: AuthedRequest) {
+    return this.service.lrclibBatchStatus(req.user.id);
+  }
+
+  /** POST /songs/lyrics/lrclib-batch — look up and save the next batch */
+  @Post('lyrics/lrclib-batch')
+  lrclibBatch(@Req() req: AuthedRequest) {
+    return this.service.lrclibBatch(req.user.id);
+  }
+
   /** GET /songs/:spotifyId/lyrics */
   @Get(':spotifyId/lyrics')
   get(@Param('spotifyId') spotifyId: string) {
-    return this.service.get(spotifyId)
+    return this.service.get(spotifyId);
   }
 
   /** GET /songs/:spotifyId/lyrics/lrclib-preview — fetch LRCLib suggestion without saving */
   @Get(':spotifyId/lyrics/lrclib-preview')
   lrclibPreview(@Param('spotifyId') spotifyId: string) {
-    return this.service.lrclibPreview(spotifyId)
+    return this.service.lrclibPreview(spotifyId);
   }
 
   /** PUT /songs/:spotifyId/lyrics */
@@ -52,7 +67,7 @@ export class SongLyricsController {
       dto.source,
       dto.sections,
       dto.lines,
-    )
+    );
   }
 
   /** POST /songs/:spotifyId/lyrics/restore/:version */
@@ -62,14 +77,14 @@ export class SongLyricsController {
     @Param('spotifyId') spotifyId: string,
     @Param('version', ParseIntPipe) version: number,
   ) {
-    return this.service.restoreVersion(req.user.id, spotifyId, version)
+    return this.service.restoreVersion(req.user.id, spotifyId, version);
   }
 
   /** POST /songs/:spotifyId/lyrics/fetch — trigger BullMQ fetch */
   @Post(':spotifyId/lyrics/fetch')
   @HttpCode(HttpStatus.ACCEPTED)
   enqueueFetch(@Param('spotifyId') spotifyId: string) {
-    return this.service.enqueueFetch(spotifyId)
+    return this.service.enqueueFetch(spotifyId);
   }
 
   /** PATCH /songs/:spotifyId/lyrics/timestamps — update only timestamps, no version bump */
@@ -79,7 +94,7 @@ export class SongLyricsController {
     @Param('spotifyId') spotifyId: string,
     @Body() dto: UpdateTimestampsDto,
   ) {
-    return this.service.updateTimestamps(spotifyId, dto.lines)
+    return this.service.updateTimestamps(spotifyId, dto.lines);
   }
 
   /** PATCH /songs/:spotifyId/lyrics/status — update lyrics status (no version bump) */
@@ -89,6 +104,6 @@ export class SongLyricsController {
     @Param('spotifyId') spotifyId: string,
     @Body() dto: UpdateLyricsStatusDto,
   ) {
-    return this.service.updateStatus(spotifyId, dto.status)
+    return this.service.updateStatus(spotifyId, dto.status);
   }
 }

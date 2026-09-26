@@ -105,7 +105,7 @@ export default function ViewerSettingsPanel({
   const pickerBg   = s.customBg   || VIEWER_THEMES[s.theme].bg   || '#f9f9f7'
   const pickerText = s.customText || VIEWER_THEMES[s.theme].text || '#0e0e0e'
 
-  function ColorPicker({
+  function colorPicker({
     label, value, pickerValue, settingKey,
   }: {
     label: string
@@ -137,7 +137,7 @@ export default function ViewerSettingsPanel({
 
   // ── Tab: Text ────────────────────────────────────────────────────────────
 
-  function TextTab() {
+  function renderTextTab() {
     return (
       <div className="space-y-3.5">
         {/* Font family */}
@@ -242,7 +242,7 @@ export default function ViewerSettingsPanel({
 
   // ── Tab: Background ──────────────────────────────────────────────────────
 
-  function BgTab() {
+  function renderBgTab() {
     const bgModes: { key: ViewerBgMode; label: string; disabled?: boolean }[] = [
       { key: 'solid',   label: 'Einfarbig' },
       { key: 'cover',   label: 'Coverbild', disabled: !imgUrl },
@@ -304,8 +304,8 @@ export default function ViewerSettingsPanel({
             <div className="flex items-center gap-4">
               <span className="text-[10px] font-semibold uppercase tracking-widest w-20 flex-shrink-0" style={labelStyle}>Farben</span>
               <div className="flex items-center gap-4">
-                <ColorPicker label="BG"   value={s.customBg}   pickerValue={pickerBg}   settingKey="customBg"   />
-                <ColorPicker label="Text" value={s.customText} pickerValue={pickerText} settingKey="customText" />
+                {colorPicker({ label: 'BG', value: s.customBg, pickerValue: pickerBg, settingKey: 'customBg' })}
+                {colorPicker({ label: 'Text', value: s.customText, pickerValue: pickerText, settingKey: 'customText' })}
               </div>
             </div>
           </>
@@ -331,7 +331,7 @@ export default function ViewerSettingsPanel({
             {/* Text color override */}
             <div className="flex items-center gap-4">
               <span className="text-[10px] font-semibold uppercase tracking-widest w-20 flex-shrink-0" style={labelStyle}>Text</span>
-              <ColorPicker label="Farbe" value={s.customText} pickerValue={pickerText} settingKey="customText" />
+              {colorPicker({ label: 'Farbe', value: s.customText, pickerValue: pickerText, settingKey: 'customText' })}
             </div>
           </>
         )}
@@ -341,8 +341,8 @@ export default function ViewerSettingsPanel({
 
   // ── Tab: Effects ─────────────────────────────────────────────────────────
 
-  function EffectsTab() {
-    function ToggleRow({ label, value, onChange }: { label: string; value: boolean; onChange: (v: boolean) => void }) {
+  function renderEffectsTab() {
+    function toggleRow({ label, value, onChange }: { label: string; value: boolean; onChange: (v: boolean) => void }) {
       return (
         <div className="flex items-center justify-between gap-4">
           <span className="text-xs" style={{ color: panelText, opacity: 0.8 }}>{label}</span>
@@ -380,16 +380,8 @@ export default function ViewerSettingsPanel({
           (v) => set('inactiveOpacity', v),
           `${Math.round(s.inactiveOpacity * 100)}%`,
         )}
-        <ToggleRow
-          label="Leuchten auf aktiver Zeile"
-          value={s.activeGlow}
-          onChange={(v) => set('activeGlow', v)}
-        />
-        <ToggleRow
-          label="Abschnitts-Labels anzeigen"
-          value={s.showSections}
-          onChange={(v) => set('showSections', v)}
-        />
+        {toggleRow({ label: 'Leuchten auf aktiver Zeile', value: s.activeGlow, onChange: (v) => set('activeGlow', v) })}
+        {toggleRow({ label: 'Abschnitts-Labels anzeigen', value: s.showSections, onChange: (v) => set('showSections', v) })}
       </div>
     )
   }
@@ -422,9 +414,9 @@ export default function ViewerSettingsPanel({
       </div>
 
       {/* Tab content */}
-      {tab === 'text'    && <TextTab />}
-      {tab === 'bg'      && <BgTab />}
-      {tab === 'effects' && <EffectsTab />}
+      {tab === 'text'    && renderTextTab()}
+      {tab === 'bg'      && renderBgTab()}
+      {tab === 'effects' && renderEffectsTab()}
     </div>
   )
 }

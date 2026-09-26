@@ -82,6 +82,20 @@ Both run on every guarded route in every module — changing them changes the wh
 ### Owner account
 [`UsersBootstrapService`](src/users/users-bootstrap.service.ts) runs on every boot: creates the `ADMIN_EMAIL` account if missing (password from `ADMIN_INITIAL_PASSWORD` or generated + logged once), and always repairs it to `role: ADMIN`, `isActive: true`, `isProtected: true`. A protected account cannot be demoted, deactivated, deleted, or password-reset by anyone else — it is the way back in. Lockout recovery: `npm run user:reset -- <email>`.
 
+## What Spotify still gives us
+
+The Web API was cut back hard for apps registered after 2024-11-27, and again in February 2026. This app's Spotify app is from 2026, so plan for development mode forever — extended quota needs 250k MAU.
+
+**Gone:** `/audio-features`, `/audio-analysis` (so no tempo/energy/valence — `Song.audioFeatures` stays null), `/artists/{id}/related-artists`, `/recommendations`, `/artists/{id}/top-tracks`, the multi-get endpoints (`GET /tracks?ids=` and friends — it is one request per entity now), and the fields `track.popularity`, `artist.popularity`, `artist.followers`, `album.label`, `external_ids`. Artist genres are deprecated and returned empty. Search `limit` maxes out at 10.
+
+**Still there:** `GET /tracks/{id}`, `/artists/{id}`, `/albums/{id}`, `/me/top/*`, `/me/player/recently-played`, `/me/tracks`, `/me/playlists`, and on a track: `duration_ms`, `explicit`, `track_number`, `album.release_date` + precision, `album.total_tracks`, `album.album_type`, images. Those feed the era panels via `enrichTrackMetadata`.
+
+**Playlists:** `/playlists/{id}/tracks` is deprecated in favour of `/items`, and the playlist object's `tracks` field is now `items` — `getPlaylists` normalises both back to `tracks` so the frontend contract is unchanged.
+
+**Scopes:** every endpoint's scope must be in `SpotifyService.scope`, or Spotify answers 403 and the caller sees an empty list rather than an error. Changing that list forces every user to re-authorise, so batch such changes.
+
+> The consequence: this app's own data is worth more than Spotify's. Play history, annotations, tags, lyrics and collections cannot be taken away by a changelog. Treat Spotify metadata as an enrichment layer that the UI must work without.
+
 ## BullMQ queue pattern (optional Redis)
 ```typescript
 // Inject with @Optional so service still works without Redis configured
@@ -114,7 +128,7 @@ File: [`src/spotify/spotify.service.ts`](src/spotify/spotify.service.ts)
 | [`search-history`](src/search-history/) | `/search-history` | Spotify search history |
 | [`library`](src/library/) | `/library` | Spotify library tracks + community insights |
 | [`collections`](src/collections/) | `/collections` | Song collections (CRUD + items + reorder) |
-| [`analytics`](src/analytics/) | `/analytics/me` | Words, emotions, artists, themes, timeline |
+| [`analytics`](src/analytics/) | `/analytics` | Words, emotions, artists, themes, timeline, language, artist-graph, era, social |
 | [`digest`](src/digest/) | `/digest` | Weekly digest (cron Mon 08:00 + read endpoint) |
 | [`feature-requests`](src/feature-requests/) | `/feature-requests` | Bugs + feature wishes (`kind` field) |
 

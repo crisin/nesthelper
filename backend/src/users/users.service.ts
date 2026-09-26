@@ -179,6 +179,18 @@ export class UsersService {
     });
   }
 
+  /**
+   * Everyone else in the app, for panels that compare collections. Deliberately
+   * narrower than the admin list: no email, no role, no activity timestamps.
+   */
+  listPeers(): Promise<{ id: string; name: string | null }[]> {
+    return this.prisma.user.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
   findByEmail(email: string) {
     // findFirst + insensitive so "Max@..." and "max@..." are the same account.
     return this.prisma.user.findFirst({

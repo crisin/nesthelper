@@ -1,7 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { countWords, languageBreakdown, signatureWords } from './text.util';
+import {
+  countWords,
+  languageBreakdown,
+  signatureWords,
+  tokenize,
+} from './text.util';
 import { buildArtistGraph } from './artist-graph.util';
+import { buildTogether } from './social.util';
 
 type RawSave = {
   id: string;
@@ -135,13 +141,125 @@ export class AnalyticsService {
     });
   }
 
+  /**
+   * How this user's collection sits inside the group's.
+   *
+   * `mode` matters: a plain bookmark is created by *searching* for a song, so
+   * "we both have it" over all bookmarks means very little. Favourites are the
+   * deliberate signal and the default.
+   */
+  async getTogether(userId: string, mode: 'favorites' | 'all' = 'favorites') {
+    const [peers, saves] = await Promise.all([
+      this.prisma.user.findMany({
+        where: { isActive: true },
+        select: { id: true, name: true },
+        orderBy: { createdAt: 'asc' },
+      }),
+      this.prisma.savedLyric.findMany({
+        where: {
+          songId: { not: null },
+          ...(mode === 'favorites' ? { isFavorite: true } : {}),
+        },
+        select: {
+          userId: true,
+          songId: true,
+          createdAt: true,
+          song: { select: { artist: true } },
+        },
+      }),
+    ]);
+
+    return buildTogether(
+      userId,
+      peers,
+      saves
+        .filter((s) => s.songId)
+        .map((s) => ({
+          userId: s.userId,
+          songId: s.songId!,
+          artist: s.song?.artist ?? '',
+          createdAt: s.createdAt,
+        })),
+    );
+  }
+
+  /**
+   * Release years and the relationship between a song's length and how much is
+   * actually sung in it. Both need the Spotify metadata backfill, so the
+   * response reports its own coverage and the UI can say so honestly.
+   */
+  async getEraProfile(userId?: string) {
+    const songs = await this.prisma.song.findMany({
+      where: userId ? { savedBy: { some: { userId } } } : {},
+      select: {
+        spotifyId: true,
+        title: true,
+        artist: true,
+        releaseDate: true,
+        durationMs: true,
+        explicit: true,
+        albumType: true,
+        metadataFetchedAt: true,
+        lyrics: { select: { rawText: true } },
+      },
+    });
+
+    const enriched = songs.filter((s) => s.metadataFetchedAt !== null);
+
+    // ── Release years ────────────────────────────────────────────────────────
+    const byYear = new Map<number, number>();
+    for (const song of enriched) {
+      const year = Number(song.releaseDate?.slice(0, 4));
+      if (!Number.isFinite(year) || year < 1900) continue;
+      byYear.set(year, (byYear.get(year) ?? 0) + 1);
+    }
+    const years = [...byYear.entries()]
+      .map(([year, count]) => ({ year, count }))
+      .sort((a, b) => a.year - b.year);
+
+    // ── Length against how densely it is sung ────────────────────────────────
+    const density = enriched
+      .filter((s) => s.durationMs && s.lyrics?.rawText)
+      .map((song) => {
+        const words = tokenize(song.lyrics!.rawText).length;
+        const minutes = song.durationMs! / 60_000;
+        return {
+          spotifyId: song.spotifyId,
+          title: song.title,
+          artist: song.artist,
+          durationMs: song.durationMs!,
+          words,
+          wordsPerMinute: minutes > 0 ? Math.round(words / minutes) : 0,
+        };
+      })
+      .filter((s) => s.words > 0)
+      .sort((a, b) => a.durationMs - b.durationMs);
+
+    const explicitCount = enriched.filter((s) => s.explicit === true).length;
+
+    return {
+      coverage: { total: songs.length, enriched: enriched.length },
+      years,
+      density,
+      explicit: { count: explicitCount, of: enriched.length },
+      albumTypes: [
+        ...enriched.reduce((map, song) => {
+          const type = song.albumType ?? 'unbekannt';
+          return map.set(type, (map.get(type) ?? 0) + 1);
+        }, new Map<string, number>()),
+      ]
+        .map(([type, count]) => ({ type, count }))
+        .sort((a, b) => b.count - a.count),
+    };
+  }
+
   async getEmotions(userId: string) {
     const rows = await this.prisma.songTag.groupBy({
       by: ['tag'],
       where: {
         song: { savedBy: { some: { userId } } },
         type: 'MOOD',
-      } as any,
+      },
       _count: { id: true },
       orderBy: { _count: { id: 'desc' } },
       take: 20,
@@ -152,11 +270,10 @@ export class AnalyticsService {
   async getArtists(userId: string) {
     const saves = await this.prisma.savedLyric.findMany({
       where: { userId },
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      select: { song: { select: { artist: true } } } as any,
+      select: { song: { select: { artist: true } } },
     });
     const freq = new Map<string, number>();
-    for (const s of saves as unknown as { song: { artist: string } }[]) {
+    for (const s of saves) {
       const artist = s.song?.artist;
       if (artist) freq.set(artist, (freq.get(artist) ?? 0) + 1);
     }
@@ -172,7 +289,7 @@ export class AnalyticsService {
       where: {
         song: { savedBy: { some: { userId } } },
         type: 'CONTEXT',
-      } as any,
+      },
       _count: { id: true },
       orderBy: { _count: { id: 'desc' } },
       take: 15,

@@ -1,10 +1,14 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { BarChart2, Music, Tag, User, Calendar, Sparkles, Share2, Languages } from 'lucide-react'
+import { BarChart2, Music, Tag, User, Calendar, Sparkles, Share2, Languages, Users, CalendarClock } from 'lucide-react'
 import api from '../services/api'
-import type { WordFrequency, TagCount, ArtistCount, WeekCount, LrclibStats, ArtistGraph, LanguageProfile as LanguageProfileData } from '../types'
+import type { WordFrequency, TagCount, ArtistCount, WeekCount, LrclibStats, ArtistGraph, LanguageProfile as LanguageProfileData, TogetherData, EraProfile as EraProfileData } from '../types'
 import ArtistNetwork from '../components/analytics/ArtistNetwork'
 import LanguageProfile from '../components/analytics/LanguageProfile'
+import TogetherPanel from '../components/analytics/TogetherPanel'
+import EraProfile from '../components/analytics/EraProfile'
+import LrclibBatch from '../components/analytics/LrclibBatch'
+import { useAuthStore } from '../stores/authStore'
 
 type Tab = 'me' | 'global'
 
@@ -207,9 +211,11 @@ function AnalyticsSections({
   timeline,
   language,
   graph,
+  era,
   loading,
   loadingLanguage,
   loadingGraph,
+  loadingEra,
 }: {
   words: WordFrequency[]
   emotions: TagCount[]
@@ -218,9 +224,11 @@ function AnalyticsSections({
   timeline: WeekCount[]
   language?: LanguageProfileData
   graph?: ArtistGraph
+  era?: EraProfileData
   loading: boolean
   loadingLanguage: boolean
   loadingGraph: boolean
+  loadingEra: boolean
 }) {
   const topWords   = words.slice(0, 20)
   const topArtists = artists.slice(0, 15)
@@ -243,6 +251,10 @@ function AnalyticsSections({
           und Sammlungen.
         </p>
         {graph ? <ArtistNetwork data={graph} /> : <EmptyState message="Noch keine Daten" />}
+      </Section>
+
+      <Section icon={CalendarClock} title="Jahrgänge & Textdichte" isLoading={loadingEra}>
+        {era ? <EraProfile data={era} /> : <EmptyState message="Noch keine Daten" />}
       </Section>
 
       <Section icon={Languages} title="Deine Sprache" isLoading={loadingLanguage}>
@@ -333,6 +345,30 @@ export default function Analytics() {
   const { data: myGraph, isLoading: loadingMyGraph } = useQuery<ArtistGraph>({
     queryKey: ['analytics-artist-graph'],
     queryFn: () => api.get<ArtistGraph>('/analytics/me/artist-graph').then((r) => r.data),
+    staleTime: 5 * 60_000,
+    enabled: tab === 'me',
+  })
+
+  const { data: myEra, isLoading: loadingMyEra } = useQuery<EraProfileData>({
+    queryKey: ['analytics-era'],
+    queryFn: () => api.get<EraProfileData>('/analytics/me/era').then((r) => r.data),
+    staleTime: 5 * 60_000,
+    enabled: tab === 'me',
+  })
+
+  const { data: glEra, isLoading: loadingGlEra } = useQuery<EraProfileData>({
+    queryKey: ['analytics-global-era'],
+    queryFn: () => api.get<EraProfileData>('/analytics/global/era').then((r) => r.data),
+    staleTime: 5 * 60_000,
+    enabled: tab === 'global',
+  })
+
+  const [togetherMode, setTogetherMode] = useState<'favorites' | 'all'>('favorites')
+  const meId = useAuthStore((s) => s.user?.id) ?? ''
+  const { data: together, isLoading: loadingTogether } = useQuery<TogetherData>({
+    queryKey: ['analytics-together', togetherMode],
+    queryFn: () =>
+      api.get<TogetherData>(`/analytics/social/together?mode=${togetherMode}`).then((r) => r.data),
     staleTime: 5 * 60_000,
     enabled: tab === 'me',
   })
@@ -450,9 +486,11 @@ export default function Analytics() {
           timeline={myTimeline}
           language={myLanguage}
           graph={myGraph}
+          era={myEra}
           loading={myLoading}
           loadingLanguage={loadingMyLanguage}
           loadingGraph={loadingMyGraph}
+          loadingEra={loadingMyEra}
         />
       ) : (
         <AnalyticsSections
@@ -463,10 +501,27 @@ export default function Analytics() {
           timeline={glTimeline}
           language={glLanguage}
           graph={glGraph}
+          era={glEra}
           loading={glLoading}
           loadingLanguage={loadingGlLanguage}
           loadingGraph={loadingGlGraph}
+          loadingEra={loadingGlEra}
         />
+      )}
+
+      {tab === 'me' && (
+        <Section icon={Users} title="Was uns verbindet" isLoading={loadingTogether}>
+          {together ? (
+            <TogetherPanel
+              data={together}
+              meId={meId}
+              mode={togetherMode}
+              onModeChange={setTogetherMode}
+            />
+          ) : (
+            <EmptyState message="Noch keine Daten" />
+          )}
+        </Section>
       )}
 
       {/* LRCLib section */}
@@ -476,6 +531,8 @@ export default function Analytics() {
         isLoading={tab === 'me' ? loadingMyLrclib : loadingGlLrclib}
       >
         <LrclibStatsView stats={tab === 'me' ? myLrclib : glLrclib} />
+        {/* The action belongs where the gap is stated, not in a settings page */}
+        {tab === 'me' && <LrclibBatch />}
       </Section>
     </div>
   )

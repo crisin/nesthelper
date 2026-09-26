@@ -393,3 +393,58 @@ export interface ArtistGraph {
     edgesDropped: number
   }
 }
+
+// ─── Analytics: Was uns verbindet ────────────────────────────────────────────
+
+export interface TogetherData {
+  users: { id: string; name: string | null; savedCount: number }[]
+  rows: { artist: string; userIds: string[]; songCount: number }[]
+  me: {
+    total: number
+    onlyMine: number
+    sharedWithSome: number
+    sharedWithAll: number
+    exclusivityPct: number
+    overlaps: { userId: string; name: string | null; sharedSongs: number; jaccard: number }[]
+  }
+  discovery: { userId: string; name: string | null; firstCount: number }[]
+  gates: { activeUsers: number; rowsAfterFilter: number }
+}
+
+// ─── Analytics: Jahrgänge und Textdichte ─────────────────────────────────────
+
+export interface EraProfile {
+  coverage: { total: number; enriched: number }
+  years: { year: number; count: number }[]
+  density: {
+    spotifyId: string
+    title: string
+    artist: string
+    durationMs: number
+    words: number
+    wordsPerMinute: number
+  }[]
+  explicit: { count: number; of: number }
+  albumTypes: { type: string; count: number }[]
+}
+
+export interface EnrichmentStatus {
+  total: number
+  enriched: number
+  remaining: number
+}
+
+// ─── LRCLib-Stapelsuche ──────────────────────────────────────────────────────
+
+export interface LrclibBatchStatus {
+  total: number
+  withLyrics: number
+  missing: number
+}
+
+export interface LrclibBatchResult {
+  checked: number
+  saved: number
+  remaining: number
+  results: { title: string; artist: string; found: boolean; synced: boolean }[]
+}

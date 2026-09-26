@@ -34,6 +34,27 @@ export class AnalyticsController {
     return this.analytics.getArtistGraph();
   }
 
+  @Get('social/together')
+  getTogether(
+    @Req() req: AuthedRequest,
+    @Query('mode') mode?: 'favorites' | 'all',
+  ) {
+    return this.analytics.getTogether(
+      req.user.id,
+      mode === 'all' ? 'all' : 'favorites',
+    );
+  }
+
+  @Get('me/era')
+  getEraProfile(@Req() req: AuthedRequest) {
+    return this.analytics.getEraProfile(req.user.id);
+  }
+
+  @Get('global/era')
+  getGlobalEraProfile() {
+    return this.analytics.getEraProfile();
+  }
+
   @Get('me/emotions')
   getEmotions(@Req() req: AuthedRequest) {
     return this.analytics.getEmotions(req.user.id);

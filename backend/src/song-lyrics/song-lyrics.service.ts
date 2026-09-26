@@ -70,6 +70,96 @@ export class SongLyricsService {
     });
   }
 
+  /** How many of this user's songs still have no lyrics at all. */
+  async lrclibBatchStatus(
+    userId: string,
+  ): Promise<{ total: number; withLyrics: number; missing: number }> {
+    const [total, withLyrics] = await Promise.all([
+      this.prisma.song.count({ where: { savedBy: { some: { userId } } } }),
+      this.prisma.song.count({
+        where: {
+          savedBy: { some: { userId } },
+          lyrics: { is: { rawText: { not: '' } } },
+        },
+      }),
+    ]);
+    return { total, withLyrics, missing: total - withLyrics };
+  }
+
+  /**
+   * Looks up LRCLib for every song that has no lyrics yet and saves whatever it
+   * finds — one click instead of opening each song.
+   *
+   * Capped and paced per call: LRCLib is a free community service, so this stays
+   * polite rather than hammering it, and the caller loops until `remaining` is 0
+   * instead of waiting on one long request.
+   */
+  async lrclibBatch(
+    userId: string,
+    limit = 20,
+  ): Promise<{
+    checked: number;
+    saved: number;
+    remaining: number;
+    results: {
+      title: string;
+      artist: string;
+      found: boolean;
+      synced: boolean;
+    }[];
+  }> {
+    const songs = await this.prisma.song.findMany({
+      where: {
+        savedBy: { some: { userId } },
+        OR: [{ lyrics: { is: null } }, { lyrics: { is: { rawText: '' } } }],
+      },
+      select: { spotifyId: true, title: true, artist: true },
+      orderBy: { firstSeenAt: 'desc' },
+      take: limit,
+    });
+
+    const results: {
+      title: string;
+      artist: string;
+      found: boolean;
+      synced: boolean;
+    }[] = [];
+    let saved = 0;
+
+    for (const song of songs) {
+      const hit = await this.fetchLrclibSearch(song.title, song.artist);
+      const synced = hit?.syncedLyrics ? parseLrc(hit.syncedLyrics) : null;
+      const rawText =
+        synced && synced.length > 0
+          ? synced.map((line) => line.text).join('\n')
+          : (hit?.plainLyrics ?? '');
+
+      if (rawText.trim()) {
+        await this.upsert(userId, song.spotifyId, rawText, undefined, 'lrclib');
+        saved++;
+        results.push({
+          title: song.title,
+          artist: song.artist,
+          found: true,
+          synced: (synced?.length ?? 0) > 0,
+        });
+      } else {
+        results.push({
+          title: song.title,
+          artist: song.artist,
+          found: false,
+          synced: false,
+        });
+      }
+
+      // Be a good citizen of a free API.
+      await new Promise((resolve) => setTimeout(resolve, 350));
+    }
+
+    const { missing } = await this.lrclibBatchStatus(userId);
+    return { checked: songs.length, saved, remaining: missing, results };
+  }
+
   async upsert(
     userId: string,
     spotifyId: string,

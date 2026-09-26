@@ -38,8 +38,10 @@ export class SpotifyController {
     @Query('state') state: string,
     @Query('error') error?: string,
   ) {
-    const base = this.config.get<string>('FRONTEND_URL') ?? 'http://127.0.0.1:5173';
-    if (error || !code || !state) return { url: `${base}/dashboard?spotify=error` };
+    const base =
+      this.config.get<string>('FRONTEND_URL') ?? 'http://127.0.0.1:5173';
+    if (error || !code || !state)
+      return { url: `${base}/dashboard?spotify=error` };
     try {
       await this.spotify.handleCallback(code, state);
       return { url: `${base}/dashboard?spotify=connected` };
@@ -84,7 +86,11 @@ export class SpotifyController {
     @Query('offset') offset = '0',
     @Query('limit') limit = '50',
   ) {
-    return this.spotify.getLikedTracks(req.user.id, parseInt(offset), parseInt(limit));
+    return this.spotify.getLikedTracks(
+      req.user.id,
+      parseInt(offset),
+      parseInt(limit),
+    );
   }
 
   /** GET /spotify/library/playlists?offset=0&limit=50 */
@@ -95,7 +101,11 @@ export class SpotifyController {
     @Query('offset') offset = '0',
     @Query('limit') limit = '50',
   ) {
-    return this.spotify.getPlaylists(req.user.id, parseInt(offset), parseInt(limit));
+    return this.spotify.getPlaylists(
+      req.user.id,
+      parseInt(offset),
+      parseInt(limit),
+    );
   }
 
   /** GET /spotify/library/playlists/:id/tracks?offset=0&limit=50 */
@@ -107,13 +117,21 @@ export class SpotifyController {
     @Query('offset') offset = '0',
     @Query('limit') limit = '50',
   ) {
-    return this.spotify.getPlaylistTracks(req.user.id, playlistId, parseInt(offset), parseInt(limit));
+    return this.spotify.getPlaylistTracks(
+      req.user.id,
+      playlistId,
+      parseInt(offset),
+      parseInt(limit),
+    );
   }
 
   /** POST /spotify/library/import — bulk-import tracks as bookmarks */
   @Post('library/import')
   @UseGuards(JwtAuthGuard)
-  bulkImport(@Req() req: AuthedRequest, @Body() body: { tracks: BulkImportTrackDto[] }) {
+  bulkImport(
+    @Req() req: AuthedRequest,
+    @Body() body: { tracks: BulkImportTrackDto[] },
+  ) {
     return this.spotify.bulkImport(req.user.id, body.tracks);
   }
 
@@ -125,7 +143,14 @@ export class SpotifyController {
   @HttpCode(HttpStatus.NO_CONTENT)
   recordPlay(
     @Req() req: AuthedRequest,
-    @Body() body: { spotifyId: string; track: string; artist: string; artists: string[]; imgUrl?: string },
+    @Body()
+    body: {
+      spotifyId: string;
+      track: string;
+      artist: string;
+      artists: string[];
+      imgUrl?: string;
+    },
   ) {
     return this.spotify.recordPlay(req.user.id, body);
   }
@@ -135,6 +160,20 @@ export class SpotifyController {
   @UseGuards(JwtAuthGuard)
   syncHistory(@Req() req: AuthedRequest) {
     return this.spotify.syncRecentlyPlayed(req.user.id);
+  }
+
+  /** GET /spotify/enrich — how much track metadata is still missing */
+  @Get('enrich')
+  @UseGuards(JwtAuthGuard)
+  enrichmentStatus() {
+    return this.spotify.getEnrichmentStatus();
+  }
+
+  /** POST /spotify/enrich — fetch metadata for the next batch of songs */
+  @Post('enrich')
+  @UseGuards(JwtAuthGuard)
+  enrich(@Req() req: AuthedRequest) {
+    return this.spotify.enrichTrackMetadata(req.user.id);
   }
 
   /** GET /spotify/plays?limit=100 */
@@ -156,7 +195,10 @@ export class SpotifyController {
   /** GET /spotify/audio-features/:spotifyId */
   @Get('audio-features/:spotifyId')
   @UseGuards(JwtAuthGuard)
-  getAudioFeatures(@Req() req: AuthedRequest, @Param('spotifyId') spotifyId: string) {
+  getAudioFeatures(
+    @Req() req: AuthedRequest,
+    @Param('spotifyId') spotifyId: string,
+  ) {
     return this.spotify.getAudioFeatures(req.user.id, spotifyId);
   }
 }

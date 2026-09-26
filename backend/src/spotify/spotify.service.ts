@@ -9,6 +9,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { ConfigService } from '@nestjs/config';
 import { createHmac } from 'crypto';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { LYRICS_FETCH_QUEUE } from '../lyrics-fetch/lyrics-fetch.queue';
 
@@ -57,6 +58,37 @@ export interface SpotifyCurrentlyPlayingResponse {
   } | null;
   progress_ms: number | null;
   is_playing: boolean;
+}
+
+/** The subset of Spotify's full track object this app reads. */
+interface SpotifyFullTrack {
+  name?: string;
+  artists?: { name: string }[];
+  duration_ms?: number;
+  explicit?: boolean;
+  track_number?: number;
+  album?: {
+    name?: string;
+    album_type?: string;
+    total_tracks?: number;
+    release_date?: string;
+    release_date_precision?: string;
+    images?: { url: string }[];
+  };
+}
+
+function toSongMetadata(track: SpotifyFullTrack) {
+  return {
+    durationMs: track.duration_ms ?? null,
+    explicit: track.explicit ?? null,
+    trackNumber: track.track_number ?? null,
+    albumName: track.album?.name ?? null,
+    albumType: track.album?.album_type ?? null,
+    albumTotalTracks: track.album?.total_tracks ?? null,
+    releaseDate: track.album?.release_date ?? null,
+    releaseDatePrecision: track.album?.release_date_precision ?? null,
+    metadataFetchedAt: new Date(),
+  };
 }
 
 @Injectable()
@@ -250,6 +282,39 @@ export class SpotifyService {
     if (!res.ok) throw new Error('Failed to fetch current track from Spotify');
 
     return (await res.json()) as SpotifyCurrentlyPlayingResponse;
+  }
+
+  /**
+   * One track from the catalogue, shaped as `Song` create data. Null when
+   * Spotify doesn't know the id (or the user has no working session) — callers
+   * treat that as "not found" rather than an error.
+   */
+  async getTrackAsSong(
+    userId: string,
+    spotifyId: string,
+  ): Promise<Prisma.SongCreateInput | null> {
+    try {
+      const accessToken = await this.getValidAccessToken(userId);
+      const res = await fetch(
+        `https://api.spotify.com/v1/tracks/${encodeURIComponent(spotifyId)}`,
+        { headers: { Authorization: `Bearer ${accessToken}` } },
+      );
+      if (!res.ok) return null;
+
+      const track = (await res.json()) as SpotifyFullTrack;
+      const artists = track.artists?.map((a) => a.name) ?? [];
+      return {
+        spotifyId,
+        title: track.name ?? '',
+        artist: artists[0] ?? '',
+        artists,
+        imgUrl: track.album?.images?.[0]?.url ?? null,
+        spotifyUrl: `https://open.spotify.com/track/${spotifyId}`,
+        ...toSongMetadata(track),
+      };
+    } catch {
+      return null;
+    }
   }
 
   async seek(userId: string, positionMs: number): Promise<void> {
@@ -682,32 +747,11 @@ export class SpotifyService {
           continue;
         }
 
-        const track = (await res.json()) as {
-          duration_ms?: number;
-          explicit?: boolean;
-          track_number?: number;
-          album?: {
-            name?: string;
-            album_type?: string;
-            total_tracks?: number;
-            release_date?: string;
-            release_date_precision?: string;
-          };
-        };
+        const track = (await res.json()) as SpotifyFullTrack;
 
         await this.prisma.song.update({
           where: { id: song.id },
-          data: {
-            durationMs: track.duration_ms ?? null,
-            explicit: track.explicit ?? null,
-            trackNumber: track.track_number ?? null,
-            albumName: track.album?.name ?? null,
-            albumType: track.album?.album_type ?? null,
-            albumTotalTracks: track.album?.total_tracks ?? null,
-            releaseDate: track.album?.release_date ?? null,
-            releaseDatePrecision: track.album?.release_date_precision ?? null,
-            metadataFetchedAt: new Date(),
-          },
+          data: toSongMetadata(track),
         });
         processed++;
       } catch {

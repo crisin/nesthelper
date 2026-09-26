@@ -4,6 +4,7 @@ import { Queue } from 'bullmq';
 import { SavedLyric, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { LYRICS_FETCH_QUEUE } from '../lyrics-fetch/lyrics-fetch.queue';
+import { SpotifyService } from '../spotify/spotify.service';
 
 const BOOKMARK_INCLUDE = {
   song: {
@@ -52,6 +53,7 @@ export class SavedLyricsService {
     @Optional()
     @InjectQueue(LYRICS_FETCH_QUEUE)
     private readonly lyricsQueue: Queue | null,
+    private readonly spotify: SpotifyService,
   ) {}
 
   getAll(userId: string): Promise<BookmarkListItem[]> {
@@ -85,7 +87,9 @@ export class SavedLyricsService {
    * This is what makes "tap a track anywhere → land on its page" work: the
    * caller never has to ask whether the song exists first. Every track that
    * played is in the play history, so an unknown spotifyId can be reconstructed
-   * from there instead of dead-ending on a 404.
+   * from there. When it isn't (the fire-and-forget play POST failed or hasn't
+   * landed yet), the track is fetched from Spotify instead of dead-ending on a
+   * 404.
    */
   async ensureBySpotifyId(
     userId: string,
@@ -102,19 +106,22 @@ export class SavedLyricsService {
         orderBy: { playedAt: 'desc' },
         select: { track: true, artist: true, artists: true, imgUrl: true },
       });
-      if (!play) throw new NotFoundException('Song not found');
+      const create: Prisma.SongCreateInput | null = play
+        ? {
+            spotifyId,
+            title: play.track,
+            artist: play.artist,
+            artists: play.artists,
+            imgUrl: play.imgUrl,
+            spotifyUrl: `https://open.spotify.com/track/${spotifyId}`,
+          }
+        : await this.spotify.getTrackAsSong(userId, spotifyId);
+      if (!create) throw new NotFoundException('Song not found');
 
       song = await this.prisma.song.upsert({
         where: { spotifyId },
-        create: {
-          spotifyId,
-          title: play.track,
-          artist: play.artist,
-          artists: play.artists,
-          imgUrl: play.imgUrl,
-          spotifyUrl: `https://open.spotify.com/track/${spotifyId}`,
-        },
-        update: { imgUrl: play.imgUrl },
+        create,
+        update: {},
         select: { id: true, fetchStatus: true },
       });
     }

@@ -1,4 +1,5 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useReducer } from 'react'
+import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
 import api from '../services/api'
 import type { SpotifyCurrentlyPlayingResponse } from '../types'
@@ -56,9 +57,53 @@ export function useNowPlaying({
     },
     enabled: connected,
     refetchInterval: poll
-      ? (query) => (query.state.data?.is_playing ? intervalMs : idleIntervalMs)
+      ? (query) => {
+          // Spotify rate-limited us: wait as long as it asked, then resume.
+          const err = query.state.error
+          if (isAxiosError(err) && err.response?.status === 429) {
+            const retryAfter = Number(err.response.data?.retryAfter) || 30
+            return retryAfter * 1000
+          }
+          return query.state.data?.is_playing ? intervalMs : idleIntervalMs
+        }
       : false,
     staleTime: 0,
     retry: false,
   })
+}
+
+/**
+ * Playback position right now: Spotify's `progress_ms` moved forward by the
+ * time since that answer arrived. Lets the UI stay smooth (and sync taps stay
+ * accurate) with a poll every few seconds instead of every few hundred ms.
+ */
+export function interpolateProgress(
+  track: SpotifyCurrentlyPlayingResponse | null | undefined,
+  receivedAt: number,
+): number {
+  const base = track?.progress_ms ?? 0
+  if (!track?.is_playing || !receivedAt) return base
+  const duration = track.item?.duration_ms ?? Infinity
+  return Math.min(base + (Date.now() - receivedAt), duration)
+}
+
+/** `interpolateProgress` for the cached track, for event handlers. */
+export function readProgressMs(queryClient: QueryClient): number {
+  const state = queryClient.getQueryState<SpotifyCurrentlyPlayingResponse | null>(
+    CURRENT_TRACK_KEY,
+  )
+  return interpolateProgress(state?.data, state?.dataUpdatedAt ?? 0)
+}
+
+/**
+ * Re-renders every `tickMs` while the track is playing, so a component can
+ * read `interpolateProgress` in render. Purely local — no network.
+ */
+export function useProgressTick(isPlaying: boolean, tickMs: number) {
+  const [, tick] = useReducer((n: number) => n + 1, 0)
+  useEffect(() => {
+    if (!isPlaying) return
+    const id = setInterval(tick, tickMs)
+    return () => clearInterval(id)
+  }, [isPlaying, tickMs])
 }

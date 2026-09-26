@@ -14,7 +14,12 @@ import {
   savePanelWidth,
 } from '../hooks/useViewerSettings'
 import ViewerSettingsPanel from './ViewerSettingsPanel'
-import { useNowPlaying } from '../hooks/useNowPlaying'
+import {
+  interpolateProgress,
+  readProgressMs,
+  useNowPlaying,
+  useProgressTick,
+} from '../hooks/useNowPlaying'
 import { formatMs } from '../lib/format'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -97,10 +102,10 @@ export default function LyricsViewer({
     staleTime: 60_000,
   })
 
-  // Sync mode follows the playhead line by line, so it earns its own fast timer;
-  // otherwise fall back to the shared 5s poll AppLayout already runs.
-  const { data: currentTrack } = useNowPlaying({
-    intervalMs: syncMode ? 500 : 1_000,
+  // Between polls the position is interpolated locally, so even sync mode only
+  // needs a drift check every few seconds; otherwise AppLayout's poll suffices.
+  const { data: currentTrack, dataUpdatedAt } = useNowPlaying({
+    intervalMs: 3_000,
     poll: !!spotifyId && syncMode,
   })
 
@@ -117,9 +122,10 @@ export default function LyricsViewer({
 
   // ── Derived values ────────────────────────────────────────────────────────
 
-  const progressMs      = currentTrack?.progress_ms ?? 0
   const isMatchingTrack = !!spotifyId && currentTrack?.item?.id === spotifyId
   const isPlaying       = currentTrack?.is_playing ?? false
+  useProgressTick(isMatchingTrack && isPlaying, 250)
+  const progressMs      = interpolateProgress(currentTrack, dataUpdatedAt)
 
   const lines        = useMemo(() => songLyrics?.lines    ?? [], [songLyrics])
   const sections     = useMemo(() => songLyrics?.sections ?? [], [songLyrics])
@@ -214,11 +220,13 @@ export default function LyricsViewer({
   function handleSyncTap() {
     if (syncIndex >= nonEmptyLines.length) return
     const line = nonEmptyLines[syncIndex]
+    // Read at tap time, not from the last render — up to a tick more precise.
+    const tapMs = readProgressMs(queryClient)
     setPendingTs((prev) => {
       const next = [...prev]
       const idx  = next.findIndex((p) => p.id === line.id)
-      if (idx >= 0) next[idx] = { id: line.id, timestampMs: progressMs }
-      else next.push({ id: line.id, timestampMs: progressMs })
+      if (idx >= 0) next[idx] = { id: line.id, timestampMs: tapMs }
+      else next.push({ id: line.id, timestampMs: tapMs })
       return next
     })
     setSyncIndex((i) => i + 1)

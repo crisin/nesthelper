@@ -1,5 +1,7 @@
 import {
   ForbiddenException,
+  HttpException,
+  HttpStatus,
   Injectable,
   Logger,
   NotFoundException,
@@ -79,6 +81,23 @@ interface SpotifyFullTrack {
   };
 }
 
+/** 429 for the client, carrying Spotify's Retry-After so the poll can back off. */
+function rateLimited(retryAfter: number): HttpException {
+  return new HttpException(
+    { message: 'Spotify rate limit reached', retryAfter },
+    HttpStatus.TOO_MANY_REQUESTS,
+  );
+}
+
+/** A cached answer, with progress moved forward by the time it sat in cache. */
+function withElapsedProgress(
+  data: SpotifyCurrentlyPlayingResponse | null,
+  at: number,
+): SpotifyCurrentlyPlayingResponse | null {
+  if (!data?.is_playing || data.progress_ms == null) return data;
+  return { ...data, progress_ms: data.progress_ms + (Date.now() - at) };
+}
+
 function toSongMetadata(track: SpotifyFullTrack) {
   return {
     durationMs: track.duration_ms ?? null,
@@ -111,6 +130,22 @@ export class SpotifyService {
   >();
   /** One refresh per user at a time; concurrent callers share the promise. */
   private readonly refreshInFlight = new Map<string, Promise<string>>();
+
+  /**
+   * Last currently-playing answer per user. Several tabs and components poll
+   * this endpoint; within the TTL they all share one Spotify request.
+   */
+  private readonly currentTrackCache = new Map<
+    string,
+    { data: SpotifyCurrentlyPlayingResponse | null; at: number }
+  >();
+  private readonly currentTrackInFlight = new Map<
+    string,
+    Promise<SpotifyCurrentlyPlayingResponse | null>
+  >();
+  /** Per-user Retry-After deadline after Spotify answered 429. */
+  private readonly rateLimitedUntil = new Map<string, number>();
+  private static readonly CURRENT_TRACK_TTL_MS = 1_500;
   private readonly clientSecret: string;
   private readonly redirectUri: string;
 
@@ -225,6 +260,7 @@ export class SpotifyService {
 
   async disconnect(userId: string): Promise<void> {
     this.tokenCache.delete(userId);
+    this.currentTrackCache.delete(userId);
     await this.prisma.spotifyToken.deleteMany({ where: { userId } });
   }
 
@@ -337,6 +373,36 @@ export class SpotifyService {
   async getCurrentTrack(
     userId: string,
   ): Promise<SpotifyCurrentlyPlayingResponse | null> {
+    const cached = this.currentTrackCache.get(userId);
+    if (
+      cached &&
+      Date.now() - cached.at < SpotifyService.CURRENT_TRACK_TTL_MS
+    ) {
+      return withElapsedProgress(cached.data, cached.at);
+    }
+
+    const blockedUntil = this.rateLimitedUntil.get(userId) ?? 0;
+    if (blockedUntil > Date.now()) {
+      throw rateLimited(Math.ceil((blockedUntil - Date.now()) / 1000));
+    }
+
+    const inFlight = this.currentTrackInFlight.get(userId);
+    if (inFlight) return inFlight;
+
+    const pending = this.fetchCurrentTrack(userId)
+      .then((data) => {
+        this.currentTrackCache.set(userId, { data, at: Date.now() });
+        return data;
+      })
+      .finally(() => this.currentTrackInFlight.delete(userId));
+    this.currentTrackInFlight.set(userId, pending);
+    return pending;
+  }
+
+  private async fetchCurrentTrack(
+    userId: string,
+    retried = false,
+  ): Promise<SpotifyCurrentlyPlayingResponse | null> {
     const accessToken = await this.getValidAccessToken(userId);
 
     const res = await fetch(
@@ -345,6 +411,16 @@ export class SpotifyService {
     );
 
     if (res.status === 204) return null; // Nothing playing
+    if (res.status === 401 && !retried) {
+      // The cached token was revoked or expired early — reload it once.
+      this.invalidateAccessToken(userId);
+      return this.fetchCurrentTrack(userId, true);
+    }
+    if (res.status === 429) {
+      const retryAfter = Number(res.headers.get('retry-after')) || 5;
+      this.rateLimitedUntil.set(userId, Date.now() + retryAfter * 1000);
+      throw rateLimited(retryAfter);
+    }
     if (!res.ok) throw new Error('Failed to fetch current track from Spotify');
 
     return (await res.json()) as SpotifyCurrentlyPlayingResponse;
@@ -384,6 +460,8 @@ export class SpotifyService {
   }
 
   async seek(userId: string, positionMs: number): Promise<void> {
+    // The next poll must see the new position, not a cached one.
+    this.currentTrackCache.delete(userId);
     const accessToken = await this.getValidAccessToken(userId);
     const res = await fetch(
       `https://api.spotify.com/v1/me/player/seek?position_ms=${positionMs}`,

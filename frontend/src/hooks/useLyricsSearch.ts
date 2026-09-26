@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
+import { CURRENT_TRACK_KEY } from './useNowPlaying'
 import type { SearchHistoryItem, SpotifyCurrentlyPlayingResponse } from '../types'
 
 export type SearchMode = 'open' | 'save'
@@ -28,8 +29,16 @@ export function useLyricsSearch() {
     // Read mode fresh from localStorage so all instances stay in sync
     const currentMode = (localStorage.getItem('searchMode') as SearchMode) ?? 'open'
     try {
-      const res = await api.get<SpotifyCurrentlyPlayingResponse>('/spotify/current-track')
-      const track = res.data?.item
+      // The layout polls this anyway — reuse a fresh cached answer if there is one.
+      const current = await queryClient.fetchQuery({
+        queryKey: CURRENT_TRACK_KEY,
+        queryFn: () =>
+          api
+            .get<SpotifyCurrentlyPlayingResponse>('/spotify/current-track')
+            .then((r) => r.data),
+        staleTime: 2_000,
+      })
+      const track = current?.item
       if (!track) {
         setError('Derzeit wird nichts abgespielt')
         return

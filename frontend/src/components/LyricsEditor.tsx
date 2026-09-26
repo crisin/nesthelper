@@ -8,7 +8,13 @@ import {
 import api from '../services/api'
 import type { SongLyrics, LyricsSection, LyricsStatus, LineAnnotation, LyricsFetchStatus, SpotifyCurrentlyPlayingResponse, LrclibPreview } from '../types'
 import { useAuthStore } from '../stores/authStore'
-import { useNowPlaying } from '../hooks/useNowPlaying'
+import {
+  CURRENT_TRACK_KEY,
+  interpolateProgress,
+  readProgressMs,
+  useNowPlaying,
+  useProgressTick,
+} from '../hooks/useNowPlaying'
 import { timeAgo, formatMs } from '../lib/format'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -250,8 +256,7 @@ function AnnotatedLine({
   function handleTsCapture(e: React.MouseEvent) {
     // mousedown: prevent blur from firing before we read the cache
     e.preventDefault()
-    const track = queryClient.getQueryData<SpotifyCurrentlyPlayingResponse | null>(['spotify-current-track'])
-    const ms = track?.progress_ms ?? 0
+    const ms = readProgressMs(queryClient)
     setTsInput(msToInput(ms))
     saveTs.mutate(ms)
   }
@@ -928,11 +933,16 @@ export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer, art
     refetchInterval: fetchStatus === 'FETCHING' ? 5_000 : false,
   })
 
-  // Only karaoke and timestamping need second-resolution; otherwise AppLayout's
-  // 5s poll is enough and this observer adds no timer of its own.
-  const { data: currentTrack } = useNowPlaying({
-    intervalMs: 1_000,
-    poll: karaoke || mode === 'edit' || showTimestamps,
+  // Karaoke and timestamping want a tighter drift check than AppLayout's 5s —
+  // but only while this song is the one playing. The position between polls
+  // is interpolated locally. (The cache read re-evaluates on every render,
+  // and this observer re-renders whenever the track data changes.)
+  const playingId = queryClient.getQueryData<SpotifyCurrentlyPlayingResponse | null>(
+    CURRENT_TRACK_KEY,
+  )?.item?.id
+  const { data: currentTrack, dataUpdatedAt } = useNowPlaying({
+    intervalMs: 3_000,
+    poll: (karaoke || mode === 'edit' || showTimestamps) && playingId === spotifyId,
   })
 
   // When lyrics fetch is pending but nothing has arrived yet, periodically refresh
@@ -946,7 +956,8 @@ export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer, art
     return () => clearInterval(id)
   }, [fetchStatus, lyrics, queryClient])
 
-  const progressMs = currentTrack?.progress_ms ?? 0
+  useProgressTick(karaoke && !!currentTrack?.is_playing, 250)
+  const progressMs = interpolateProgress(currentTrack, dataUpdatedAt)
 
   const activeLineId = useMemo(() => {
     if (!karaoke || !lyrics) return null
@@ -963,6 +974,8 @@ export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer, art
   const seek = useMutation({
     mutationFn: (positionMs: number) =>
       api.post(`/spotify/seek?positionMs=${positionMs}`),
+    // Interpolation would carry on from the old position until the next poll.
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: CURRENT_TRACK_KEY }),
   })
 
   const hasTimestamps = lyrics?.lines?.some((l) => l.timestampMs != null) ?? false
@@ -1299,7 +1312,7 @@ export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer, art
                 {[5, 10].map((sec) => (
                   <button
                     key={sec}
-                    onClick={() => seek.mutate(Math.max(0, progressMs - sec * 1000))}
+                    onClick={() => seek.mutate(Math.max(0, readProgressMs(queryClient) - sec * 1000))}
                     title={`${sec}s zurückspulen`}
                     className="px-2 py-1 rounded-md border border-edge text-[11px] text-foreground-muted
                                hover:text-foreground hover:border-foreground-muted/50 transition-colors"

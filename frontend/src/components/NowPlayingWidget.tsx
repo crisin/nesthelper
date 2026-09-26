@@ -2,20 +2,23 @@ import { ChevronRight, Maximize2, Radio } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../services/api";
-import { useNowPlaying } from "../hooks/useNowPlaying";
+import {
+  interpolateProgress,
+  useNowPlaying,
+  useProgressTick,
+} from "../hooks/useNowPlaying";
 import LyricsViewer from "./LyricsViewer";
 import TrackCover from "./TrackCover";
 import { formatMs } from '../lib/format'
 
 export default function NowPlayingWidget() {
   const [viewerOpen, setViewerOpen] = useState(false);
-  const [localProgressMs, setLocalProgressMs] = useState(0);
-  const baseProgressMs = useRef(0);
-  const fetchedAt = useRef(0);
   const prevTrackId = useRef<string | null>(null);
 
   // AppLayout owns the 5s poll; progress in between comes from interpolation.
-  const { data: track } = useNowPlaying({ poll: false });
+  const { data: track, dataUpdatedAt } = useNowPlaying({ poll: false });
+  useProgressTick(!!track?.is_playing, 1_000);
+  const localProgressMs = interpolateProgress(track, dataUpdatedAt);
 
   // Record play on track change (fire-and-forget)
   useEffect(() => {
@@ -32,26 +35,6 @@ export default function NowPlayingWidget() {
       })
       .catch(() => {});
   }, [track]);
-
-  // Sync refs whenever Spotify gives us a new position (no setState — interval handles display)
-  useEffect(() => {
-    if (track?.progress_ms != null) {
-      baseProgressMs.current = track.progress_ms;
-      fetchedAt.current = Date.now();
-    }
-  }, [track?.progress_ms, track?.is_playing]);
-
-  // Tick every second; interpolates when playing, holds when paused; poll corrects drift
-  useEffect(() => {
-    const id = setInterval(() => {
-      setLocalProgressMs(
-        track?.is_playing
-          ? baseProgressMs.current + (Date.now() - fetchedAt.current)
-          : baseProgressMs.current,
-      );
-    }, 1_000);
-    return () => clearInterval(id);
-  }, [track?.is_playing, track?.progress_ms]);
 
   if (!track?.item) return null;
 

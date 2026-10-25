@@ -106,9 +106,14 @@ export class LyricsFetchService implements OnApplicationBootstrap {
       try {
         await withTimeout(
           this.queue.add('fetch', data, {
+            // One job per song: a second request while one is waiting or
+            // running is a no-op instead of a duplicate LRCLib round trip.
+            jobId: song.id,
             attempts: 3,
             backoff: { type: 'exponential', delay: 5000 },
             removeOnComplete: true,
+            // A kept failed job would swallow every later add with its jobId.
+            removeOnFail: true,
           }),
           QUEUE_ADD_TIMEOUT_MS,
         );
@@ -128,17 +133,21 @@ export class LyricsFetchService implements OnApplicationBootstrap {
   }
 
   onApplicationBootstrap(): void {
-    // Don't hold up startup; the heal runs in the background.
-    void this.healStaleFetches();
+    // In-process fetches die with the process, so on boot every FETCHING song
+    // is orphaned — not just the old ones. Without this, a restart mid-fetch
+    // (a deploy, a watch-mode reload) left the page spinning for up to 20
+    // minutes. Queued jobs survive in Redis; the jobId keeps those from
+    // doubling. Don't hold up startup; the heal runs in the background.
+    void this.healStaleFetches(0);
   }
 
   @Cron(CronExpression.EVERY_10_MINUTES)
-  async healStaleFetches(): Promise<void> {
+  async healStaleFetches(maxAgeMs = STALE_FETCH_MS): Promise<void> {
     try {
       const stale = await this.prisma.song.findMany({
         where: {
           fetchStatus: 'FETCHING',
-          updatedAt: { lt: new Date(Date.now() - STALE_FETCH_MS) },
+          updatedAt: { lt: new Date(Date.now() - maxAgeMs) },
         },
         select: { id: true },
       });

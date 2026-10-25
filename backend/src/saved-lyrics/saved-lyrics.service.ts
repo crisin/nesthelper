@@ -129,15 +129,17 @@ export class SavedLyricsService {
       });
     }
 
-    const bookmark = await this.prisma.savedLyric.upsert({
+    // Start the fetch before reading the bookmark, so the response already
+    // says FETCHING. Read afterwards it said IDLE, and the page showed
+    // "Noch keine Lyrics" without polling until the list caught up.
+    await this.lyricsFetch.request(song.id);
+
+    return this.prisma.savedLyric.upsert({
       where: { userId_songId: { userId, songId: song.id } },
       create: { userId, songId: song.id },
       update: {},
       include: BOOKMARK_INCLUDE,
     });
-
-    await this.lyricsFetch.request(song.id);
-    return bookmark;
   }
 
   async setFavorite(

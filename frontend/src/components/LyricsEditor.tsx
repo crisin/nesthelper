@@ -930,8 +930,20 @@ export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer, art
     queryFn: () =>
       api.get<SongLyrics | null>(`/songs/${spotifyId}/lyrics`).then((r) => r.data),
     staleTime: 60_000,
-    refetchInterval: fetchStatus === 'FETCHING' ? 5_000 : false,
+    // An LRCLib lookup usually lands within a second or two
+    refetchInterval: fetchStatus === 'FETCHING' ? 2_000 : false,
   })
+
+  // The list refresh below can report DONE before this query's own poll saw the
+  // lyrics. Polling stops right then, and the cached null (60s stale) showed
+  // "Noch keine Lyrics" for a song that had them — so fetch once more on the flip.
+  const prevFetchStatus = useRef(fetchStatus)
+  useEffect(() => {
+    if (prevFetchStatus.current === 'FETCHING' && fetchStatus !== 'FETCHING') {
+      void queryClient.invalidateQueries({ queryKey: ['lyrics', spotifyId] })
+    }
+    prevFetchStatus.current = fetchStatus
+  }, [fetchStatus, spotifyId, queryClient])
 
   // Karaoke and timestamping want a tighter drift check than AppLayout's 5s —
   // but only while this song is the one playing. The position between polls

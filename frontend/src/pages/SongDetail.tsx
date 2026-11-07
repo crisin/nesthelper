@@ -607,7 +607,11 @@ export default function SongDetail() {
           imgUrl={imgUrl}
           lyrics={s?.lyrics?.rawText ?? ''}
           spotifyId={spotifyId}
-          onClose={() => setViewerOpen(false)}
+          onClose={(shownId) => {
+            setViewerOpen(false)
+            // The viewer followed Spotify to another track — land on that one.
+            if (shownId && shownId !== spotifyId) navigate(`/songs/${shownId}`)
+          }}
         />
       )}
 

@@ -6,7 +6,7 @@ import {
 } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import api from '../services/api'
-import type { SongLyrics, LyricsSection } from '../types'
+import type { SongLyrics, LyricsSection, SavedLyric, LyricsFetchStatus } from '../types'
 import {
   useViewerSettings,
   computeViewerStyle,
@@ -35,10 +35,25 @@ export interface LyricsViewerProps {
   artists?:     string[]
   imgUrl?:      string | null
   lyrics:       string
-  onClose:      () => void
+  /**
+   * Receives the song shown at close time. It differs from `spotifyId` when
+   * the viewer followed Spotify to another track.
+   */
+  onClose:      (shownSpotifyId?: string) => void
   authorLabel?: string
   /** When provided: fetches structured lyrics, enables karaoke + sync mode */
   spotifyId?:   string
+}
+
+/** The track the viewer switched to after Spotify moved on. */
+interface FollowedTrack {
+  /** `spotifyId` prop this was derived from — stale once the prop changes. */
+  from:      string | undefined
+  spotifyId: string
+  track:     string
+  artist:    string
+  artists:   string[]
+  imgUrl:    string | null
 }
 
 // ─── Section label ────────────────────────────────────────────────────────────
@@ -69,10 +84,81 @@ function SectionLabel({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function LyricsViewer({
-  track, artist, artists, imgUrl, lyrics, onClose, authorLabel, spotifyId,
+  track: propTrack, artist: propArtist, artists: propArtists, imgUrl: propImgUrl,
+  lyrics: propLyrics, onClose, authorLabel, spotifyId: propSpotifyId,
 }: LyricsViewerProps) {
   const queryClient = useQueryClient()
   const location    = useLocation()
+
+  // ── Follow Spotify ───────────────────────────────────────────────────────
+  // While the shown song is the one playing, a track change in Spotify swaps
+  // the viewer to the new track. A viewer opened on some other song stays put.
+  const [syncMode, setSyncMode] = useState(false)
+  const { data: currentTrack, dataUpdatedAt } = useNowPlaying({
+    fast: true,
+    poll: !!propSpotifyId && syncMode,
+  })
+  const [followed, setFollowed] = useState<FollowedTrack | null>(null)
+  // Only valid for the props it was derived from: callers that pass the
+  // playing track themselves (NowPlayingBar) already move along.
+  const follow = followed && followed.from === propSpotifyId ? followed : null
+
+  const spotifyId = follow?.spotifyId ?? propSpotifyId
+  const track     = follow?.track     ?? propTrack
+  const artist    = follow?.artist    ?? propArtist
+  const artists   = follow ? follow.artists : propArtists
+  const imgUrl    = follow ? follow.imgUrl  : propImgUrl
+  const lyrics    = follow ? ''             : propLyrics
+
+  const playingItem = currentTrack?.item ?? null
+  const lastPlayingId = useRef(playingItem?.id)
+  useEffect(() => {
+    const prev = lastPlayingId.current
+    lastPlayingId.current = playingItem?.id
+    if (!playingItem || !prev || prev === playingItem.id) return
+    // Switching mid-sync would throw away the tapped timestamps.
+    if (!spotifyId || prev !== spotifyId || syncMode) return
+    setFollowed({
+      from:      propSpotifyId,
+      spotifyId: playingItem.id,
+      track:     playingItem.name,
+      artist:    playingItem.artists[0]?.name ?? '',
+      artists:   playingItem.artists.map((a) => a.name),
+      imgUrl:    playingItem.album.images[0]?.url ?? null,
+    })
+    // Keyed on the playing id only: a re-render must not re-run the switch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playingItem?.id])
+
+  // A song the viewer switched to (by following, or because the caller passes
+  // the playing track) goes into the library, which also starts the lyrics
+  // fetch. Same key as the song page, so opening it afterwards is instant.
+  const openedWith = useRef(propSpotifyId)
+  const switched = !!spotifyId && spotifyId !== openedWith.current
+  const { data: ensured } = useQuery<SavedLyric>({
+    queryKey: ['saved-lyrics-by-spotify', spotifyId],
+    queryFn: async () => {
+      const r = await api.get<SavedLyric>(`/saved-lyrics/by-spotify/${spotifyId}`)
+      void queryClient.invalidateQueries({ queryKey: ['saved-lyrics'] })
+      return r.data
+    },
+    enabled: switched,
+    staleTime: 5 * 60_000,
+    retry: false,
+  })
+  // The list carries the live fetchStatus; the ensure answer is a snapshot.
+  const { data: bookmarks } = useQuery<SavedLyric[]>({
+    queryKey: ['saved-lyrics'],
+    queryFn: () => api.get<SavedLyric[]>('/saved-lyrics').then((r) => r.data),
+    enabled: switched && !!ensured,
+  })
+  const fetchStatus: LyricsFetchStatus | undefined = switched
+    ? (bookmarks?.find((b) => b.song?.spotifyId === spotifyId)?.song?.fetchStatus
+      ?? ensured?.song?.fetchStatus)
+    : undefined
+  const fetching = fetchStatus === 'FETCHING'
+
+  const close = () => onClose(spotifyId)
 
   // ── Settings ────────────────────────────────────────────────────────────
   const { s, set, reset } = useViewerSettings()
@@ -83,7 +169,6 @@ export default function LyricsViewer({
   const [fullscreen,         setFullscreen]          = useState(false)
 
   // Sync mode
-  const [syncMode,   setSyncMode]   = useState(false)
   const [syncIndex,  setSyncIndex]  = useState(0)
   const [pendingTs,  setPendingTs]  = useState<{ id: string; timestampMs: number | null }[]>([])
 
@@ -100,14 +185,28 @@ export default function LyricsViewer({
     queryFn:  () => api.get<SongLyrics | null>(`/songs/${spotifyId}/lyrics`).then((r) => r.data),
     enabled:  !!spotifyId,
     staleTime: 60_000,
+    // An LRCLib lookup usually lands within a second or two
+    refetchInterval: fetching ? 2_000 : false,
   })
 
-  // Between polls the position is interpolated locally, so even sync mode only
-  // needs a drift check every few seconds; otherwise AppLayout's poll suffices.
-  const { data: currentTrack, dataUpdatedAt } = useNowPlaying({
-    fast: true,
-    poll: !!spotifyId && syncMode,
-  })
+  // Pick up DONE/FAILED from the queue while nothing has arrived yet, and
+  // fetch the lyrics once more on the flip — the poll above may have stopped
+  // one tick before they landed (same as LyricsEditor).
+  const hasLyrics = !!songLyrics
+  useEffect(() => {
+    if (!fetching || hasLyrics) return
+    const id = setInterval(() => {
+      void queryClient.invalidateQueries({ queryKey: ['saved-lyrics'] })
+    }, 8_000)
+    return () => clearInterval(id)
+  }, [fetching, hasLyrics, queryClient])
+  const prevFetching = useRef(fetching)
+  useEffect(() => {
+    if (prevFetching.current && !fetching) {
+      void queryClient.invalidateQueries({ queryKey: ['lyrics', spotifyId] })
+    }
+    prevFetching.current = fetching
+  }, [fetching, spotifyId, queryClient])
 
   const saveTimestamps = useMutation({
     mutationFn: (lines: { id: string; timestampMs: number | null }[]) =>
@@ -175,7 +274,7 @@ export default function LyricsViewer({
         if (showMobileSettings) { setShowMobileSettings(false); return }
         if (syncMode) { setSyncMode(false); setSyncIndex(0); setPendingTs([]); return }
         if (fullscreen) { setFullscreen(false); return }
-        onClose()
+        close()
       }
       if ((e.key === 'f' || e.key === 'F') && !syncMode) setFullscreen((v) => !v)
       if (syncMode && e.key === ' ') { e.preventDefault(); handleSyncTap() }
@@ -183,7 +282,7 @@ export default function LyricsViewer({
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [syncMode, syncIndex, pendingTs, fullscreen, showMobileSettings])
+  }, [syncMode, syncIndex, pendingTs, fullscreen, showMobileSettings, spotifyId])
 
   // ── Resize handle (desktop) ───────────────────────────────────────────────
 
@@ -291,7 +390,7 @@ export default function LyricsViewer({
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/55"
-        onClick={syncMode || showMobileSettings ? undefined : onClose}
+        onClick={syncMode || showMobileSettings ? undefined : close}
       />
 
       {/* Sheet */}
@@ -362,7 +461,7 @@ export default function LyricsViewer({
             {spotifyId && location.pathname !== `/songs/${spotifyId}` && (
               <Link
                 to={`/songs/${spotifyId}`}
-                onClick={onClose}
+                onClick={() => onClose()}
                 title="Song ansehen"
                 aria-label="Song ansehen"
                 /* Was desktop-only, but on a phone the fullscreen viewer covers
@@ -465,7 +564,7 @@ export default function LyricsViewer({
             <button
               onClick={() => {
                 if (syncMode) { setSyncMode(false); setSyncIndex(0); setPendingTs([]) }
-                else onClose()
+                else close()
               }}
               aria-label="Schließen"
               className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-lg hover:opacity-80 transition-opacity"
@@ -668,7 +767,11 @@ export default function LyricsViewer({
                   </p>
                 ) : (
                   <p className="text-sm py-12 text-center" style={{ opacity: 0.4 }}>
-                    Noch keine Lyrics gespeichert.
+                    {fetching
+                      ? 'Lyrics werden gesucht…'
+                      : fetchStatus === 'FAILED'
+                        ? 'Keine Lyrics gefunden.'
+                        : 'Noch keine Lyrics gespeichert.'}
                   </p>
                 )}
               </div>

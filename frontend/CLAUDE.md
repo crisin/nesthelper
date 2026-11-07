@@ -119,6 +119,7 @@ Wraps all authenticated pages. Owns the nav, the FAB, the scroll reset on naviga
 - Between polls, position comes from `interpolateProgress` / `readProgressMs` — never read `progress_ms` raw for display or timestamps.
 - Every request lands in the poll log (`usePollLog`); [PollTick](src/components/PollTick.tsx) visualizes it when `polling.showTick` is on.
 - [NowPlayingBar](src/components/NowPlayingBar.tsx) is the mobile surface, rendered inside the bottom nav so it stacks without magic offsets. [NowPlayingWidget](src/components/NowPlayingWidget.tsx) is the desktop sidebar equivalent. Both link straight to `/songs/:spotifyId`.
+- [LyricsViewer](src/components/LyricsViewer.tsx) (Lesen-Modus) follows Spotify: when the shown song is the playing one and the track changes, it swaps to the new track (not during sync mode). Any song it switched to goes through `GET /saved-lyrics/by-spotify/:id` (library + lyrics fetch) and its lyrics poll while `FETCHING`. `onClose(shownSpotifyId)` reports where it ended up; SongDetail navigates there.
 - Opening a song never needs an existence check first: `GET /saved-lyrics/by-spotify/:spotifyId` creates the `Song` from the play history when it is missing.
 
 ### [DynamicBackground.tsx](src/components/DynamicBackground.tsx)

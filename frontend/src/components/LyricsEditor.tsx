@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Eye, Pencil, History, ChevronDown, ChevronUp, MessageSquarePlus,
   RotateCcw, Check, Music, Headphones, Timer, Loader2, Rewind, X,
-  BookOpen, MessageSquare, Clock, Sparkles, Mic2, Pilcrow, Plus, Pen,
+  BookOpen, MessageSquare, Clock, Sparkles, Mic2, Pilcrow, Plus, Pen, ClipboardPaste,
 } from 'lucide-react'
 import api from '../services/api'
 import type { SongLyrics, LyricsSection, LyricsStatus, LineAnnotation, LyricsFetchStatus, SpotifyCurrentlyPlayingResponse, LrclibPreview } from '../types'
@@ -16,6 +16,8 @@ import {
   useProgressTick,
 } from '../hooks/useNowPlaying'
 import { timeAgo, formatMs } from '../lib/format'
+import { describeError } from '../lib/errors'
+import { parsePastedLyrics } from '../lib/lyricsPaste'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -903,6 +905,156 @@ function LrclibPreviewPanel({
   )
 }
 
+// ─── Paste import panel ───────────────────────────────────────────────────────
+
+function PasteImportPanel({
+  spotifyId,
+  lyrics,
+  onClose,
+}: {
+  spotifyId: string
+  lyrics: SongLyrics | null
+  onClose: () => void
+}) {
+  const queryClient = useQueryClient()
+  const [text, setText] = useState('')
+  const parsed = useMemo(() => (text.trim() ? parsePastedLyrics(text) : null), [text])
+  const lineCount = parsed ? parsed.rawText.split('\n').filter((l) => l.trim()).length : 0
+  const singerNames = parsed ? Array.from(new Set(parsed.singers.map((s) => s.singer))) : []
+
+  const accept = useMutation({
+    mutationFn: () => {
+      if (!parsed) return Promise.reject(new Error('empty'))
+      const singerByLine = new Map(parsed.singers.map((s) => [s.lineNumber, s.singer]))
+      const total = parsed.rawText.split('\n').length
+      return api
+        .put<SongLyrics>(`/songs/${spotifyId}/lyrics`, {
+          rawText: parsed.rawText,
+          version: lyrics?.version,
+          sections: parsed.sections,
+          // Without named singers in the paste, leave existing attributions alone
+          lines:
+            parsed.singers.length > 0
+              ? Array.from({ length: total }, (_, i) => ({
+                  lineNumber: i + 1,
+                  singer: singerByLine.get(i + 1) ?? null,
+                }))
+              : undefined,
+        })
+        .then((r) => r.data)
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(['lyrics', spotifyId], data)
+      onClose()
+    },
+  })
+
+  const sectionAt = new Map(parsed?.sections.map((s) => [s.startLine, s.label]) ?? [])
+  const previewLines = parsed ? parsed.rawText.split('\n').slice(0, 12) : []
+
+  return (
+    <div className="rounded-xl border border-edge bg-surface-raised overflow-hidden">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-edge bg-surface">
+        <ClipboardPaste size={13} className="text-accent flex-shrink-0" strokeWidth={2} />
+        <span className="text-xs font-semibold text-foreground flex-1">Lyrics einfügen</span>
+        <button
+          onClick={onClose}
+          className="text-foreground-subtle hover:text-foreground transition-colors"
+          aria-label="Schließen"
+        >
+          <X size={13} strokeWidth={2} />
+        </button>
+      </div>
+
+      <div className="px-4 py-3 space-y-3">
+        <p className="text-[11px] text-foreground-muted leading-relaxed">
+          Songtext z.&nbsp;B. auf Genius markieren, kopieren und hier einfügen. Abschnitte wie{' '}
+          <span className="font-mono">[Chorus: Artist]</span> werden zu Teilen und Singern,
+          Seitenreste wie „You might also like“ oder „Embed“ fliegen raus.
+        </p>
+
+        <textarea
+          autoFocus
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Hier einfügen…"
+          className="w-full min-h-32 bg-surface border border-edge rounded-lg p-3 resize-y text-xs leading-relaxed
+                     focus:outline-none focus:border-foreground-muted/60 transition-colors"
+        />
+
+        {parsed && (
+          <>
+            <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+              <span className="px-2 py-0.5 rounded-full bg-surface-overlay border border-edge text-foreground-muted">
+                {lineCount} Zeilen
+              </span>
+              <span className="px-2 py-0.5 rounded-full bg-surface-overlay border border-edge text-foreground-muted">
+                {parsed.sections.length} Teile
+              </span>
+              {singerNames.length > 0 && (
+                <span className="px-2 py-0.5 rounded-full bg-accent/10 border border-accent/20 text-accent">
+                  {singerNames.length === 1 ? singerNames[0] : `${singerNames.length} Singer`}
+                </span>
+              )}
+              {parsed.removedLines > 0 && (
+                <span className="text-foreground-subtle">{parsed.removedLines} Zeilen bereinigt</span>
+              )}
+            </div>
+
+            <div className="rounded-lg bg-surface border border-edge p-3 max-h-56 overflow-y-auto">
+              {previewLines.map((line, i) => (
+                <div key={i}>
+                  {sectionAt.has(i + 1) && (
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-accent/80 mt-2 first:mt-0">
+                      {sectionAt.get(i + 1)}
+                    </p>
+                  )}
+                  <p className="text-xs text-foreground leading-relaxed min-h-[1em]">{line}</p>
+                </div>
+              ))}
+              {lineCount > previewLines.filter((l) => l.trim()).length && (
+                <p className="text-[10px] text-foreground-subtle pt-1">… und mehr</p>
+              )}
+            </div>
+
+            {lyrics && lyrics.rawText.trim() !== '' && (
+              <p className="text-[11px] text-foreground-muted">
+                Ersetzt den aktuellen Text (v{lyrics.version}). Er bleibt im Verlauf, gleiche Zeilen
+                behalten Timestamps und Notizen.
+              </p>
+            )}
+          </>
+        )}
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => accept.mutate()}
+            disabled={!parsed || lineCount === 0 || accept.isPending}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent text-black text-xs font-semibold
+                       hover:opacity-90 disabled:opacity-40 transition-opacity"
+          >
+            {accept.isPending ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} strokeWidth={2.5} />}
+            {accept.isPending ? 'Wird übernommen…' : 'Übernehmen'}
+          </button>
+          <button
+            onClick={onClose}
+            disabled={accept.isPending}
+            className="px-3 py-1.5 rounded-lg border border-edge text-xs text-foreground-muted
+                       hover:text-foreground hover:border-foreground-muted/50 disabled:opacity-50 transition-colors"
+          >
+            Abbrechen
+          </button>
+          {accept.isError && (
+            <span className="text-[11px] text-red-600 dark:text-red-400 ml-auto">
+              {describeError(accept.error, 'Fehler beim Speichern')}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 interface Props {
@@ -922,6 +1074,7 @@ export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer, art
   const [showAnnotations, setShowAnnotations] = useState(true)
   const [showTimestamps, setShowTimestamps] = useState(false)
   const [showLrclib, setShowLrclib] = useState(false)
+  const [showPaste, setShowPaste] = useState(false)
   const [showSections, setShowSections] = useState(false)
   const [showSingers, setShowSingers] = useState(false)
 
@@ -1200,6 +1353,22 @@ export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer, art
           )}
 
           {mode === 'view' && (
+            <button
+              onClick={() => { setShowPaste((v) => !v); setShowLrclib(false) }}
+              title="Lyrics von Genius o. ä. einfügen"
+              className={[
+                'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors border',
+                showPaste
+                  ? 'bg-accent/10 border-accent/30 text-accent'
+                  : 'border-edge text-foreground-subtle hover:text-foreground-muted',
+              ].join(' ')}
+            >
+              <ClipboardPaste size={11} strokeWidth={2} />
+              Einfügen
+            </button>
+          )}
+
+          {mode === 'view' && (
             lyrics?.lrclibSource ? (
               <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs border border-accent/20 bg-accent/8 text-accent/70">
                 <Sparkles size={11} strokeWidth={2} />
@@ -1207,7 +1376,7 @@ export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer, art
               </span>
             ) : (
               <button
-                onClick={() => setShowLrclib((v) => !v)}
+                onClick={() => { setShowLrclib((v) => !v); setShowPaste(false) }}
                 title="Lyrics von LRCLib vorschlagen lassen"
                 className={[
                   'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors border',
@@ -1256,6 +1425,14 @@ export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer, art
         <LrclibPreviewPanel
           spotifyId={spotifyId}
           onClose={() => setShowLrclib(false)}
+        />
+      )}
+
+      {showPaste && mode === 'view' && (
+        <PasteImportPanel
+          spotifyId={spotifyId}
+          lyrics={lyrics}
+          onClose={() => setShowPaste(false)}
         />
       )}
 

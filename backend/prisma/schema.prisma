@@ -84,6 +84,7 @@ model User {
   featureRequests     FeatureRequest[]
   featureRequestVotes FeatureRequestVote[]
   playHistory         PlayHistory[]
+  apiTokens ApiToken[]
 }
 
 model SpotifyToken {
@@ -446,4 +447,22 @@ model FeatureRequestVote {
   request FeatureRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
 
   @@unique([userId, requestId])
+}
+
+// ─── Personal API tokens (vizzy and other local tools) ──────────────────────
+// The plain token ("nh_…") is shown once at creation; only its SHA-256 is
+// stored. `prefix` (the first characters) lets the user tell tokens apart.
+
+model ApiToken {
+  id         String    @id @default(cuid())
+  userId     String
+  name       String
+  prefix     String
+  tokenHash  String    @unique
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

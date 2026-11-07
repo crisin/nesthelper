@@ -10,6 +10,7 @@ import UsernameEdit from "../components/UsernameEdit";
 import { useTheme } from "../hooks/useTheme";
 import PollingSettings from "../components/settings/PollingSettings";
 import VisualSettings from "../components/settings/VisualSettings";
+import ApiTokenSettings from "../components/settings/ApiTokenSettings";
 
 // ─── Password strength ────────────────────────────────────────────────────────
 
@@ -363,6 +364,8 @@ export default function Settings() {
       <PollingSettings />
 
       <VisualSettings />
+
+      <ApiTokenSettings />
 
       <section className="pt-6 border-t border-edge">
         <div className="flex items-center justify-between pt-0.5">

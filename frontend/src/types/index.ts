@@ -448,3 +448,20 @@ export interface LrclibBatchResult {
   remaining: number
   results: { title: string; artist: string; found: boolean; synced: boolean }[]
 }
+
+// ─── Persönliche API-Tokens (Verbundene Apps) ────────────────────────────────
+
+export interface ApiTokenInfo {
+  id: string
+  name: string
+  /** erste Zeichen des Tokens, zum Auseinanderhalten */
+  prefix: string
+  createdAt: string
+  lastUsedAt: string | null
+}
+
+export interface CreatedApiToken {
+  /** nur in dieser Antwort sichtbar */
+  token: string
+  info: ApiTokenInfo
+}

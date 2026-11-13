@@ -17,7 +17,7 @@ import {
 } from '../hooks/useNowPlaying'
 import { timeAgo, formatMs } from '../lib/format'
 import { describeError } from '../lib/errors'
-import { parsePastedLyrics } from '../lib/lyricsPaste'
+import { parsePastedLyrics, lyricsFromGeniusHtml } from '../lib/lyricsPaste'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -977,6 +977,14 @@ function PasteImportPanel({
           autoFocus
           value={text}
           onChange={(e) => setText(e.target.value)}
+          onPaste={(e) => {
+            // Genius' HTML marks what is lyrics; plain text has the sidebar mixed in
+            const clean = lyricsFromGeniusHtml(e.clipboardData.getData('text/html'))
+            if (!clean) return
+            e.preventDefault()
+            const { selectionStart, selectionEnd, value } = e.currentTarget
+            setText(value.slice(0, selectionStart) + clean + value.slice(selectionEnd))
+          }}
           placeholder="Hier einfügen…"
           className="w-full min-h-32 bg-surface border border-edge rounded-lg p-3 resize-y text-xs leading-relaxed
                      focus:outline-none focus:border-foreground-muted/60 transition-colors"

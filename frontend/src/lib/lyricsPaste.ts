@@ -37,6 +37,64 @@ const TITLE_LINE = /\sLyrics$/
 const YMAL = /You might also like/gi
 const TICKETS = /See .{1,80}? Live\s*Get tickets as low as \$\d+/gi
 const EMBED = /\d*\s*Embed$/
+/**
+ * Genius' "You might also like" box sits in the DOM between two lyrics blocks,
+ * so a selection across it copies its three songs (title + artist line each)
+ * into the middle of a verse.
+ */
+const SIDEBAR_LINES = 6
+
+const GENIUS_LYRICS = '[data-lyrics-container="true"], [class*="Lyrics__Container"]'
+const GENIUS_CHROME =
+  '[data-exclude-from-selection="true"], aside, [class*="RightSidebar"], [class*="RecommendedSong"], ' +
+  '[class*="LyricsHeader"], script, style'
+const BLOCK_TAGS = new Set(['DIV', 'P', 'SECTION', 'LI', 'H1', 'H2', 'H3', 'H4'])
+
+function nodeText(node: Node, out: string[]): void {
+  if (node.nodeType === Node.TEXT_NODE) {
+    out.push((node.textContent ?? '').replace(/\s*\n\s*/g, ' '))
+    return
+  }
+  if (node.nodeType !== Node.ELEMENT_NODE) return
+  const el = node as Element
+  if (el.tagName === 'BR') {
+    out.push('\n')
+    return
+  }
+  const block = BLOCK_TAGS.has(el.tagName)
+  if (block) out.push('\n')
+  el.childNodes.forEach((child) => nodeText(child, out))
+  if (block) out.push('\n')
+}
+
+/**
+ * The clipboard's HTML flavour still knows which elements were lyrics. When a
+ * Genius copy carries its lyrics containers, take only those — everything the
+ * selection swept up in between (sidebar, ads, header) is gone without guessing.
+ * Returns null when the HTML is not recognisably Genius.
+ */
+export function lyricsFromGeniusHtml(html: string): string | null {
+  if (!html || typeof DOMParser === 'undefined') return null
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  const all = Array.from(doc.querySelectorAll(GENIUS_LYRICS))
+  // Outermost matches only, both selectors can hit the same element or a child
+  const containers = all.filter((el) => !all.some((other) => other !== el && other.contains(el)))
+  if (containers.length === 0) return null
+
+  const parts = containers.map((container) => {
+    container.querySelectorAll(GENIUS_CHROME).forEach((el) => el.remove())
+    const out: string[] = []
+    nodeText(container, out)
+    return out
+      .join('')
+      .split('\n')
+      .map((l) => l.trim())
+      .join('\n')
+      .replace(/^\n+|\n+$/g, '')
+  })
+  const text = parts.filter(Boolean).join('\n').replace(/\n{3,}/g, '\n\n')
+  return text.trim() ? text : null
+}
 
 /** Lines before the first header that belong to the Genius page, not the song. */
 function stripHeaderChrome(lines: string[]): { lines: string[]; removed: number } {
@@ -88,10 +146,29 @@ export function parsePastedLyrics(input: string): ParsedPaste {
   let pending: { label: string; singer: string | null } | null = null
   let singer: string | null = null
 
+  // Lines still to drop after a "You might also like" heading
+  let sidebarLeft = 0
+
   for (const original of lines) {
+    if (sidebarLeft > 0) {
+      const t = original.trim()
+      // The box ends at a blank line or the next section, whichever comes first
+      if (t === '' || BRACKET_HEADER.test(t)) {
+        sidebarLeft = 0
+      } else {
+        sidebarLeft--
+        removed++
+        continue
+      }
+    }
+
+    YMAL.lastIndex = 0
+    const hadYmal = YMAL.test(original)
     let line = original.replace(TICKETS, '').replace(YMAL, '').trimEnd()
     if (line.trim() === '' && original.trim() !== '') {
       removed++
+      // On its own line the heading is the sidebar box, and its entries follow
+      if (hadYmal) sidebarLeft = SIDEBAR_LINES
       continue
     }
     line = line.replace(EMBED, '').trimEnd()

@@ -166,10 +166,10 @@ describe('VizzyService', () => {
             { label: 'Bridge', startLine: 9 },
           ],
           lines: [
-            { lineNumber: 0, timestampMs: 12_000 },
-            { lineNumber: 4, timestampMs: null },
-            { lineNumber: 5, timestampMs: 41_500 },
-            { lineNumber: 9, timestampMs: null },
+            { lineNumber: 0, timestampMs: 12_000, text: 'Erste Zeile' },
+            { lineNumber: 4, timestampMs: null, text: '' },
+            { lineNumber: 5, timestampMs: 41_500, text: 'Refrain' },
+            { lineNumber: 9, timestampMs: null, text: 'Bridge ohne Zeit' },
           ],
         }),
       },
@@ -196,6 +196,12 @@ describe('VizzyService', () => {
       { label: 'Verse 1', startMs: 12_000 },
       { label: 'Chorus', startMs: 41_500 },
       { label: 'Bridge', startMs: null },
+    ]);
+    // the text with its time, blank lines left out
+    expect(r.lines).toEqual([
+      { text: 'Erste Zeile', startMs: 12_000 },
+      { text: 'Refrain', startMs: 41_500 },
+      { text: 'Bridge ohne Zeit', startMs: null },
     ]);
   });
 

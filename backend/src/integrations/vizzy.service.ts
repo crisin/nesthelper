@@ -15,6 +15,10 @@ export type VizzySongInfo = {
   /** lyrics sections (verse, chorus …) with the song time they start at,
    *  when the lyrics are synced; `startMs` null otherwise */
   sections: { label: string; startMs: number | null }[];
+  /** the lyrics line by line, with the song time each starts at when the
+   *  lyrics are synced (LRCLIB or set by hand); `startMs` null otherwise.
+   *  vizzy shows them on time and keeps its clock with its own transcription. */
+  lines: { text: string; startMs: number | null }[];
 };
 
 const NOT_FOUND: VizzySongInfo = {
@@ -26,6 +30,7 @@ const NOT_FOUND: VizzySongInfo = {
   saved: false,
   isFavorite: false,
   sections: [],
+  lines: [],
 };
 
 @Injectable()
@@ -82,7 +87,7 @@ export class VizzyService {
             orderBy: { position: 'asc' },
           },
           lines: {
-            select: { lineNumber: true, timestampMs: true },
+            select: { lineNumber: true, timestampMs: true, text: true },
             orderBy: { lineNumber: 'asc' },
           },
         },
@@ -114,6 +119,9 @@ export class VizzyService {
       saved: !!saved,
       isFavorite: saved?.isFavorite ?? false,
       sections,
+      lines: lines
+        .filter((l) => l.text.trim() !== '')
+        .map((l) => ({ text: l.text, startMs: l.timestampMs })),
     };
   }
 }

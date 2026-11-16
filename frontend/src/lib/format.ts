@@ -48,6 +48,15 @@ export function formatDate(date: string | Date): string {
   })
 }
 
+/** How much of a song a vizzy take covers: "92 % des Songs" — or minutes,
+ *  when vizzy did not know the duration. */
+export function takeHeard(take: { heardMs: number; durationMs: number | null }): string {
+  if (take.durationMs && take.durationMs > 0) {
+    return `${Math.min(100, Math.round((take.heardMs / take.durationMs) * 100))} % des Songs`
+  }
+  return `${Math.max(1, Math.round(take.heardMs / 60_000))} min gehört`
+}
+
 /** Playback position as "3:07". */
 export function formatMs(ms: number): string {
   const totalSeconds = Math.floor(ms / 1000)

@@ -21,6 +21,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { DigestModule } from './digest/digest.module';
 import { FeatureRequestsModule } from './feature-requests/feature-requests.module';
 import { IntegrationsModule } from './integrations/integrations.module';
+import { LyricsTakesModule } from './lyrics-takes/lyrics-takes.module';
 
 /**
  * REDIS_URL (what Railway's Redis plugin provides, password included) wins;
@@ -81,6 +82,7 @@ function redisConnection(config: ConfigService) {
     DigestModule,
     FeatureRequestsModule,
     IntegrationsModule,
+    LyricsTakesModule,
   ],
   // AppController was never registered, so GET /health 404'd — which is the
   // path railway.json points its healthcheck at. Unguarded on purpose.

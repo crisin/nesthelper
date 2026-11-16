@@ -42,6 +42,8 @@ Keep this updated when adding new queries. These are the canonical keys — inva
 | `['lyrics', spotifyId]` | Structured lyrics for a song | [src/components/LyricsEditor.tsx](src/components/LyricsEditor.tsx) |
 | `['annotations', spotifyId]` | Per-line annotations | [src/components/LyricsEditor.tsx](src/components/LyricsEditor.tsx) |
 | `['song-notes', spotifyId]` | Per-user notes on a song | [src/pages/SongDetail.tsx](src/pages/SongDetail.tsx) |
+| `['lyrics-takes']` | Own takes from vizzy, slim, all songs | [src/components/VizzyTakes.tsx](src/components/VizzyTakes.tsx) |
+| `['lyrics-takes', spotifyId]` | Own takes of one song, with lines | [src/components/LyricsEditor.tsx](src/components/LyricsEditor.tsx) |
 | `['lrclib-preview', spotifyId]` | LRCLib candidate lyrics | [src/components/LyricsEditor.tsx](src/components/LyricsEditor.tsx) |
 | `['collections']` | User's collections | [src/pages/Collections.tsx](src/pages/Collections.tsx) |
 | `['collections-public']` | Public collections | [src/pages/Collections.tsx](src/pages/Collections.tsx) |

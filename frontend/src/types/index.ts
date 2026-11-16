@@ -262,6 +262,38 @@ export interface LrclibPreview {
   lines: LrclibPreviewLine[]
 }
 
+// ─── Takes from vizzy ────────────────────────────────────────────────────────
+
+/** One line vizzy heard, with its place in the song. */
+export interface LyricsTakeLine {
+  text: string
+  startMs: number
+  endMs: number
+  repeat: boolean
+}
+
+/** What vizzy heard while a song played — rough lyrics with song times. */
+export interface LyricsTake {
+  id: string
+  source: string
+  recordedAt: string
+  /** 'media': timed by the playback position; 'songchange': only roughly */
+  clock: string
+  durationMs: number | null
+  heardMs: number
+  fromMs: number
+  toMs: number
+  createdAt: string
+  lines: LyricsTakeLine[]
+}
+
+export interface LyricsTakeListItem extends Omit<LyricsTake, 'lines'> {
+  lineCount: number
+  song: { spotifyId: string; title: string; artist: string; imgUrl: string | null }
+  /** what the song already has */
+  songLyrics: 'none' | 'text' | 'synced'
+}
+
 // ─── Spotify Library (F15) ───────────────────────────────────────────────────
 
 export interface SpotifyLibraryTrack {

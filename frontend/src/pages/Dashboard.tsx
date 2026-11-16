@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import LyricsSearch from '../components/LyricsSearch'
 import PullToRefresh from '../components/PullToRefresh'
 import RecentlyHeard from '../components/RecentlyHeard'
+import VizzyTakes from '../components/VizzyTakes'
 import api from '../services/api'
 import { useSpotifyStatus } from '../hooks/useSpotifyStatus'
 
@@ -61,6 +62,7 @@ export default function Dashboard() {
         {/* <h2 className="text-base font-semibold text-foreground">Search Lyrics</h2> */}
       </div>
       <LyricsSearch />
+      <VizzyTakes />
       <RecentlyHeard />
     </div>
     </PullToRefresh>

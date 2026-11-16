@@ -76,6 +76,8 @@ new-helper/
 │       ├── lyrics/                    ← legacy per-SavedLyric lyrics
 │       ├── line-annotations/          ← per-line annotations
 │       ├── lyrics-fetch/              ← BullMQ worker (lyrics.ovh)
+│       ├── integrations/              ← API tokens + vizzy endpoints (song lookup, takes in)
+│       ├── lyrics-takes/              ← takes from vizzy: list, per song, delete
 │       ├── search/                    ← cross-entity search
 │       ├── search-history/            ← Spotify search history
 │       ├── library/                   ← Spotify library sync

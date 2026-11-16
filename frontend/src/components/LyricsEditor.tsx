@@ -3,10 +3,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Eye, Pencil, History, ChevronDown, ChevronUp, MessageSquarePlus,
   RotateCcw, Check, Music, Headphones, Timer, Loader2, Rewind, X,
-  BookOpen, MessageSquare, Clock, Sparkles, Mic2, Pilcrow, Plus, Pen, ClipboardPaste,
+  BookOpen, MessageSquare, Clock, Sparkles, Mic2, Pilcrow, Plus, Pen, ClipboardPaste, AudioLines,
 } from 'lucide-react'
 import api from '../services/api'
-import type { SongLyrics, LyricsSection, LyricsStatus, LineAnnotation, LyricsFetchStatus, SpotifyCurrentlyPlayingResponse, LrclibPreview } from '../types'
+import type { SongLyrics, LyricsSection, LyricsStatus, LineAnnotation, LyricsFetchStatus, SpotifyCurrentlyPlayingResponse, LrclibPreview, LyricsTake } from '../types'
+import VizzyTakePanel from './VizzyTakePanel'
 import { useAuthStore } from '../stores/authStore'
 import {
   CURRENT_TRACK_KEY,
@@ -1083,6 +1084,7 @@ export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer, art
   const [showTimestamps, setShowTimestamps] = useState(false)
   const [showLrclib, setShowLrclib] = useState(false)
   const [showPaste, setShowPaste] = useState(false)
+  const [showTake, setShowTake] = useState(false)
   const [showSections, setShowSections] = useState(false)
   const [showSingers, setShowSingers] = useState(false)
 
@@ -1093,6 +1095,14 @@ export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer, art
     staleTime: 60_000,
     // An LRCLib lookup usually lands within a second or two
     refetchInterval: fetchStatus === 'FETCHING' ? 2_000 : false,
+  })
+
+  // What vizzy heard of this song, if anything — offered as a draft
+  const { data: takes = [] } = useQuery<LyricsTake[]>({
+    queryKey: ['lyrics-takes', spotifyId],
+    queryFn: () =>
+      api.get<LyricsTake[]>(`/lyrics-takes/song/${spotifyId}`).then((r) => r.data),
+    staleTime: 60_000,
   })
 
   // The list refresh below can report DONE before this query's own poll saw the
@@ -1362,7 +1372,7 @@ export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer, art
 
           {mode === 'view' && (
             <button
-              onClick={() => { setShowPaste((v) => !v); setShowLrclib(false) }}
+              onClick={() => { setShowPaste((v) => !v); setShowLrclib(false); setShowTake(false) }}
               title="Lyrics von Genius o. ä. einfügen"
               className={[
                 'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors border',
@@ -1376,6 +1386,22 @@ export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer, art
             </button>
           )}
 
+          {mode === 'view' && takes.length > 0 && (
+            <button
+              onClick={() => { setShowTake((v) => !v); setShowPaste(false); setShowLrclib(false) }}
+              title="Was vizzy bei diesem Song mitgehört hat"
+              className={[
+                'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors border',
+                showTake
+                  ? 'bg-accent/10 border-accent/30 text-accent'
+                  : 'border-accent/30 text-accent/80 hover:text-accent',
+              ].join(' ')}
+            >
+              <AudioLines size={11} strokeWidth={2} />
+              Aufnahme aus vizzy
+            </button>
+          )}
+
           {mode === 'view' && (
             lyrics?.lrclibSource ? (
               <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs border border-accent/20 bg-accent/8 text-accent/70">
@@ -1384,7 +1410,7 @@ export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer, art
               </span>
             ) : (
               <button
-                onClick={() => { setShowLrclib((v) => !v); setShowPaste(false) }}
+                onClick={() => { setShowLrclib((v) => !v); setShowPaste(false); setShowTake(false) }}
                 title="Lyrics von LRCLib vorschlagen lassen"
                 className={[
                   'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors border',
@@ -1427,6 +1453,15 @@ export default function LyricsEditor({ spotifyId, fetchStatus, onOpenViewer, art
           </div>
         </div>
       </div>
+
+      {showTake && mode === 'view' && takes.length > 0 && (
+        <VizzyTakePanel
+          spotifyId={spotifyId}
+          takes={takes}
+          lyrics={lyrics}
+          onClose={() => setShowTake(false)}
+        />
+      )}
 
       {/* LRCLib preview panel */}
       {showLrclib && (

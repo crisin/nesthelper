@@ -85,6 +85,7 @@ model User {
   featureRequestVotes FeatureRequestVote[]
   playHistory         PlayHistory[]
   apiTokens ApiToken[]
+  lyricsTakes LyricsTake[]
 }
 
 model SpotifyToken {
@@ -135,6 +136,7 @@ model Song {
   tags    SongTag[]
   notes   SongNote[]
   savedBy SavedLyric[]
+  takes   LyricsTake[]
 }
 
 // ─── NEW: Shared lyrics document per Song ─────────────────────────────────────
@@ -465,4 +467,34 @@ model ApiToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// A take: what vizzy (the visualizer) heard while a song played — rough
+// lyrics with song times. Raw material per user, next to the song; it never
+// changes SongLyrics by itself. Taking it over is a manual step.
+model LyricsTake {
+  id         String   @id @default(cuid())
+  userId     String
+  songId     String
+  source     String   @default("vizzy")
+  /** when the listening started — with user and song the identity of a take */
+  recordedAt DateTime
+  /** "media": timed by the media position; "songchange": only roughly */
+  clock      String
+  durationMs Int?
+  /** audio heard, pauses left out */
+  heardMs    Int
+  fromMs     Int
+  toMs       Int
+  engine     Json?
+  /** [{ text, startMs, endMs, repeat }] */
+  lines      Json
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  song Song @relation(fields: [songId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, songId, recordedAt])
+  @@index([songId])
 }

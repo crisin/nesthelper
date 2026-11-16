@@ -16,6 +16,8 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ApiTokenGuard } from './api-token.guard';
 import { ApiTokensService } from './api-tokens.service';
 import { VizzyService } from './vizzy.service';
+import { VizzyTakeDto } from './vizzy-take.dto';
+import { VizzyTakesService } from './vizzy-takes.service';
 
 type AuthedRequest = { user: { id: string } };
 
@@ -65,11 +67,15 @@ export class ApiTokensController {
   }
 }
 
-/** Read-only song lookup for the vizzy visualizer, with an API token. */
+/** For the vizzy visualizer, with an API token: song lookup, and takes
+ *  (what it heard) coming back. */
 @Controller('integrations/vizzy')
 @UseGuards(ApiTokenGuard)
 export class VizzyController {
-  constructor(private readonly vizzy: VizzyService) {}
+  constructor(
+    private readonly vizzy: VizzyService,
+    private readonly takes: VizzyTakesService,
+  ) {}
 
   /** Cheap check that URL and token work. */
   @Get('ping')
@@ -80,5 +86,12 @@ export class VizzyController {
   @Get('song')
   song(@Req() req: AuthedRequest, @Query() q: VizzySongQueryDto) {
     return this.vizzy.song(req.user.id, q);
+  }
+
+  /** A take: the lines vizzy heard during one song, with song times. Kept
+   *  next to the song as a draft; the lyrics themselves stay untouched. */
+  @Post('takes')
+  take(@Req() req: AuthedRequest, @Body() dto: VizzyTakeDto) {
+    return this.takes.store(req.user.id, dto);
   }
 }

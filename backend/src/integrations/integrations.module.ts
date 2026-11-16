@@ -8,14 +8,16 @@ import {
   VizzyController,
 } from './integrations.controller';
 import { VizzyService } from './vizzy.service';
+import { VizzyTakesService } from './vizzy-takes.service';
 
 /**
  * Personal API tokens and the endpoints local tools use with them
- * (currently vizzy: tags / mood / lyric sections of the song it plays).
+ * (currently vizzy: tags / mood / lyric sections of the song it plays, and
+ * the takes it sends back).
  */
 @Module({
   imports: [PrismaModule, AuthModule],
   controllers: [ApiTokensController, VizzyController],
-  providers: [ApiTokensService, ApiTokenGuard, VizzyService],
+  providers: [ApiTokensService, ApiTokenGuard, VizzyService, VizzyTakesService],
 })
 export class IntegrationsModule {}

@@ -1,10 +1,18 @@
-import { NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { TagType } from '@prisma/client';
 import type { ExecutionContext } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ApiTokenGuard } from './api-token.guard';
 import { ApiTokensService, hashToken } from './api-tokens.service';
 import { VizzyService } from './vizzy.service';
+import { validate } from 'class-validator';
+import { plainToInstance } from 'class-transformer';
+import { VizzyTakeDto } from './vizzy-take.dto';
+import { TAKES_KEPT, VizzyTakesService } from './vizzy-takes.service';
 
 const USER = 'user-1';
 
@@ -218,5 +226,168 @@ describe('VizzyService', () => {
     await expect(
       service.song(USER, { spotifyId: 'nope' }),
     ).resolves.toMatchObject({ found: false, tags: [] });
+  });
+});
+
+describe('VizzyTakesService', () => {
+  const take = () => ({
+    v: 1,
+    spotifyId: 'sp1',
+    artist: ' a-ha ',
+    title: 'Take On Me',
+    durationMs: 225_000,
+    recordedAt: '2026-11-16T19:02:11.000Z',
+    clock: 'media',
+    coverage: { fromMs: 0, toMs: 0 },
+    heardMs: 200_000,
+    engine: { language: 'auto' },
+    lines: [
+      { text: 'Take on me', startMs: 60_000, endMs: 62_500, repeat: false },
+      { text: '  ', startMs: 40_000, endMs: 41_000, repeat: false },
+      {
+        text: " We're talking away ",
+        startMs: 30_000,
+        endMs: 29_000,
+        repeat: false,
+      },
+    ],
+  });
+
+  function setup(existing: { id: string }[] = []) {
+    const prisma = {
+      song: {
+        upsert: jest.fn().mockResolvedValue({ id: 'song-1', spotifyId: 'sp1' }),
+      },
+      songLyrics: { update: jest.fn(), upsert: jest.fn(), create: jest.fn() },
+      lyricsTake: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        upsert: jest.fn().mockResolvedValue({ id: 'take-new' }),
+        findMany: jest
+          .fn()
+          .mockResolvedValue([{ id: 'take-new' }, ...existing]),
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+    };
+    return {
+      prisma,
+      service: new VizzyTakesService(prisma as unknown as PrismaService),
+    };
+  }
+
+  it('stores the take next to the song and leaves the lyrics alone', async () => {
+    const { service, prisma } = setup();
+
+    const r = await service.store(USER, take());
+
+    expect(r).toEqual({
+      id: 'take-new',
+      spotifyId: 'sp1',
+      created: true,
+      lines: 2,
+    });
+    // an unknown song is created from what vizzy knows; a known one is not changed
+    const [song] = prisma.song.upsert.mock.calls[0] as unknown as [
+      { create: unknown; update: unknown },
+    ];
+    expect(song.create).toEqual({
+      spotifyId: 'sp1',
+      title: 'Take On Me',
+      artist: 'a-ha',
+      artists: ['a-ha'],
+    });
+    expect(song.update).toEqual({});
+    const [saved] = prisma.lyricsTake.upsert.mock.calls[0] as unknown as [
+      {
+        where: { userId_songId_recordedAt: unknown };
+        create: { lines: unknown };
+      },
+    ];
+    expect(saved.where.userId_songId_recordedAt).toEqual({
+      userId: USER,
+      songId: 'song-1',
+      recordedAt: new Date('2026-11-16T19:02:11.000Z'),
+    });
+    // blank lines out, sorted by time, an end before the start pulled up,
+    // the coverage taken from the lines rather than trusted
+    expect(saved.create.lines).toEqual([
+      {
+        text: "We're talking away",
+        startMs: 30_000,
+        endMs: 30_000,
+        repeat: false,
+      },
+      { text: 'Take on me', startMs: 60_000, endMs: 62_500, repeat: false },
+    ]);
+    expect(saved.create).toMatchObject({
+      fromMs: 30_000,
+      toMs: 62_500,
+      source: 'vizzy',
+    });
+    expect(prisma.songLyrics.update).not.toHaveBeenCalled();
+    expect(prisma.songLyrics.upsert).not.toHaveBeenCalled();
+    expect(prisma.songLyrics.create).not.toHaveBeenCalled();
+    expect(prisma.lyricsTake.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('replaces a take sent twice and keeps only the newest few', async () => {
+    const { service, prisma } = setup([
+      { id: 'b' },
+      { id: 'c' },
+      { id: 'old-1' },
+      { id: 'old-2' },
+    ]);
+    prisma.lyricsTake.findUnique.mockResolvedValue({ id: 'take-new' });
+
+    const r = await service.store(USER, take());
+
+    expect(r.created).toBe(false);
+    expect(TAKES_KEPT).toBe(3);
+    expect(prisma.lyricsTake.deleteMany).toHaveBeenCalledWith({
+      where: { id: { in: ['old-1', 'old-2'] } },
+    });
+  });
+
+  it('refuses a take without text or with a broken date', async () => {
+    const { service, prisma } = setup();
+    const empty = {
+      ...take(),
+      lines: [{ text: ' ', startMs: 0, endMs: 1, repeat: false }],
+    };
+    await expect(service.store(USER, empty)).rejects.toThrow(
+      BadRequestException,
+    );
+    await expect(
+      service.store(USER, { ...take(), recordedAt: 'gestern' }),
+    ).rejects.toThrow(BadRequestException);
+    expect(prisma.lyricsTake.upsert).not.toHaveBeenCalled();
+  });
+
+  it("accepts vizzy's file as it is, and nothing oversized or unknown", async () => {
+    const errors = (body: object) =>
+      validate(plainToInstance(VizzyTakeDto, body), {
+        whitelist: true,
+        forbidNonWhitelisted: true,
+      });
+    await expect(errors(take())).resolves.toHaveLength(0);
+    // a song without a known duration
+    await expect(errors({ ...take(), durationMs: null })).resolves.toHaveLength(
+      0,
+    );
+    const line = take().lines[0];
+    await expect(
+      errors({ ...take(), lines: Array.from({ length: 501 }, () => line) }),
+    ).resolves.not.toHaveLength(0);
+    await expect(
+      errors({ ...take(), spotifyId: null }),
+    ).resolves.not.toHaveLength(0);
+    await expect(
+      errors({ ...take(), clock: 'guess' }),
+    ).resolves.not.toHaveLength(0);
+    await expect(
+      errors({ ...take(), lines: [{ ...line, startMs: -5 }] }),
+    ).resolves.not.toHaveLength(0);
+    await expect(
+      errors({ ...take(), lines: [{ ...line, html: '<b>' }] }),
+    ).resolves.not.toHaveLength(0);
   });
 });
